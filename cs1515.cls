@@ -150,7 +150,8 @@
     linkcolor = blue,
     urlcolor  = blue,
     citecolor = blue,
-    anchorcolor = blue]{hyperref}
+    anchorcolor = blue,
+    destlabel = true]{hyperref}
 \RequirePackage[nameinlink]{cleveref}
 
 % Underlining
