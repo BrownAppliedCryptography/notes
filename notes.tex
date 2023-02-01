@@ -4,7 +4,24 @@
 \date{Spring 2023}
 
 \usepackage[textsize=tiny, textwidth=18mm]{todonotes}
-\setuptodonotes{noline, color=green!20}
+\setuptodonotes{color=green!20}
+\usepackage{marginnote}
+
+\makeatletter
+\renewcommand{\@todonotes@drawMarginNoteWithLine}{%
+\begin{tikzpicture}[remember picture, overlay, baseline=-0.75ex]%
+    \node [coordinate] (inText) {};%
+\end{tikzpicture}%
+\marginnote[{% Draw note in left margin
+    \@todonotes@drawMarginNote%
+    \@todonotes@drawLineToLeftMargin%
+}]{% Draw note in right margin
+    \@todonotes@drawMarginNote%
+    \@todonotes@drawLineToRightMargin%
+}%
+}%
+\makeatother
+
 \usepackage{cancel}
 \usetikzlibrary{cd}
 \numberwithin{equation}{section}
@@ -16,7 +33,7 @@
 \begin{quote}
     \quad These are lecture notes for CSCI 1515: Applied Cryptography taught at \textsc{Brown University} by Peihan Miao in the Spring of 2023.
 
-    \quad These notes are taken by Jiahua Chen with gracious help and input from classmates. Please direct any mistakes/errata to me via \href{mailto:jiahua_chen2@brown.edu}{email}, post a thread on Ed, or feel free to pull request or submit an issue to the notes repository (\url{https://github.com/brownappliedcryptography/notes}).
+    \quad These notes are taken by Jiahua Chen with gracious help and input from classmates. Please direct any mistakes/errata\todo{FYI, todo's are marked like this.} to me via \href{mailto:jiahua_chen2@brown.edu}{email}, post a thread on Ed, or feel free to pull request or submit an issue to the notes repository (\url{https://github.com/BrownAppliedCryptography/notes}).
 
     \quad Notes last updated \today.
 \end{quote}
@@ -26,5 +43,6 @@
 
 \newpage
 \input{lectures/2023-01-26.tex}
+\input{lectures/2023-01-31.tex}
 
 \end{document}

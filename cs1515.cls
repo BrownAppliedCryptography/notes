@@ -403,3 +403,11 @@
 \newcommand{\QQ}{\mathbb Q}
 \newcommand{\RR}{\mathbb R}
 \newcommand{\ZZ}{\mathbb Z}
+
+% CS1515
+\newcommand{\sampledfrom}{\overset{\$}{\leftarrow}}
+\DeclareMathOperator{\Gen}{\mathsf{Gen}}
+\DeclareMathOperator{\Enc}{\mathsf{Enc}}
+\DeclareMathOperator{\Dec}{\mathsf{Dec}}
+\DeclareMathOperator{\negligible}{\mathsf{negligible}}
+\newcommand{\eqline}{\noalign{\smallskip} \hline \noalign{\smallskip}}
