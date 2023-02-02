@@ -159,12 +159,12 @@ Even further, we pick some problems not in $\mathsf{NP}$-complete, not in $\math
 
 Going back to our definition of computational security \cref{def:computational-security},
 \begin{definition*}[Computational Security]
-    We say that the adversary is computationally bounded (is only a \emph{ polynomial-time algorithm}), that $\forall \text{probabilic poly-time algorithm }\mathcal{A}$,
+    We say that the adversary is computationally bounded (is only a \emph{polynomial-time algorithm}), that $\forall \text{probabilic poly-time algorithm }\mathcal{A}$,
     \[\Enc_k(m_0)\overset{c}{\simeq}\Enc_k(m_1)\]
     Where $\overset{c}{\simeq}$ is ``computationally indistinguishable''.
 \end{definition*}
 
-What does it mean for distributions to be ``computationally indistinguishable''? Let's say Alice encrypts multiple messages $m_0, m_1, \dots$ to Bob and produces $c_0, c_1, \dots$. Even if Eve can see all plaintexts $m_i$ in the open and ciphertexts $c_i$ in the open, between known $m_0, m_1$ and randomly encrypting one of them $c\leftarrow \Enc_{k}(m_b)$ where $b\sampledfrom \{0, 1\}$, the adversary cannot determine what the random choice bit $b$ is. That is, $\Pr[b = b'] \leq \frac{1}{2} + \mathsf{negligible}(\lambda)$\footnote{$\lambda$ is the security parameter, roughly a measure of how secure the protocol is. If it were exactly equal $\frac{1}{2}$, we have information-theoretic security.}.
+What does it mean for distributions to be ``computationally indistinguishable''? Let's say Alice encrypts multiple messages $m_0, m_1, \dots$ to Bob and produces $c_0, c_1, \dots$. Even if Eve can see all plaintexts $m_i$ in the open and ciphertexts $c_i$ in the open, between known $m_0, m_1$ and randomly encrypting one of them $c\leftarrow \Enc_{k}(m_b)$ where $b\sampledfrom \{0, 1\}$, the adversary cannot determine what the random choice bit $b$ is. That is, $\Pr[b = b'] \leq \frac{1}{2} + \mathsf{negligible}(\lambda)$\footnote{$\lambda$ is the security parameter, roughly a measure of how secure the protocol is. If it were exactly equal $\frac{1}{2}$, we have information-theoretic security.}. This is Chosen-Plaintext Attack (CPA) Security.
 
 \begin{center}
     \includegraphics[width=0.8\textwidth]{images/2023-01-31/computational-security.png}

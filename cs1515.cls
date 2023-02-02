@@ -398,6 +398,7 @@
 
 % Sets of numbers
 \newcommand{\CC}{\mathbb C}
+\newcommand{\GG}{\mathbb G}
 \newcommand{\FF}{\mathbb F}
 \newcommand{\NN}{\mathbb N}
 \newcommand{\QQ}{\mathbb Q}
@@ -411,3 +412,5 @@
 \DeclareMathOperator{\Dec}{\mathsf{Dec}}
 \DeclareMathOperator{\negligible}{\mathsf{negligible}}
 \newcommand{\eqline}{\noalign{\smallskip} \hline \noalign{\smallskip}}
+
+\DeclareMathOperator{\csimeq}{\overset{c}{\simeq}}
