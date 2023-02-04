@@ -1,5 +1,6 @@
 %!TEX root = ../notes.tex
 \section{February 2, 2023}
+\label{20230202}
 \subsection{RSA Encryption, \emph{continued}}
 \recall that the RSA encryption algorithm contains 3 components:
 \begin{description}
@@ -81,9 +82,9 @@ which is still negligible. Put simply, Alice has just as much chance to break RS
     For a finite group, we use $|\GG|$ to denote its \emph{order}.
 \end{definition}
 \begin{example}
-    \todo{Specific examples, work through.}
-
     $(\ZZ, +)$ is an Abelian group.
+
+    We can check so: two integers sum to an integer, identity is $0$, the inverse of $a$ is $-a$, addition is associative and commutative.
 
     $(\ZZ, \cdot)$ is not a group.
 
@@ -97,10 +98,15 @@ which is still negligible. Put simply, Alice has just as much chance to break RS
 \end{definition}
 
 \begin{example*}
-    $\ZZ_p^\times$ (for prime $p$) is a cyclic group of order $p-1$\footnote{A proof of this extends beyond the scope of this course, but you are recommended to check out Math 1560 (Number Theory) or Math 1580 (Cryptography). You can take this on good faith. }.
+    $\ZZ_p^\times$ (for prime $p$) is a cyclic group of order $p-1$\framedfootnote{A proof of this extends beyond the scope of this course, but you are recommended to check out Math 1560 (Number Theory) or Math 1580 (Cryptography). You can take this on good faith. }.
     \[\ZZ_7^\times = \{3^0 = 1, 3^1, 3^2=2, 3^3 = 6, 3^4 = 5, 3^5 = 5\}.\]
 \end{example*}
-\todo{How do we find a generator?}.
+\begin{ques*}
+    How do we find a generator?
+\end{ques*}
+For every element, we can continue taking powers until $g^\alpha = 1$ for some $\alpha$. We hope that $\alpha = p-1$ (the order of $g$ is the order of the group), but we know at least $\alpha \mid p-1$.
+
+\subsection{Computational Assumptions}
 
 We have a few assumptions we make called the Diffie-Hellman Assumptions, in order of \textbf{weakest to strongest}\footnote{If one can solve DLOG, we can solve CDH. Given CDH, we can solve DDH. This is why CDH is \emph{stronger} than DDH, and DDH is \emph{stronger} than DLOG. It's not necessarily true the other way around (similar to factoring and DSA assumptions). } assumptions.
 
@@ -139,7 +145,6 @@ The ElGamal encryption scheme involves the following:
 
 Notes about ElGamal:
 \begin{itemize}
-    \item \todo{There was one more but I can't remember, will add from recording.}.
     \item Our group can be reused! We can use a public group that is fixed. In fact, there are \emph{popular} groups out there used in practice. Some of these are Elliptic Curve groups which are much more efficient than integer groups. You don't need to use the details, yet you can use it! You can use any group, so long as the group satisfies the DDH assumption.
     \item Similar to RSA, this is breakable post-quantum. Given Shor's Algorithm, we can break discrete log.
 \end{itemize}
@@ -162,14 +167,18 @@ Bob generates a keypair $(pk, sk)$. Alice generates a shared key $k\sampledfrom 
 
 Using Diffie-Hellman, it's very easy. We have group $(\GG, q, g)\leftarrow \mathcal{G}(1^\lambda)$. Alice samples $x\sampledfrom \ZZ_q$ and sends $g^x$. Bob also samples $y\sampledfrom \ZZ_q$ and sends $g^y$. Both Alice and Bob compute $g^{xy} = (g^x)^y = (g^y)^x$.
 
-\todo{Graphic for Diffie-Hellman.}
+\begin{center}
+    \includegraphics[width=0.8\textwidth]{images/2023-02-02/diffie-hellman.png}
+\end{center}
 
 What happens in practice is that parties run Diffie-Hellman key exchange to agree on a shared key. Using that shared key, they run symmetric-key encryption. This gives us efficiency. Additionally, private-key encryptions don't rely on heavy assumptions on the security of protocols (such as the DDH, RSA assumptions).
 
 \subsection{Message Integrity}
 Alice sends a message to Bob, how does Bob ensure that the message came from Alice?
 
-\todo{Graphic}
+\begin{center}
+    \includegraphics[width=0.8\textwidth]{images/2023-02-02/integrity.png}
+\end{center}
 
 We can build up another line of protocols to ensure message integrity. It's similar to encryption, but the parties run 2 algorithms: \emph{Authenticate} and \emph{Verify}.
 
@@ -181,17 +190,43 @@ Similarly to encryption, we have symmetric-key and public-key encryption.
 
 Using a shared key $k$, Alice can authenticate $m$ using $k$ to get a tag $k$. Similarly, Bob can verify whether $(m, t)$ is valid using $k$. This is called a Message Authentication Code.
 
-\todo{Graphic}
+\begin{center}
+    \includegraphics[width=0.8\textwidth]{images/2023-02-02/mac.png}
+\end{center}
 
 Using a public key $vk$ (verification key) and private key $sk$ (secret/signing key), Alice can sign a message $m$ using signing key $sk$ to get a \emph{signature} $\sigma$. Bob verifies $(m, \sigma)$ is valid using $vk$. This is called a Digital Signature.
 
-\todo{Graphic}
+\begin{center}
+    \includegraphics[width=0.8\textwidth]{images/2023-02-02/signature.png}
+\end{center}
 
 \subsubsection{Syntax}
-\todo{Syntax}
+The following is the syntax we use for MACs and digital signatures.
+
+A message authentication code (MAC) scheme consists of $\pi = (\Gen, \mathsf{Mac}, \mathsf{Verify})$.
+\begin{description}
+    \item[Generation.] $k\leftarrow \Gen(1^\lambda)$.
+    \item[Authentication.] $t \leftarrow \mathsf{Mac}_k(m)$.
+    \item[Verification] $0/1 := \mathsf{Verify}_k(m, t)$.
+\end{description}
+
+A digital signature scheme consists of $\pi = (\Gen, \mathsf{Sign}, \mathsf{Verify})$.
+\begin{description}
+    \item[Generation.] $(sk, vk)\leftarrow \Gen(1^\lambda)$.
+    \item[Authentication.] $\sigma \leftarrow \mathsf{Sign}_{sk}(m)$.
+    \item[Verification] $0/1 := \mathsf{Verify}_{vk}(m, \sigma)$.
+\end{description}
 
 \subsubsection{Chosen-Message Attack}
-Similar to chosen-plaintext attack from encryption, we have chosen-message attack security. An adversary knowing a polynomial number of \todo{Complete}.
+Similar to chosen-plaintext attack from encryption, we have chosen-message attack security. An adversary chooses a number of messages to generate signatures or tags for. After that, the adversary will try to generate another valid pair of message and tag. We want to make sure that generating a new pair of message and tag is hard.
 
-\subsubsection{Constructions for MAC}
-\todo{constructions}.
+\begin{center}
+    \includegraphics[width=0.8\textwidth]{images/2023-02-02/cma.png}
+\end{center}
+
+\subsubsection{Constructions}
+Very briefly, we discuss constructions for MAC and digital signatures.
+
+Using block ciphers, we have CBC-MAC. Using a hash function, we have HMAC.
+
+For digital signatures, we have RSA which relies on the RSA assumption, or DSA which relies on discrete-log algorithms. There are also lattice signature schemes for post-quantum digital signatures.

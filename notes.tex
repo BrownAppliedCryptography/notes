@@ -22,6 +22,15 @@
 }%
 \makeatother
 
+\usepackage{tablefootnote} 
+\makeatletter 
+\AfterEndEnvironment{mdframed}{%
+ \tfn@tablefootnoteprintout% 
+ \gdef\tfn@fnt{0}% 
+}
+\makeatother
+\newcommand{\framedfootnote}{\tablefootnote}
+
 \usepackage{cancel}
 \usetikzlibrary{cd}
 \numberwithin{equation}{section}
