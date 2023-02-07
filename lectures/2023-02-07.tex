@@ -1,0 +1,234 @@
+%!TEX root = ../notes.tex
+\section{February 7, 2023}
+\label{20230207}
+\subsection{Message Integrity, \emph{reviewed}}
+
+Last lecture, we discussed methods of authenticating a message. The symmetric-key version is called a MAC (message authentication code), the public-key version is called a digital signature. Let's review what we covered last time.
+
+\subsubsection{Message Authentication Code}
+To authenticate a message, Alice will use the private key $k$ to tag a message $m$ with a tag $t$. Bob will verify that $(m, t)$ is valid with key $k$.
+
+\todo{diagram}
+
+\subsubsection{Digital Signature}
+In the public-key version, Alice has a secret key $sk$ to sign message $m$ with signature $\sigma$. Bob (or anyone) can verify with the public key $pk$ that $(m, \sigma)$ is a valid signature.
+
+\todo{diagram}
+
+\subsubsection{Syntax}
+Recall the syntax of MAC and digital signatures (see \cref{sec:message-integrity:syntax}).
+
+A message authentication code (MAC) scheme consists of $\pi = (\Gen, \mathsf{Mac}, \mathsf{Verify})$.
+\begin{description}
+    \item[Generation.] $k\leftarrow \Gen(1^\lambda)$.
+    \item[Authentication.] $t \leftarrow \mathsf{Mac}_k(m)$.
+    \item[Verification] $0/1 := \mathsf{Verify}_k(m, t)$.
+\end{description}
+
+A digital signature scheme consists of $\pi = (\Gen, \mathsf{Sign}, \mathsf{Verify})$.
+\begin{description}
+    \item[Generation.] $(sk, vk)\leftarrow \Gen(1^\lambda)$.
+    \item[Authentication.] $\sigma \leftarrow \mathsf{Sign}_{sk}(m)$.
+    \item[Verification] $0/1 := \mathsf{Verify}_{vk}(m, \sigma)$.
+\end{description}
+
+\subsubsection{Constructions}
+We can construct MAC pratically using
+\begin{itemize}
+    \item Block Cipher: CBC-MAC
+    \item Hash Functions: HMAC
+\end{itemize}
+
+We can construct digital signatures using
+\begin{itemize}
+    \item RSA signature: RSA Assumption.
+    \item DSA signature: Discrete Log Assumption
+    \item Lattice-Based Encryption Schemes (post-quantum secure).
+\end{itemize}
+
+\subsection{RSA Signatures}
+Our RSA signatures algorithm works very similarly to RSA encryption.
+
+We generate two $n$-bit primes $p, q$. Compute $N:=p\cdot q$ and $\phi(N) = (p-1)(q-1)$. Again choose $e$ with $\gcd(e, \phi(N)) = 1$ and invert $d = e^{-1}\mod\phi(N)$. Given $N$ and a random $y\sampledfrom\ZZ_N^\times$, it's computationally hard to find $x$ such that $x^e\equiv y\mod N$.
+
+Similarly, $sk := d$ and $vk := (N, e)$. To sign, we compute
+\[\Sign_{sk}(m) := m^d\mod{N}.\]
+To verify, we compute
+\[\Verify_{vk}(m, \sigma):= \sigma^e\overset{?}{\equiv}m\mod N.\]
+
+\begin{ques*}
+    Are there any security issues with RSA as we have constructed it so far?
+\end{ques*}
+
+Thinking back to our definition of chosen-message attack, if Eve knows many messages and signatures
+
+\todo{I missed this section to take a call will watch recording.}
+
+There is an easy solution, however. We can hash our message $m$ before we sign, like so
+\begin{align*}
+    \Sign_{sk}(m)           & := H(m)^d\mod{N}                         \\
+    \Verify_{vk}(m, \sigma) & := \sigma^e\overset{?}{\equiv}H(m)\mod N
+\end{align*}
+where $H$ is a hash function\footnote{A hash function is, briefly, a function that produces some random output that is hard to compute the inverse of.}. This is a commonly known technique called `hash-and-sign'.
+
+\subsection{DSA Signatures}
+DSA signatures are a bit more involved; they rely on the discrete log assumption and that it is hard to compute discrete logs in $\ZZ_p^\times$ and $\ZZ_q^\times$ a subgroup.
+
+We give this definition using integer groups. There is also ECDSA which uses elliptic curve groups, which is used in cryptocurrencies\footnote{The specific curve used by Bitcoin, for example, is called \textbf{secp256k1}.}. Elliptic curves are much more efficient (especially when chosen correctly) and provide similar security guarantees.
+
+\begin{description}
+    \item[$\Gen(1^k)$:] We generate an $n$-bit\footnote{Usually, $2048$.} prime $p$ and an $m$-bit\footnote{Usually, $256$. We assume discrete log in \emph{both} of these groups.} prime $q$ such that $q\mid (p-1)$. We pick a random $\alpha\in\ZZ_p^\times$ such that $g = \alpha^{\frac{p-1}{q}}\mod{p}\neq 1$\footnote{This means that $\langle g\rangle$ has order $q$, a subgroup in $\ZZ_p^{-1}$. $g^q \equiv \alpha^{p-1}\equiv 1\mod{p}$. }
+
+        We pick $x\sampledfrom \ZZ_q^\times$ and compute $h = g^x\mod{p}$.
+
+        Our verification key is $vk := (p, q, g, h)$ and our signing key is $sk = x$.
+
+        \todo{Signing and verifying}
+\end{description}
+
+\subsection{Authenticated Encryption}
+Generally, Alice and Bob will first perform a Diffie-Hellman key exchange, then use that shared key to conduct Symmetric-Key Encryption.
+
+\todo{diagram}
+
+In reality, we want to achieve both message secrecy and integrity \emph{at the same time}. For this, we can introduce Authenticated Encryption.
+
+Our security definition is that our adversary can see the encryptions of many messages $m_0, m_1, m_2$. We want \textbf{CPA security}: given an encryption of either $m_0, m_1$, our adversary cannot distinguish between encryptions of the two. \emph{Additionally}, we want the property of \textbf{unforgeability}, that our adversary cannot generate a $c^*$ that is a valid encryption, such that $\Dec_{k}(c^*)\neq m_i$ for any $i$.
+
+\todo{diagram}
+
+Now that we have two new primitives, we can construct Authenticated Encryption schemes.
+
+\subsubsection{Encrypt-and-MAC?}
+Given a CPA-secure SKE scheme $\pi_1(\Gen_1, \Enc_1, \Dec_1)$ and a CMA-secure MAC scheme $\pi_2 = (\Gen_2, \Mac_2, \Verify_2)$.
+
+We construct an AE scheme $\pi = (\Gen, \Enc, \Dec)$ by composing encryption and MAC. We encrypt first, then MAC the encrypted ciphertext.
+
+\todo{Diagram}
+
+\begin{description}
+    \item[$\Gen(1^\lambda)$:] $k_1:=\Gen_1(1^\lambda)$, $k_2:=\Gen_2(1^\lambda)$, output $(k_1, k_2)$.
+
+    \item[$\Enc(m)$:] To encrypt, we first encrypt ciphertext $c_1 := \Enc_1(k_1, m)$ and sign message (in plaintext) $t_2 := \Mac_2(k_2, m)$ and output $(c_1, t_2)$.
+
+    \item[$\Dec(m)$:] We have ciphertext $c = (c_1, t_2)$. Our message is $m:=\Dec_1(k_1, c_1)$, and our verification bit $b := \Verify_1(k_2, (m, t_2))$. If $b = 1$, output $m$, otherwise we output $\bot$.
+\end{description}
+
+\begin{ques*}
+    Is this scheme secure? Assuming the CPA-secure SKE scheme and CMA-secure MAC scheme, does this give us both CPA-security and unforgeability?
+\end{ques*}
+
+MAC gives you \emph{unforgeability}---it doesn't even try to hide the message at all. It's possible that the MAC scheme reveals the message in the clear. For example, we might have a MAC scheme that includes the message in the signature \emph{in the clear} (which is still secure)!
+
+Since MAC doesn't try to hide the message. If our MAC reveals something about our message, our composed scheme $\pi$ doesn't give us CPA-security. You might still be able to infer something about the message.
+
+We try something else\dots
+
+\subsubsection{Encrypt-then-MAC}
+We encrypt first, then we MAC on the \emph{ciphertext}.
+
+\todo{diagram}
+
+\begin{description}
+    \item[$\Gen(1^\lambda)$:] $k_1:=\Gen_1(1^\lambda)$, $k_2:=\Gen_2(1^\lambda)$, output $(k_1, k_2)$.
+
+    \item[$\Enc(m)$:] To encrypt, we first encrypt ciphertext $c_1 := \Enc_1(k_1, m)$ and sign message (in plaintext) $t_2 := \Mac_2(k_2, {\color{red} c_1})$ and output $(c_1, t_2)$.
+
+    \item[$\Dec(m)$:] We have ciphertext $c = (c_1, t_2)$. Our message is $m:=\Dec_1(k_1, c_1)$, and our verification bit $b := \Verify_1(k_2, ({\color{red} c_1}, t_2))$. If $b = 1$, output $m$, otherwise we output $\bot$.
+\end{description}
+
+You can prove that Encrypt-then-MAC schemes are CPA-secure and unforgeable.
+
+\subsubsection{MAC-then-Encrypt}
+Similarly, we can also MAC first, encrypt the entire ciphertext and tag concatenated.
+
+\todo{diagram}
+
+\begin{description}
+    \item[$\Gen(1^\lambda)$:] $k_1:=\Gen_1(1^\lambda)$, $k_2:=\Gen_2(1^\lambda)$, output $(k_1, k_2)$.
+
+    \item[$\Enc(m)$:] To encrypt, we first encrypt ciphertext $c_1 := \Enc_1(k_1, m)$ and sign message (in plaintext) $t_2 := \Mac_2(k_2, {\color{red} m||t_2})$ and output $(c_1, t_2)$.
+
+    \item[$\Dec(m)$:] We have ciphertext $c = (c_1, t_2)$. Our message is ${\color{red} m||t_2}:=\Dec_1(k_1, c_1)$, and our verification bit $b := \Verify_1(k_2, (m, t_2))$. If $b = 1$, output $m$, otherwise we output $\bot$.
+\end{description}
+
+\begin{ques*}
+    Is this secure?
+\end{ques*}
+
+This doesn't satisfy a stronger security definition called Chosen Ciphertext Attack (CCA) security. We might be able to forge ciphertexts that decrypt to valid message and tags.
+
+\subsubsection{Chosen Ciphertext Attack Security}
+On top of CMA security, the adversary can now request Alice to decrypt ciphertexts $c_0, c_1, \dots$.
+
+\todo{diagram}
+
+We can prove that MAC-then-Encrypt is not CCA secure.
+
+The moral of this is that \textbf{you should always use Encrypt-then-MAC.}
+
+\subsection{A Summary So Far}
+To summarize, here's all we've covered so far:
+\begin{center}
+    \begin{tabular}{@{}lll@{}}
+        \toprule
+                             & Symmetric-Key                                                                          & Public-Key                                                                            \\ \midrule
+        Message Secrecy      & \begin{tabular}[c]{@{}l@{}}Primitive: SKE\\ Construction: Block Cipher\end{tabular}    & \begin{tabular}[c]{@{}l@{}}Primitive: PKE\\ Constructions: RSA/ElGamal\end{tabular}   \\ \midrule
+        Message Integrity    & \begin{tabular}[c]{@{}l@{}}Primitive: MAC\\ Constructions: CBC-MAC/HMAC\end{tabular}   & \begin{tabular}[c]{@{}l@{}}Primitive: Signature\\ Constructions: RSA/DSA\end{tabular} \\ \midrule
+        Secrecy \& Integrity & \begin{tabular}[c]{@{}l@{}}Primitive: AE\\ Construction: Encrypt-then-MAC\end{tabular} &                                                                                       \\ \midrule
+        Key Exchange         &                                                                                        & Construction: Diffie-Hellman                                                          \\ \midrule
+        Important Tool       & \begin{tabular}[c]{@{}l@{}}Primitive: Hash function\\ Construction: SHA\end{tabular}   &                                                                                       \\ \bottomrule
+    \end{tabular}
+\end{center}
+
+
+
+\subsection{Hash Function}
+A hash function is a public function
+\[H: {0, 1}^*\to {0, 1}^n\]
+where $n$ is order $\Theta(\lambda)$.
+
+\todo{diagram}
+
+We want our hash function to be collision-resistant. That is, it's computationally hard to find $x, y\in\left\{ 0, 1 \right\}^*$ such that $x\neq y$ yet $H(x) = H(y)$ (which is called a collision).
+
+How might one find a collision for function $H: \{ 0, 1 \}^*\to \{ 0, 1 \}^n$. We can try $H(x_1), H(x_2), \dots, H(x_q)$.
+
+If $H(x_1)$ outputs a random value, ${0, 1}^n$, what is the probability of finding a collision?
+
+If $q = 2^n + 1$, our probability is exactly $1$ (by pigeon-hole). If $q = 2$, our probability is $\frac{1}{2^\lambda}$ (we have to get it right on the first try). What $q$ do we need for a `reasonable' probability?
+
+\begin{remark*}
+    This is related to the birthday problem. If there are $q$ students in a class, assume each student's birthday is a random day $y_i\sampledfrom [365]$. What is the probability of a collision? $q = 366$ gives $1$, $q = 23$ gives around $50\%$, and $q = 70$ gives roughly $99.9\%$.
+
+    We can apply this trick to our hash function. If $y_i\sampledfrom [N]$, then $q = N+1$ gives us $100\%$, but $q = \sqrt{N}$ gives $50\%$ probability.
+\end{remark*}
+
+Knowing this, we want $n = 2\lambda$ (output length of hash function). If $\lambda = 128$, we want $n$ to be around $256$.
+
+\subsubsection{Random Oracle Model}
+Another way to model a hash function is the \emph{Random Oracle Model}. We think of our hash function to be an oracle (in the sky) that can \emph{only} take input and a random output (and if you give it the same input twice, the same output).
+
+\todo{graphic}
+
+There are proofs that state that no hash functions can be a random oracle. There are schemes that can be secure in the random oracle model, but are not using hash functions\footnote{Some constructions don't rely on this model.}.
+
+In reality, hash functions are \emph{about as good as}\footnote{But can never be\dots} random oracles. Thinking of our hash functions as random oracles gives us a good intuitive understanding of how hash functions can be used in our schemes.
+
+In this model, the best thing that an attacker can do is to try inputs and query for outputs.
+
+\subsubsection{Constructions for Hash Function}
+\begin{description}
+    \item[MDS.] Output length $128$-bit. Best known attack is in $2^{16}$. A collision was found in 2004.
+\end{description}
+And we also have Secure Hash Functions (SHA), founded by NIST.
+\begin{description}
+    \item[SHA-0.] Standardized in 1993. Output length is 160-bit. Best known attack is in $2^{39}$.
+    \item[SHA-1.] Standardized in 1995. Output length is $160$-bit. Best known attack is in $2^{63}$, and a collision \emph{was} found in 2017.
+    \item[SHA-2.] Standardized in 2001. Output length of 224, 256, 284, 512-bit. The most commonly used is SHA-256.
+    \item[SHA-3.] There was a competition from 2007-2012 for new hash functions. SHA-3 was released in 2015, and has output length 224, 256, 2384, 512-bit. This is \emph{completely different} from SHA-2.
+\end{description}
+
+\begin{remark*}
+    The folklore is that during a session at a cryptography conference, a mathematician, Xiaoyun Wang, presented slide-after-slide of attacks on MDS and SHA-0, astounding the audience.
+\end{remark*}

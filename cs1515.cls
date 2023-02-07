@@ -410,6 +410,9 @@
 \DeclareMathOperator{\Gen}{\mathsf{Gen}}
 \DeclareMathOperator{\Enc}{\mathsf{Enc}}
 \DeclareMathOperator{\Dec}{\mathsf{Dec}}
+\DeclareMathOperator{\Sign}{\mathsf{Sign}}
+\DeclareMathOperator{\Mac}{\mathsf{Mac}}
+\DeclareMathOperator{\Verify}{\mathsf{Verify}}
 \DeclareMathOperator{\negligible}{\mathsf{negligible}}
 \newcommand{\eqline}{\noalign{\smallskip} \hline \noalign{\smallskip}}
 
