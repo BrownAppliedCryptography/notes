@@ -203,14 +203,14 @@ Using a public key $vk$ (verification key) and private key $sk$ (secret/signing 
 \subsubsection{Syntax}\label{sec:message-integrity:syntax}
 The following is the syntax we use for MACs and digital signatures.
 
-A message authentication code (MAC) scheme consists of $\pi = (\Gen, \mathsf{Mac}, \mathsf{Verify})$.
+A message authentication code (MAC) scheme consists of $\Pi = (\Gen, \mathsf{Mac}, \mathsf{Verify})$.
 \begin{description}
     \item[Generation.] $k\leftarrow \Gen(1^\lambda)$.
     \item[Authentication.] $t \leftarrow \mathsf{Mac}_k(m)$.
     \item[Verification] $0/1 := \mathsf{Verify}_k(m, t)$.
 \end{description}
 
-A digital signature scheme consists of $\pi = (\Gen, \mathsf{Sign}, \mathsf{Verify})$.
+A digital signature scheme consists of $\Pi = (\Gen, \mathsf{Sign}, \mathsf{Verify})$.
 \begin{description}
     \item[Generation.] $(sk, vk)\leftarrow \Gen(1^\lambda)$.
     \item[Authentication.] $\sigma \leftarrow \mathsf{Sign}_{sk}(m)$.

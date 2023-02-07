@@ -18,14 +18,14 @@ In the public-key version, Alice has a secret key $sk$ to sign message $m$ with 
 \subsubsection{Syntax}
 Recall the syntax of MAC and digital signatures (see \cref{sec:message-integrity:syntax}).
 
-A message authentication code (MAC) scheme consists of $\pi = (\Gen, \mathsf{Mac}, \mathsf{Verify})$.
+A message authentication code (MAC) scheme consists of $\Pi = (\Gen, \mathsf{Mac}, \mathsf{Verify})$.
 \begin{description}
     \item[Generation.] $k\leftarrow \Gen(1^\lambda)$.
     \item[Authentication.] $t \leftarrow \mathsf{Mac}_k(m)$.
     \item[Verification] $0/1 := \mathsf{Verify}_k(m, t)$.
 \end{description}
 
-A digital signature scheme consists of $\pi = (\Gen, \mathsf{Sign}, \mathsf{Verify})$.
+A digital signature scheme consists of $\Pi = (\Gen, \mathsf{Sign}, \mathsf{Verify})$.
 \begin{description}
     \item[Generation.] $(sk, vk)\leftarrow \Gen(1^\lambda)$.
     \item[Authentication.] $\sigma \leftarrow \mathsf{Sign}_{sk}(m)$.
@@ -113,9 +113,9 @@ Our security definition is that our adversary can see the encryptions of many me
 Now that we have two new primitives, we can construct Authenticated Encryption schemes.
 
 \subsubsection{Encrypt-and-MAC?}
-Given a CPA-secure SKE scheme $\pi_1(\Gen_1, \Enc_1, \Dec_1)$ and a CMA-secure MAC scheme $\pi_2 = (\Gen_2, \Mac_2, \Verify_2)$.
+Given a CPA-secure SKE scheme $\Pi_1(\Gen_1, \Enc_1, \Dec_1)$ and a CMA-secure MAC scheme $\Pi_2 = (\Gen_2, \Mac_2, \Verify_2)$.
 
-We construct an AE scheme $\pi = (\Gen, \Enc, \Dec)$ by composing encryption and MAC. We encrypt first, then MAC the encrypted ciphertext.
+We construct an AE scheme $\Pi = (\Gen, \Enc, \Dec)$ by composing encryption and MAC. We encrypt first, then MAC the encrypted ciphertext.
 
 \Graphic{images/2023-02-07/encrypt-and-mac.png}{0.3}
 
@@ -133,7 +133,7 @@ We construct an AE scheme $\pi = (\Gen, \Enc, \Dec)$ by composing encryption and
 
 MAC gives you \emph{unforgeability}---it doesn't even try to hide the message at all. It's possible that the MAC scheme reveals the message in the clear. For example, we might have a MAC scheme that includes the message in the signature \emph{in the clear} (which is still secure)!
 
-Since MAC doesn't try to hide the message. If our MAC reveals something about our message, our composed scheme $\pi$ doesn't give us CPA-security. You might still be able to infer something about the message.
+Since MAC doesn't try to hide the message. If our MAC reveals something about our message, our composed scheme $\Pi$ doesn't give us CPA-security. You might still be able to infer something about the message.
 
 We try something else\dots
 
