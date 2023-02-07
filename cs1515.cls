@@ -417,3 +417,9 @@
 \newcommand{\eqline}{\noalign{\smallskip} \hline \noalign{\smallskip}}
 
 \DeclareMathOperator{\csimeq}{\overset{c}{\simeq}}
+
+\newcommand{\Graphic}[2]{
+    \begin{center}
+        \includegraphics[width=#2\textwidth]{#1}
+    \end{center}
+}

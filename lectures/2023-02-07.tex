@@ -8,12 +8,12 @@ Last lecture, we discussed methods of authenticating a message. The symmetric-ke
 \subsubsection{Message Authentication Code}
 To authenticate a message, Alice will use the private key $k$ to tag a message $m$ with a tag $t$. Bob will verify that $(m, t)$ is valid with key $k$.
 
-\todo{diagram}
+\Graphic{images/2023-02-07/mac.png}{0.7}
 
 \subsubsection{Digital Signature}
 In the public-key version, Alice has a secret key $sk$ to sign message $m$ with signature $\sigma$. Bob (or anyone) can verify with the public key $pk$ that $(m, \sigma)$ is a valid signature.
 
-\todo{diagram}
+\Graphic{images/2023-02-07/ds.png}{0.7}
 
 \subsubsection{Syntax}
 Recall the syntax of MAC and digital signatures (see \cref{sec:message-integrity:syntax}).
@@ -60,14 +60,19 @@ To verify, we compute
     Are there any security issues with RSA as we have constructed it so far?
 \end{ques*}
 
-Thinking back to our definition of chosen-message attack, if Eve knows many messages and signatures
+Thinking back to our definition of chosen-message attack, if Eve knows many messages and signatures, she can compute another pair of valid message and keys. If we have messages
+\begin{align*}
+    m_0, \sigma_0 & = m_0^d\mod N \\
+    m_1, \sigma_1 & = m_0^d\mod N
+\end{align*}
+We can compute $m^* := m_0\cdot m_1$ and $\sigma^* := \sigma_0 \cdot \sigma_1 = (m_0\cdot m_1)^d\mod N$.
 
-\todo{I missed this section to take a call will watch recording.}
+We can do linear combinations of messages, as well as raising messages to arbitrary exponents, and we can get other messages with valid signatures.
 
 There is an easy solution, however. We can hash our message $m$ before we sign, like so
 \begin{align*}
-    \Sign_{sk}(m)           & := H(m)^d\mod{N}                         \\
-    \Verify_{vk}(m, \sigma) & := \sigma^e\overset{?}{\equiv}H(m)\mod N
+    \Sign_{sk}(m)           & := {\color{red}H(}m{\color{red})}^d\mod{N}                         \\
+    \Verify_{vk}(m, \sigma) & := \sigma^e\overset{?}{\equiv}{\color{red}H(}m{\color{red})}\mod N
 \end{align*}
 where $H$ is a hash function\footnote{A hash function is, briefly, a function that produces some random output that is hard to compute the inverse of.}. This is a commonly known technique called `hash-and-sign'.
 
@@ -83,19 +88,27 @@ We give this definition using integer groups. There is also ECDSA which uses ell
 
         Our verification key is $vk := (p, q, g, h)$ and our signing key is $sk = x$.
 
-        \todo{Signing and verifying}
+    \item[$\Sign_{sk}(m)$:] Sample $y \sampledfrom \ZZ_q^\times$, compute $r = (g^y\mod{p})\mod{q}$. Compute $s = y^{-1}\cdot(H(m) + x\cdot r)\mod{q}$ and $\sigma := (r, s)$.
+
+    \item[$\Verify_{vk}(m, \sigma)$:] We can compute
+        \begin{align*}
+            w   & = s^{-1}\mod{q}       \\
+            u_1 & = H(m)\cdot w \mod{q} \\
+            u_2 & = r\cdot w\mod{q}
+        \end{align*}
+        and verify $r\overset{?}{=}\left( g^{u_1}\cdot h^{u_2}\mod{p} \right)\mod{q}$.
 \end{description}
 
 \subsection{Authenticated Encryption}
 Generally, Alice and Bob will first perform a Diffie-Hellman key exchange, then use that shared key to conduct Symmetric-Key Encryption.
 
-\todo{diagram}
+\Graphic{images/2023-02-07/practice.png}{0.6}
 
 In reality, we want to achieve both message secrecy and integrity \emph{at the same time}. For this, we can introduce Authenticated Encryption.
 
 Our security definition is that our adversary can see the encryptions of many messages $m_0, m_1, m_2$. We want \textbf{CPA security}: given an encryption of either $m_0, m_1$, our adversary cannot distinguish between encryptions of the two. \emph{Additionally}, we want the property of \textbf{unforgeability}, that our adversary cannot generate a $c^*$ that is a valid encryption, such that $\Dec_{k}(c^*)\neq m_i$ for any $i$.
 
-\todo{diagram}
+\Graphic{images/2023-02-07/ae.png}{0.8}
 
 Now that we have two new primitives, we can construct Authenticated Encryption schemes.
 
@@ -104,7 +117,7 @@ Given a CPA-secure SKE scheme $\pi_1(\Gen_1, \Enc_1, \Dec_1)$ and a CMA-secure M
 
 We construct an AE scheme $\pi = (\Gen, \Enc, \Dec)$ by composing encryption and MAC. We encrypt first, then MAC the encrypted ciphertext.
 
-\todo{Diagram}
+\Graphic{images/2023-02-07/encrypt-and-mac.png}{0.3}
 
 \begin{description}
     \item[$\Gen(1^\lambda)$:] $k_1:=\Gen_1(1^\lambda)$, $k_2:=\Gen_2(1^\lambda)$, output $(k_1, k_2)$.
@@ -127,7 +140,7 @@ We try something else\dots
 \subsubsection{Encrypt-then-MAC}
 We encrypt first, then we MAC on the \emph{ciphertext}.
 
-\todo{diagram}
+\Graphic{images/2023-02-07/encrypt-then-mac.png}{0.3}
 
 \begin{description}
     \item[$\Gen(1^\lambda)$:] $k_1:=\Gen_1(1^\lambda)$, $k_2:=\Gen_2(1^\lambda)$, output $(k_1, k_2)$.
@@ -142,7 +155,7 @@ You can prove that Encrypt-then-MAC schemes are CPA-secure and unforgeable.
 \subsubsection{MAC-then-Encrypt}
 Similarly, we can also MAC first, encrypt the entire ciphertext and tag concatenated.
 
-\todo{diagram}
+\Graphic{images/2023-02-07/mac-then-encrypt.png}{0.3}
 
 \begin{description}
     \item[$\Gen(1^\lambda)$:] $k_1:=\Gen_1(1^\lambda)$, $k_2:=\Gen_2(1^\lambda)$, output $(k_1, k_2)$.
@@ -161,7 +174,7 @@ This doesn't satisfy a stronger security definition called Chosen Ciphertext Att
 \subsubsection{Chosen Ciphertext Attack Security}
 On top of CMA security, the adversary can now request Alice to decrypt ciphertexts $c_0, c_1, \dots$.
 
-\todo{diagram}
+\Graphic{images/2023-02-07/cca.png}{0.7}
 
 We can prove that MAC-then-Encrypt is not CCA secure.
 
@@ -188,7 +201,7 @@ A hash function is a public function
 \[H: {0, 1}^*\to {0, 1}^n\]
 where $n$ is order $\Theta(\lambda)$.
 
-\todo{diagram}
+\Graphic{images/2023-02-07/hash.png}{0.5}
 
 We want our hash function to be collision-resistant. That is, it's computationally hard to find $x, y\in\left\{ 0, 1 \right\}^*$ such that $x\neq y$ yet $H(x) = H(y)$ (which is called a collision).
 
@@ -209,7 +222,7 @@ Knowing this, we want $n = 2\lambda$ (output length of hash function). If $\lamb
 \subsubsection{Random Oracle Model}
 Another way to model a hash function is the \emph{Random Oracle Model}. We think of our hash function to be an oracle (in the sky) that can \emph{only} take input and a random output (and if you give it the same input twice, the same output).
 
-\todo{graphic}
+\Graphic{images/2023-02-07/oracle.png}{0.5}
 
 There are proofs that state that no hash functions can be a random oracle. There are schemes that can be secure in the random oracle model, but are not using hash functions\footnote{Some constructions don't rely on this model.}.
 
