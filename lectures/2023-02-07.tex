@@ -115,7 +115,7 @@ Now that we have two new primitives, we can construct Authenticated Encryption s
 \subsubsection{Encrypt-and-MAC?}
 Given a CPA-secure SKE scheme $\Pi_1(\Gen_1, \Enc_1, \Dec_1)$ and a CMA-secure MAC scheme $\Pi_2 = (\Gen_2, \Mac_2, \Verify_2)$.
 
-We construct an AE scheme $\Pi = (\Gen, \Enc, \Dec)$ by composing encryption and MAC. We encrypt first, then MAC the encrypted ciphertext.
+We construct an AE scheme $\Pi = (\Gen, \Enc, \Dec)$ by composing encryption and MAC. We encrypt the plaintext and also compute the MAC the \emph{plaintext}.
 
 \Graphic{images/2023-02-07/encrypt-and-mac.png}{0.3}
 
