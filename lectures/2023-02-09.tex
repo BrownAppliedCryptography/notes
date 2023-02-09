@@ -1,0 +1,204 @@
+%!TEX root = ../notes.tex
+\section{February 9, 2023}
+\label{20230209}
+
+\emph{Logistics:} Please let us know if you have outstanding Ed or Gradescope issues!
+
+\subsection{Hash Functions, \emph{continued}}
+Recall that we defined a hash function to be a function for which it is computationally hard to find a collision. That is, finding two distinct strings $x, y$ such that $H(x) = H(y)$ is computationally difficult.
+
+\todo{graphic}
+
+One model that we sometimes use to facilitate our analysis is the random oracle model. We assume our hash function is a random oracle `in the sky'that produces random hashes.
+
+By guessing, analyzing it via the birthday problem, we require time approximately $\sqrt{n}$.
+
+\todo{graphic}
+
+\subsubsection{Constructions}
+
+The hash function constructions that are still in practice (and unbroken) are SHA-2 and SHA-3.
+
+\subsubsection{Applications}
+
+\begin{description}
+    \item[HMAC.] We can use a hash function to conduct a MAC. Computing a tag involves computing the hash function on the key appended to the message ($k||m$). It is computationally difficult to find another $k || m'$ that produces the same hash. This is a scheme that looks like
+        \[\Mac_k(m) = H(k||m).\]
+
+        However, an adversary could potentially attach some additional $s$ to $m$ to produce $m' = m||s$ such that they can easily compute $\mathsf{tag}' = H(\mathsf{tag}||s)$. This is due to the Merkle-Damgård construction of SHA-2, which associatively tags blocks of the message one-by-one.
+
+        \todo{graphic}
+
+        Therefore, in practice, we use a nested MAC like
+        \[\Mac_k(m) = H(k||H(k||m))\]
+        and just to be sure (that we're not reusing the key), we produce $k_1, k_2$ as such
+        \[\mathsf{HMAC}_k(m) = H(k_1||H(k_2||m))\]
+        such that $k_1 = k\oplus \mathsf{opad}$ and $k_2 = k\oplus\mathsf{ipad}$, some one-time pads.
+
+    \item[Hash-and-Sign.] There are some other applications of a hash function. We've seen before with RSA that we want to Hash-and-Sign, removing any homomorphism that an adversary could exploit. Additionally, this allows us to sign larger messages since they are constant size after hashing.
+
+    \item[Password Authentication.] Another application is password authentication. Instead of storing plaintext passwords on servers, websites can store a hash of the password instead. This means that the passwords are not compromised even if the server is compromised.
+
+    \item[Deduplicate Files.] We can also use hash functions to deduplicate files. We can hash two files to produce identifiers $h_1$ and $h_2$. If $h_1\neq h_2$, this implies $D_1\neq D_2$. If $h_1 = h_2$, it almost always\footnote{If they are not equal, we've found a collision for our hash function, which is extremely unlikely.} implies that $D_1 = D_2$.
+
+    \item[HKDF (Key Derivation Function).] We can derive more keys from a shared key, essentially using a hash function as a pseudorandom generator (PRG).
+
+        For example, if there is $g^{ab}$ shared key, we can do
+        \[\mathsf{HMAC}(g^{ab}, \textsf{salt})\]
+
+        Using a random seed, and adding a public deterministic salt $G$, we can generate a random\footnote{Computationally random, because if our computational power were to be unbounded, we can try all strings.} string.
+
+        \todo{graphic}
+
+        Given a hash function $H$, we can generate a PRG easily for any length string by generating
+        \begin{align*}
+            \mathsf{seed}\sampledfrom \{0, 1\}^\lambda \longrightarrow & H(\mathsf{seed}||00\cdots 00) \\
+                                                                       & H(\mathsf{seed}||00\cdots 01) \\
+                                                                       & H(\mathsf{seed}||00\cdots 10) \\
+                                                                       & \qquad\qquad \vdots
+        \end{align*}
+
+        We can take a bit of randomness (like the way we move our mouse, type keyboard, system properties) and generate our seed.
+
+    \item[Fast Membership Proof (Merkle Tree).] Using hash functions, we can generate Merkle Trees to prove membership. In blockchains, this is equivalent to checking if a transaction occurred.
+
+    \item[SKE Scheme?] Could we use this to encrypt? If we have a secret key $k\sampledfrom\{0, 1\}^\lambda$, can we just encrypt by
+        \[\Enc_k(m) = H(k||m)\]
+        Well, we can't decrypt for one without having unbounded computational power. If our plaintext $m$ comes from a small set, like $\{0, \dots, 10\}$, we could decrypt properly. However, this is not CPA-secure, since the adversary could just query for all the messages.
+
+        \begin{remark}
+            In general, all deterministic encryption schemes are not CPA-secure.
+        \end{remark}
+\end{description}
+
+\subsection{Putting it Together: Secure Communication}
+This is essentially what we want to do in the second project.
+
+We use Diffie-Hellman Key Exchange between Alice and Bob to get shared $g^{ab}$. Hashing the shared key using an HKDF, we can get shraed key $k = (k_1, k_2)$ (one for AES one for HMAC). Then, they perform authenticated encryption, namely Encrypt-then-MAC.
+
+\begin{ques*}
+    Are there any issues with this scheme?
+\end{ques*}
+An Eve could pretend to be Alice to Bob and Bob to Alice, fudging up their shared keys. This is called a \emph{Man-in-the-Middle} attack.
+
+\subsubsection{Diffie-Hellman Ratchet}
+What if a secret key gets leaked, or cracked? One simple way to fix this is to perform a Diffie-Hellman key exchange on every message. However, this incurs additionall communications costs.
+
+Here's another idea: with every new message (when the direction of communications shifts), the party sending the message sends a new Diffie-Hellman public key for themselves. For example, if Bob is sending a message to Alice and he knows Alice's public key $g^{a_1}$ and his previous secret was $b_1$ (hence shared $g^{a_1b_1})$, Bob will generate new key $b_2, g^{b_2}$ and encrypt using $g^{a_1b_2}$, sending $g^{b_2}$ as public to Alice. Alice can recompute the shared key before decrypting.
+
+\todo{graphic}
+
+This is the protocol used in the Signal messaging app, and is what you will implement for Project 1.
+
+\begin{ques*}
+    What if $k_1$ is leaked?
+\end{ques*}
+We might have leaked one key, but the other keys are still computationally hard to compute. $k_1=g^{a_1b_1}$ is known, but it's equivalent to DDH to compute $g^{a_1b_2}$ or other keys.
+
+\begin{ques*}
+    What if $b_1$ is leaked?
+\end{ques*}
+We can compute key $k=g^{a_1b_1}$, but no further keys are leaked, and the next round of communications is still secure.
+
+\subsection{Block Cipher}
+To summarize, here's what we've seen so far (this table should be familiar):
+\begin{center}
+    \begin{tabular}{@{}lll@{}}
+        \toprule
+                                      & \textbf{Symmetric-Key}                                                                               & \textbf{Public-Key}                                                                   \\ \midrule
+        \textbf{Message Secrecy}      & \begin{tabular}[c]{@{}l@{}}Primitive: SKE\\ Construction: \boxed{\textbf{Block Cipher}}\end{tabular} & \begin{tabular}[c]{@{}l@{}}Primitive: PKE\\ Constructions: RSA/ElGamal\end{tabular}   \\ \midrule
+        \textbf{Message Integrity}    & \begin{tabular}[c]{@{}l@{}}Primitive: MAC\\ Constructions: CBC-MAC/HMAC\end{tabular}                 & \begin{tabular}[c]{@{}l@{}}Primitive: Signature\\ Constructions: RSA/DSA\end{tabular} \\ \midrule
+        \textbf{Secrecy \& Integrity} & \begin{tabular}[c]{@{}l@{}}Primitive: AE\\ Construction: Encrypt-then-MAC\end{tabular}               &                                                                                       \\ \midrule
+        \textbf{Key Exchange}         &                                                                                                      & Construction: Diffie-Hellman                                                          \\ \midrule
+        \textbf{Important Tool}       & \begin{tabular}[c]{@{}l@{}}Primitive: Hash function\\ Construction: SHA\end{tabular}                 &                                                                                       \\ \bottomrule
+    \end{tabular}
+\end{center}
+The only thing we haven't seen thus far is a block cipher. We first start with the definitions.
+
+We saw earlier that a Pseudorandom Generator (PRG) produces a string that looks random. We also have Pseudorandom Functions (PRF), which are `random-looking' functions.
+
+\subsubsection{Pseudorandom Function (PRF)}
+
+Our Pseudorandom Function $F$ is a keyed function\footnote{In deterministic polynomial-time.} $F : \{0, 1\}^\lambda\times \{0, 1\}^n\to\{0, 1\}^m$, $F$ will take key $k$ and input $x$ to produce output $y$, $F(k, x) = y$.
+
+Without knowing our key $k$, $F_k$ is computationally indistinguishable from some random $f\sampledfrom\{F\mid F\{0, 1\}^n\to \{0, 1\}^m\}$.
+
+\todo{graphic}
+
+We have $2^\lambda$ possible $F_k$'s, and we have $(2^m)^{2^n}$ possible functions $f$. A computationally unbounded adversary could try all possible functions and distinguish our function, since $F_k$ lives in a subset of the space of $f$. However, in reality, we can assume that $F_k$ is computationally indistinguishable from any generic function.
+
+\subsubsection{Pseudorandom Permutation (PRP)}
+
+A further assumption is that our function is a bijection. $F_k$ is a keyed function from $F_k : \{0, 1\}^n\to\{0, 1\}^n$. We still have $2^\lambda$ possible $F_k$'s since there are $2^\lambda$
+
+\todo{graphic}
+
+\begin{ques*}
+    Again, how many possible $f$'s are there?
+\end{ques*}
+Our first string has $2^n$ choices to map to, our second choice has $2^n - 1$, so there are
+\[(2^n)(2^n-1)(2^n-2)\cdots 1 = 2^n!\]
+
+Still, this is a much larger number than $2^\lambda$, so we still make a computational assumption that our keyed function $F_k$ is still computationally indistinguishable from a random function $f$.
+
+\subsubsection{Block Cipher Definition}
+A block cipher is a function
+\[F : \{0, 1\}^\lambda\times \{0, 1\}^n\to \{0, 1\}^n\]
+where $\lambda$ is the key length and $n$ is the block length. A block cipher is assumed to be a pseudorandom permutation (PRP).
+
+Our practical construction is the Advanced Encryption Standard (AES).
+\begin{itemize}
+    \item Our key and block sizes are $\lambda = n = 128$.
+    \item This was standardized by NIST in 2001.
+    \item There was a competition from 1997-2000 to come up with a block cipher scheme. It is said that the end of the competition, competitors were simply trying to attack each other's schemes. AES was eventually selected for its efficiency.
+    \item Before AES, we used the Data Encryption Standard (DES) with $\lambda = 56$ and $n = 64$. The best attack is \emph{still} a brute-force search, but key and block lengths are relatively fixed (cannot be extended).
+\end{itemize}
+
+Currently, the best attack for AES is still a brute-force search, which takes time $2^{128}$.
+
+\subsubsection{Block Cipher Modes of Operation}
+We have block cipher
+\[F : \{0, 1\}^\lambda\times \{0, 1\}^\lambda\to \{0, 1\}^\lambda\]
+We want to construct an SKE scheme from $F$ for arbitrary-length messages. We have some $k\sampledfrom\{0, 1\}^\lambda$. We encrypt with $\Enc_k(m)$ and decrypt $\Dec_k(c)$.
+
+Our goal is to construct an SKE scheme that is CPA (Chosen Plaintext Attack) secure.
+
+\textbf{Electronic Code Book (ECB) Mode:}
+
+The easiest solution is to split up our message into blocks, and run our function $F$ on each of those blocks.
+
+\todo{graphic}
+
+However, this is not CPA secure, since each block is deterministically computed.
+
+\textbf{Cipher Block Chaining (CBC) Mode:}
+
+We can do something else to ensure each block's plaintext is different using an Initialization Vector (IV), sampled from $\{0, 1\}^\lambda$.
+
+After every block, we $\mathsf{XOR}$ that block's $c_i$ with the next block's message $m_{i+1}$.
+
+\todo{graphic}
+
+\begin{ques*}
+    How do we decrypt this?
+\end{ques*}
+We can decrypt the first block, then $\mathsf{XOR}$ $c_i$ with $F^{-1}_k(c_{i+1})$.
+
+\begin{ques*}
+    Is this secure?
+\end{ques*}
+Assuming $F_k$ is a valid pseudorandom permutation, this is. We'll elide the proof here.
+
+\begin{ques*}
+    Can we parallelize this? Especially the $F_k$ of $F_k^{-1}$ steps?
+\end{ques*}
+We can't in the case of encryption. For decryption, we can perform $F_k^{-1}$ all at once, and do all the $\mathsf{XOR}$ operations in series.
+
+\textbf{Chained Cipher Block Chaining (Chained-CBC) Mode:}
+We \emph{could} also use the previous messages' $c$ values as the IV for future messages.
+
+\todo{graphic}
+
+\begin{ques*}
+    Is this now CPA-secure?
+\end{ques*}
