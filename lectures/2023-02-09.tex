@@ -7,13 +7,13 @@
 \subsection{Hash Functions, \emph{continued}}
 Recall that we defined a hash function to be a function for which it is computationally hard to find a collision. That is, finding two distinct strings $x, y$ such that $H(x) = H(y)$ is computationally difficult.
 
-\todo{graphic}
+\Graphic{images/2023-02-09/hash.png}{0.4}
 
 One model that we sometimes use to facilitate our analysis is the random oracle model. We assume our hash function is a random oracle `in the sky'that produces random hashes.
 
 By guessing, analyzing it via the birthday problem, we require time approximately $\sqrt{n}$.
 
-\todo{graphic}
+\Graphic{images/2023-02-09/hash-oracle.png}{0.4}
 
 \subsubsection{Constructions}
 
@@ -27,7 +27,7 @@ The hash function constructions that are still in practice (and unbroken) are SH
 
         However, an adversary could potentially attach some additional $s$ to $m$ to produce $m' = m||s$ such that they can easily compute $\mathsf{tag}' = H(\mathsf{tag}||s)$. This is due to the Merkle-Damgård construction of SHA-2, which associatively tags blocks of the message one-by-one.
 
-        \todo{graphic}
+        \Graphic{images/2023-02-09/md.png}{0.4}
 
         Therefore, in practice, we use a nested MAC like
         \[\Mac_k(m) = H(k||H(k||m))\]
@@ -48,7 +48,7 @@ The hash function constructions that are still in practice (and unbroken) are SH
 
         Using a random seed, and adding a public deterministic salt $G$, we can generate a random\footnote{Computationally random, because if our computational power were to be unbounded, we can try all strings.} string.
 
-        \todo{graphic}
+        \Graphic{images/2023-02-09/hkdf.png}{0.8}
 
         Given a hash function $H$, we can generate a PRG easily for any length string by generating
         \begin{align*}
@@ -86,7 +86,7 @@ What if a secret key gets leaked, or cracked? One simple way to fix this is to p
 
 Here's another idea: with every new message (when the direction of communications shifts), the party sending the message sends a new Diffie-Hellman public key for themselves. For example, if Bob is sending a message to Alice and he knows Alice's public key $g^{a_1}$ and his previous secret was $b_1$ (hence shared $g^{a_1b_1})$, Bob will generate new key $b_2, g^{b_2}$ and encrypt using $g^{a_1b_2}$, sending $g^{b_2}$ as public to Alice. Alice can recompute the shared key before decrypting.
 
-\todo{graphic}
+\Graphic{images/2023-02-09/dh-ratchet.png}{0.7}
 
 This is the protocol used in the Signal messaging app, and is what you will implement for Project 1.
 
@@ -123,7 +123,7 @@ Our Pseudorandom Function $F$ is a keyed function\footnote{In deterministic poly
 
 Without knowing our key $k$, $F_k$ is computationally indistinguishable from some random $f\sampledfrom\{F\mid F\{0, 1\}^n\to \{0, 1\}^m\}$.
 
-\todo{graphic}
+\Graphic{images/2023-02-09/prf.png}{0.8}
 
 We have $2^\lambda$ possible $F_k$'s, and we have $(2^m)^{2^n}$ possible functions $f$. A computationally unbounded adversary could try all possible functions and distinguish our function, since $F_k$ lives in a subset of the space of $f$. However, in reality, we can assume that $F_k$ is computationally indistinguishable from any generic function.
 
@@ -131,7 +131,7 @@ We have $2^\lambda$ possible $F_k$'s, and we have $(2^m)^{2^n}$ possible functio
 
 A further assumption is that our function is a bijection. $F_k$ is a keyed function from $F_k : \{0, 1\}^n\to\{0, 1\}^n$. We still have $2^\lambda$ possible $F_k$'s since there are $2^\lambda$
 
-\todo{graphic}
+\Graphic{images/2023-02-09/prp.png}{0.8}
 
 \begin{ques*}
     Again, how many possible $f$'s are there?
@@ -167,7 +167,7 @@ Our goal is to construct an SKE scheme that is CPA (Chosen Plaintext Attack) sec
 
 The easiest solution is to split up our message into blocks, and run our function $F$ on each of those blocks.
 
-\todo{graphic}
+\Graphic{images/2023-02-09/ebc.png}{0.4}
 
 However, this is not CPA secure, since each block is deterministically computed.
 
@@ -177,7 +177,7 @@ We can do something else to ensure each block's plaintext is different using an 
 
 After every block, we $\mathsf{XOR}$ that block's $c_i$ with the next block's message $m_{i+1}$.
 
-\todo{graphic}
+\Graphic{images/2023-02-09/cbc.png}{0.7}
 
 \begin{ques*}
     How do we decrypt this?
@@ -197,8 +197,9 @@ We can't in the case of encryption. For decryption, we can perform $F_k^{-1}$ al
 \textbf{Chained Cipher Block Chaining (Chained-CBC) Mode:}
 We \emph{could} also use the previous messages' $c$ values as the IV for future messages.
 
-\todo{graphic}
+\Graphic{images/2023-02-09/ccbc.png}{0.8}
 
 \begin{ques*}
     Is this now CPA-secure?
 \end{ques*}
+\emph{We'll continue this next time...}
