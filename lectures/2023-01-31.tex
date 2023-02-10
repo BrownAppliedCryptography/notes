@@ -41,7 +41,7 @@ A stronger version of private-key encryption is called public-key encryption. Al
     \begin{description}
         \item[Generation.] Generate keys $(pk, sk)\leftarrow \Gen$.
         \item[Encryption.] Use the public key to encrypt, $c\leftarrow \mathsf{Enc}(pk, m)$ or $\Enc_{pk}(m)$.
-        \item[Decryption.] Use the secret key to decrypt, $m:=\Dec(pk, c)$ or $\Dec_{pk}(c)$.
+        \item[Decryption.] Use the secret key to decrypt, $m:=\Dec(pk, c)$ or $\Dec_{sk}(c)$.
     \end{description}
 
 \end{definition}
