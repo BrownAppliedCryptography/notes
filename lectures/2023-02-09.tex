@@ -98,7 +98,7 @@ We might have leaked one key, but the other keys are still computationally hard 
 \begin{ques*}
     What if $b_1$ is leaked?
 \end{ques*}
-We can compute key $k=g^{a_1b_1}$, but no further keys are leaked, and the next round of communications is still secure.
+We can compute key $k_1=g^{a_1b_1}$ and $k_2=g^{a_2b_1}$, but no further keys are leaked, and the next round of communications (after Bob refreshes his private key $b_2$) is still secure.
 
 \subsection{Block Cipher}
 To summarize, here's what we've seen so far (this table should be familiar):
