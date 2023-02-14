@@ -1,0 +1,129 @@
+%!TEX root = ../notes.tex
+\section{February 14, 2023}
+\label{20230214}
+\subsection{Block Ciphers, \emph{continued}}
+Looking back on \cref{sec:feb7-summary-so-far}, the last outstanding primitive was the block cipher. We saw this last lecture, we'll continue discussing the block cipher.
+
+Recall that we had seen pseudorandom functions which are keyed functions that are computationally indistinguishable from \emph{all} random functions from $\{0, 1\}^n\to \{0, 1\}^m$. A stronger form of pseudorandom functions are pseudorandom permutations: a keyed bijective map between $\{0, 1\}^n\to \{0, 1\}^n$ that is computational indistinguishable from pseudorandom permutations.
+
+Block ciphers are a special form of pseudorandom permutation. It is a keyed function
+\[F : \{0, 1\}^\lambda\times \{0, 1\}^n\to \{0, 1\}^n\]
+where $\lambda$ is the key length and $n$ is the block length. The practical construction of which is AES, which takes blocks of $n = 128$ and key length $\lambda = 128, 192, 256$ as choices.
+
+\subsubsection{Modes of Operation}
+
+You can see \cref{sec:feb9-block-cipher-moo} for a recap as well.
+
+\textbf{Electronic Code Book (ECB) Mode:} We will run our block cipher on each block of our message individually. However, this is not CPA secure, since encryptions are deterministic. We need to `seed' our encryption with some random value.
+
+\textbf{Cipher Block Chaining (CBC) Mode:} Instead of running on our block cipher on each block individually, every block will get an additional \emph{initialization vector} IV, which is $\mathsf{XOR}$ed onto each message before running the block cipher.
+
+\todo{Graphic}
+
+We waved our hand over the fact that this is CPA secure---but it relies on the initialization vector being random.
+
+\emph{What if our IV is not randomly sampled?} Consider an IV that is \emph{different} but not randomly sampled. For example, the IV is $0\cdots 00$ for the first message, $0\cdots 01$ for the second message, and so on. Do we still have security?
+
+Unfortunately not. Say $m_1$ is $\mathsf{XOR}$ed onto $0\cdots 01$, an adversary under CPA can choose plaintext that is $m_1$ with its last bit flipped, such that $v_1$ is manipulated and the block cipher is again deterministic.
+
+It is crucial that IV is randomly selected, and that the next IVs for future blocks (of the same message) are also pseudorandom (that are the previous ciphertext, which is okay).
+
+\textbf{Chained Cipher Block Chaining (Chained-CBC) Mode:} We touched on this earlier, but there is a mode of operation of CBC that feeds the last cipher block as the new IV for the next message.
+
+\todo{Graphic}
+
+Similar to the case earlier, an adversary here can select a next message \emph{based on} their knowledge of the previous ciphertext and hence the upcoming IV.
+
+This makes chained-CBC \emph{very subtly} different than CBC. If we squint our eyes enough, it just looks like sending a single message using CBC mode. The key difference is that between rounds of communication $m$ and $m'$, an adversary could influence $m'$ given the knowledge of the previous round.
+
+\begin{remark*}
+    Another note that this is \emph{very subtle}! To the extent that when \emph{Signal} was being developed, the course staff initially wrote the solution using Chained-CBC mode. This highlights the difficulty in creating real-world cryptographic systems!
+\end{remark*}
+
+\emph{The following will be new modes not covered last lecture:}
+
+\textbf{Counter (CTR) Mode:} Instead of chaining each successive IV from the previous block ciphertexts, we'll encrypt \emph{only} the $\mathrm{IV}\sampledfrom \{0, 1\}^\lambda$, and $\mathsf{XOR}$ the encrypted $F_k(\mathrm{IV}+i)$ to mask $m_i$, like a one-time pad.
+
+Another way to think about the CTR mode is that we're using $F_k$ and a random IV to generate a long enough one-time pad to pad the entire message.
+
+\todo{Graphic}
+
+\emph{How do we decrypt?} Since we know the first IV, we can compute the one-time pads $F_k(\mathrm{IV} + i)$ and $\mathsf{XOR}$ with $m_i$s. This scheme is valid.
+
+\emph{Is this CPA secure?} The $\mathsf{XOR}$ \emph{after} $F_k$ might throw you off and cast doubt in your mind. However, this mode of operation is (!) CPA-secure. Even if we know IV, $\mathrm{IV}+1, \mathrm{IV}+2, \cdots$, we can't figure out the output of $F_k$ that becomes our one-time pad (to do so constradicts the CPA security of our block cipher). The CPA security of each $F_k$ being pseudorandom guarantees the CPA security of this scheme.
+
+\emph{What about a ``stateful CTR mode'' which just increments IV every successive time?} Instead of sending a new IV for the next message, we'll just increment the IV from before. Similar to Chained-CBC mode, the adversary will know the IV that is going into the next message. However, this doesn't \emph{really} help the adversary. They've never seen those encrypted IV values before, and hence cannot modify the message given this information.
+
+This is a distinction from last time, where the IV was $\mathsf{XOR}$ed onto the message directly, which could be tampered with by an adversary who knows the IV.
+
+\emph{What if IV is not randomly sampled?} Nothing really breaks down, unlike the previous case. We just want to make sure that two IVs are not reused and don't collide. If IVs collide, two blocks will have the same one-time pad, which is potentially a problem. This doesn't prevent us from using $0\cdots 00, 0\cdots 01, 0\cdots 10, \dots$ as our IV values at all. In practice, however, they are still randomly sampled to prevent collisions.
+
+\emph{Can we parallelize this?} Yes, we can compute $F_k(\mathrm{IV} + i)$ in parallel and $\mathsf{XOR}$ onto each block. Similar for encryption and decryption.
+
+\emph{Can we construct a PRG from a PRF?} Using a seed $(\mathrm{IV}, k)$, we can generate an $n\lambda$ bit string
+\[G(k||\mathrm{IV}) = F_k(\mathrm{IV})||F_k(\mathrm{IV} + 1)||F_k(\mathrm{IV} + 2)||\cdots\]
+In fact, we can get rid of IV entirely and start at $0$,
+\[G(k) = F_k(0)||F_k(1)||F_k(2)||\cdots\]
+
+Counter mode essentially uses this PRG with private $k$ to generate a long one-time pad which is used to pad the message. Another note is that in this mode, we don't even require a pseudorandom permutation, since we don't need to invert the function at any point.
+
+\textbf{Output Feedback (OFB) Mode:} This is a mix of CBC and CTR modes. Successive one-time pad blocks are fed into the next $F_k$ as IV, and they are $\mathrm{XOR}$ed with the message after encryption.
+
+\todo{Graphic}
+
+We have the same questions. \emph{How do we decrypt? Is this CPA secure? Is a ``stateful'' version of OFB secure? Can we use this to construct a PRG?}
+
+We can decrypt similarly: we decrypt the first block, get the IV for the next block and continue on. All security is guaranteed by the same reasoning as in counter mode: we know IV but still cannot compute $F_k(\mathrm{IV})$. Similar to counter mode, this is another form of PRG (which chains successive blocks instead of using IVs in series) that generates a long one-time pad. Again, our IV doesn't need to be randomly sampled, but it should not collide with previous IV values.
+
+A difference to counter mode is that we cannot parallelize this scheme. However, in both CTR and OFB modes, we can precompute the entire one-time pad in both encryption and decryption to happen in the offline phase. The online phase (when parties are communicating) is limited to cheap $\mathsf{XOR}$ operations.
+
+\begin{ques*}
+    We've listed \emph{a lot} of benefits to counter mode or output feedback mode. Why do people use CBC mode at all?
+\end{ques*}
+We've seen how things can go wrong catastrophically\footnote{We nearly made mistakes in this course!}. This is more true for counter mode than CBC mode. If our IV is reused in counter mode, our entire one-time pad has been exposed previously\footnote{$\mathsf{XOR}$ing our ciphertexts will give $m \mathsf{XOR} m'$.}. However, if our IV is reused in CBC mode, the worst that could happen is something akin to ECB mode, and no messages are compromised.
+
+At the end of the day, \emph{engineers are quite oblivious to cryptographic schemes}! Libraries only specify for \emph{some key} and \emph{some IV}, so it is exceedingly easy to screw up your cryptograhic scheme by reusing IVs, etc. CBC mode is simply more foolproof and incurs better outcomes in case it is used incorrectly\footnote{However, if Peihan were to implement a block cipher scheme herself, would opt for counter mode.}.
+
+\subsubsection{CBC-MAC}
+We can use block ciphers to construct a MAC scheme. Splitting up our message into blocks, we feed blocks into $F_k$ and chain to next blocks. In the end, the final cipher output is our tag.
+
+\todo{Graphic}
+
+\emph{How do we verify?} We can just $\Mac$ the message again and check that the tag matches. If $F_k$ is invertible, we can also go the other way.
+
+\emph{Is this CMA secure?}
+\begin{itemize}
+    \item
+          Fixed-length messages of length $l\cdot n$? Yes, since we can only query for fixed-length messages, this gives us no additional information.
+    \item
+          Arbitrary-length messages? This is where problems arise---the adversary could first query for a message of 1 block, then 2 blocks, then 3 blocks, etc. By combining this information, they could produce new valid signatures.
+
+          A concrete attack is an adversary querying for $\Mac(m)$ to produce $\mathsf{tag}$, then querying for $\Mac(\mathsf{tag}) = \Mac(m||0) = \mathsf{tag}'$ which allows the adversary to forge a new message.
+\end{itemize}
+
+\begin{remark*}
+    Our constructions of authenticated encryption calls for an encryption scheme and MAC scheme. It's crucial that the two schemes have \emph{different keys}. Using the same key $k$ for both encryption and MAC can cuase issues (information from one could reveal something about the other).
+\end{remark*}
+
+We have a fix for the CMA-vulnerability in arbitrary-length messages:
+
+\subsubsection{Encrypt-last-block CBC-MAC (ECBC-MAC)}
+The vulnerability earlier was due to our encryption being \emph{associative}, so to speak.
+
+We can fix this is to use a different key for the last block:
+
+\todo{Graphic}
+
+We could also attach length of messages to the first block, or other techniques.
+
+The nuance in CBC-MAC means that realistically, we almost always use HMAC.
+
+\subsection{Putting it Together}
+
+Looking back at \cref{sec:feb7-summary-so-far}, we've collected everything we need so far for secure communication.
+
+For Alice and Bob to communicate, they first exchange keys using a Diffie-Hellman key exchange, then perform authenticated encryption.
+
+\todo{Graphic}
+
+However, this still does not mitigate against a man-in-the-middle attack. Thus, before exchanging keys, Alice and Bob should publish verification keys (to a digital signature scheme, see \cref{sec:feb7-ds}). Using this digital signature, Alice and Bob will each sign their Diffie-Hellman public values $g^a, g^b$ using their signing key, which will be attached to the message. They can respectively verify that these values came from each other, and not some Eve in the middle.

@@ -11,6 +11,7 @@ To authenticate a message, Alice will use the private key $k$ to tag a message $
 \Graphic{images/2023-02-07/mac.png}{0.7}
 
 \subsubsection{Digital Signature}
+\label{sec:feb7-ds}
 In the public-key version, Alice has a secret key $sk$ to sign message $m$ with signature $\sigma$. Bob (or anyone) can verify with the public key $pk$ that $(m, \sigma)$ is a valid signature.
 
 \Graphic{images/2023-02-07/ds.png}{0.7}
@@ -181,6 +182,7 @@ We can prove that MAC-then-Encrypt is not CCA secure.
 The moral of this is that \textbf{you should always use Encrypt-then-MAC.}
 
 \subsection{A Summary So Far}
+\label{sec:feb7-summary-so-far}
 To summarize, here's all we've covered so far:
 \begin{center}
     \begin{tabular}{@{}lll@{}}

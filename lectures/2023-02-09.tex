@@ -157,6 +157,7 @@ Our practical construction is the Advanced Encryption Standard (AES).
 Currently, the best attack for AES is still a brute-force search, which takes time $2^{128}$.
 
 \subsubsection{Block Cipher Modes of Operation}
+\label{sec:feb9-block-cipher-moo}
 We have block cipher
 \[F : \{0, 1\}^\lambda\times \{0, 1\}^\lambda\to \{0, 1\}^\lambda\]
 We want to construct an SKE scheme from $F$ for arbitrary-length messages. We have some $k\sampledfrom\{0, 1\}^\lambda$. We encrypt with $\Enc_k(m)$ and decrypt $\Dec_k(c)$.
