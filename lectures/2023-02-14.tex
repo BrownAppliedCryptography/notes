@@ -1,6 +1,12 @@
 %!TEX root = ../notes.tex
 \section{February 14, 2023}
 \label{20230214}
+
+\Graphic{images/2023-02-14/alice_and_bob.png}{0.8}
+\begin{center}
+    \href{https://xkcd.com/177/}{\emph{xkcd 177}}. \emph{Happy Valentine's Day! Stay safe by selecting authenticated encryption schemes (see \cref{sec:feb7-authenticated-encryption}) that are CPA secure and unforgeable to communicate with your date.}
+\end{center}
+
 \subsection{Block Ciphers, \emph{continued}}
 Looking back on \cref{sec:feb7-summary-so-far}, the last outstanding primitive was the block cipher. We saw this last lecture, we'll continue discussing the block cipher.
 
@@ -18,7 +24,7 @@ You can see \cref{sec:feb9-block-cipher-moo} for a recap as well.
 
 \textbf{Cipher Block Chaining (CBC) Mode:} Instead of running on our block cipher on each block individually, every block will get an additional \emph{initialization vector} IV, which is $\mathsf{XOR}$ed onto each message before running the block cipher.
 
-\todo{Graphic}
+\Graphic{images/2023-02-14/cbc.png}{0.5}
 
 We waved our hand over the fact that this is CPA secure---but it relies on the initialization vector being random.
 
@@ -30,7 +36,7 @@ It is crucial that IV is randomly selected, and that the next IVs for future blo
 
 \textbf{Chained Cipher Block Chaining (Chained-CBC) Mode:} We touched on this earlier, but there is a mode of operation of CBC that feeds the last cipher block as the new IV for the next message.
 
-\todo{Graphic}
+\Graphic{images/2023-02-14/ccbc.png}{0.7}
 
 Similar to the case earlier, an adversary here can select a next message \emph{based on} their knowledge of the previous ciphertext and hence the upcoming IV.
 
@@ -46,7 +52,7 @@ This makes chained-CBC \emph{very subtly} different than CBC. If we squint our e
 
 Another way to think about the CTR mode is that we're using $F_k$ and a random IV to generate a long enough one-time pad to pad the entire message.
 
-\todo{Graphic}
+\Graphic{images/2023-02-14/ctr.png}{0.5}
 
 \emph{How do we decrypt?} Since we know the first IV, we can compute the one-time pads $F_k(\mathrm{IV} + i)$ and $\mathsf{XOR}$ with $m_i$s. This scheme is valid.
 
@@ -69,7 +75,7 @@ Counter mode essentially uses this PRG with private $k$ to generate a long one-t
 
 \textbf{Output Feedback (OFB) Mode:} This is a mix of CBC and CTR modes. Successive one-time pad blocks are fed into the next $F_k$ as IV, and they are $\mathrm{XOR}$ed with the message after encryption.
 
-\todo{Graphic}
+\Graphic{images/2023-02-14/ofb.png}{0.7}
 
 We have the same questions. \emph{How do we decrypt? Is this CPA secure? Is a ``stateful'' version of OFB secure? Can we use this to construct a PRG?}
 
@@ -87,7 +93,7 @@ At the end of the day, \emph{engineers are quite oblivious to cryptographic sche
 \subsubsection{CBC-MAC}
 We can use block ciphers to construct a MAC scheme. Splitting up our message into blocks, we feed blocks into $F_k$ and chain to next blocks. In the end, the final cipher output is our tag.
 
-\todo{Graphic}
+\Graphic{images/2023-02-14/cbc-mac.png}{0.5}
 
 \emph{How do we verify?} We can just $\Mac$ the message again and check that the tag matches. If $F_k$ is invertible, we can also go the other way.
 
@@ -112,7 +118,7 @@ The vulnerability earlier was due to our encryption being \emph{associative}, so
 
 We can fix this is to use a different key for the last block:
 
-\todo{Graphic}
+\Graphic{images/2023-02-14/ecbc-mac.png}{0.5}
 
 We could also attach length of messages to the first block, or other techniques.
 
@@ -124,6 +130,6 @@ Looking back at \cref{sec:feb7-summary-so-far}, we've collected everything we ne
 
 For Alice and Bob to communicate, they first exchange keys using a Diffie-Hellman key exchange, then perform authenticated encryption.
 
-\todo{Graphic}
+\Graphic{images/2023-02-14/communicate.png}{0.7}
 
 However, this still does not mitigate against a man-in-the-middle attack. Thus, before exchanging keys, Alice and Bob should publish verification keys (to a digital signature scheme, see \cref{sec:feb7-ds}). Using this digital signature, Alice and Bob will each sign their Diffie-Hellman public values $g^a, g^b$ using their signing key, which will be attached to the message. They can respectively verify that these values came from each other, and not some Eve in the middle.
