@@ -1,0 +1,69 @@
+%!TEX root = ../notes.tex
+\section{February 23, 2023}
+\label{20230223}
+\subsection{Review}
+We'll quickly review what we covered last lecture.
+
+Recall that we had a problem with authenticated encryption earlier---that we cannot prevent man-in-the-middle attacks. We require that we have public keys and sign our Diffie-Hellman Key Exchange step.
+
+\Graphic{images/2023-02-16/signed_alice_and_bob.png}{0.8}
+
+We solve this by using certificates and certificate authorities. We assume there is a known verification key for a Root CA (built into computers), and certificate authorities sign down a chain to verify an individual user.
+
+This is most commonly used in the context of one-sided secure authentication. This is how TLS/HTTPS works in practice.
+
+\subsection{Password Authentication, \emph{continued}}
+
+We also discussed how a user might authenticate themselves with a server. The user will send the hash of a password to the server, and the server will verify against this hash.
+
+We saw two attacks, an online dictionary attack and an offline dictionary attack. An online dictionary attack will query known hashes against the server. This can be prevented by rate limiting. An offline dictionary attack happens when the entire database of passwords is leaked---and an adversary can test known passwords.\footnote{Once the database is leaked, they can already authenticate themselves with this server. However, the plaintext password is \emph{more} important, since users reuse passwords. Additionally, a server will usually notice that their database has been compromised, and prompt users to re-enter passwords.}
+
+% \Graphic{images/2023-02-23/salt_and_pepper.png}{0.8}
+
+To solve these problems, we can use \emph{salting} and \emph{peppering}. We send the salt to the user and the user computes hash $h = H(\mathrm{password}||\mathrm{salt})$. Then, we pick a random pepper and hash $h^* = H(h||\mathrm{pepper})$ and stores $h^*$. Now, even if the server is compromised, there is no way to find the preimage of $h^*$, so adversaries knowing $h^*$ will still have to do try all $2^p$ possible peppers for each dictionary guess. We still can't log into the server since the server hashes our login hash again.
+
+Additionally, one strategy to make it \emph{even harder} for an adversary is to make hashing more difficult (time-consuming). For example, we can compose SHA256 in certain ways\footnote{The natural way is to hash multiple times, say 100. However, this is actually not more secure in the case of SHA256 but there are specific ways of composition. For example, there are application-specific integrated circuits (ASIC) that can compute hash functions very efficiently.}. There are also memory-hard hash functions, like scrypt.
+
+\emph{Even with all this, is it still safe to use a weak password?} Nope! A dictionary attack is still possible, and with weak passwords will be hard to crack.
+
+\subsubsection{Two-Factor Authentication}
+Now we'll discuss how servers implement two-factor authentication.
+
+For phone number verification, on signing up, the user sends a phone number with their password hash. The server stores their phone number. Every time, the server will generate challenge $r\sampledfrom\{0,1\}^k$
+
+For app-generated codes, the user and server will first share a seed $\mathsf{seed}$ and use a pseudorandom function $F_\mathsf{seed}(\mathsf{time})$. The server and the user can input the same time, and the outputs will be the same. Generally, the server will test the last 30/60 seconds of values.
+
+% \Graphic{images/2023-02-23/2fa.png}{0.8}
+
+\subsection{Putting it Together: Secure Authentication}
+
+Recall that we had an issue from last project that the protocol was vulnerable to man-in-the-middle attacks. Now, we can have a server with a known verification key authenticate users who are communicating between each other.
+
+% \Graphic{images/2023-02-23/signup.png}{0.8}
+
+Now, the server can authenticate users, say Alice and Bob. \emph{How might Alice and Bob send messages amongst each other?}
+
+\subsubsection{Secure Messaging}
+
+One solution is to have Alice sends an encrypted message, with a noted recipient (under Alice/Server's keys) to the server, the server decrypts it in the clear, and encrypts the message (using Bob/Server's keys) to send to Bob.
+
+% \Graphic{images/2023-02-23/server_relay.png}{0.8}
+
+However, the message is completely revealed to the server in plaintext. Optimally, we don't want to do this, but many services do nevertheless. Alice and Bob can do a secure key exchange \emph{through} the server to get shared $g^{ab}$, and encrypt messages between them.
+
+Alice will first encrypt using their shared key, then using their shared secret with the server, encrypt that ciphertext. The server will decrypt the first layer, encrypt that with Bob's key, and send that to Bob.
+
+We note that the server is still the perfect middleman, but our trust assumption is that the server is semi-honest---it will honestly follow the protocol but can try to glean any additional information from them.
+
+\emph{Why might we still adopt the first approach, sending messages in plaintext?} Alice and Bob needs to know their private keys, and remain `online' all the time. If they switch a device, or lose their phone, messages will get lost. Sending messages in plaintext avoids this scenario.
+
+\subsubsection{Group Chats}
+\emph{What about group chats? How might we implement this.}
+
+% \Graphic{images/2023-02-23/group_chats.png}{0.8}
+
+The first scenario is the same---users can send the encrypted message to the server, the server reveals the message and reencrypts to the group members.
+
+We might posit that Alice, Bob and Charlie share keys $g^a, g^b, g^c$, then they jointly have shared secret $g^{abc}$. This is called multi-party key exchange. However, this is in fact very difficult and relies on strong primitives.
+
+Signal and WhatsApp use two different approaches (agree on the same key or pairwise keys), but they both have tradeoffs. We'll continue this next lecture.
