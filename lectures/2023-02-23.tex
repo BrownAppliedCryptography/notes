@@ -18,7 +18,7 @@ We also discussed how a user might authenticate themselves with a server. The us
 
 We saw two attacks, an online dictionary attack and an offline dictionary attack. An online dictionary attack will query known hashes against the server. This can be prevented by rate limiting. An offline dictionary attack happens when the entire database of passwords is leaked---and an adversary can test known passwords.\footnote{Once the database is leaked, they can already authenticate themselves with this server. However, the plaintext password is \emph{more} important, since users reuse passwords. Additionally, a server will usually notice that their database has been compromised, and prompt users to re-enter passwords.}
 
-% \Graphic{images/2023-02-23/salt_and_pepper.png}{0.8}
+\Graphic{images/2023-02-23/salt_and_pepper.png}{0.8}
 
 To solve these problems, we can use \emph{salting} and \emph{peppering}. We send the salt to the user and the user computes hash $h = H(\mathrm{password}||\mathrm{salt})$. Then, we pick a random pepper and hash $h^* = H(h||\mathrm{pepper})$ and stores $h^*$. Now, even if the server is compromised, there is no way to find the preimage of $h^*$, so adversaries knowing $h^*$ will still have to do try all $2^p$ possible peppers for each dictionary guess. We still can't log into the server since the server hashes our login hash again.
 
@@ -33,13 +33,13 @@ For phone number verification, on signing up, the user sends a phone number with
 
 For app-generated codes, the user and server will first share a seed $\mathsf{seed}$ and use a pseudorandom function $F_\mathsf{seed}(\mathsf{time})$. The server and the user can input the same time, and the outputs will be the same. Generally, the server will test the last 30/60 seconds of values.
 
-% \Graphic{images/2023-02-23/2fa.png}{0.8}
+\Graphic{images/2023-02-23/2fa.png}{0.8}
 
 \subsection{Putting it Together: Secure Authentication}
 
 Recall that we had an issue from last project that the protocol was vulnerable to man-in-the-middle attacks. Now, we can have a server with a known verification key authenticate users who are communicating between each other.
 
-% \Graphic{images/2023-02-23/signup.png}{0.8}
+\Graphic{images/2023-02-23/signup.png}{0.8}
 
 Now, the server can authenticate users, say Alice and Bob. \emph{How might Alice and Bob send messages amongst each other?}
 
@@ -47,7 +47,7 @@ Now, the server can authenticate users, say Alice and Bob. \emph{How might Alice
 
 One solution is to have Alice sends an encrypted message, with a noted recipient (under Alice/Server's keys) to the server, the server decrypts it in the clear, and encrypts the message (using Bob/Server's keys) to send to Bob.
 
-% \Graphic{images/2023-02-23/server_relay.png}{0.8}
+\Graphic{images/2023-02-23/server_relay.png}{0.7}
 
 However, the message is completely revealed to the server in plaintext. Optimally, we don't want to do this, but many services do nevertheless. Alice and Bob can do a secure key exchange \emph{through} the server to get shared $g^{ab}$, and encrypt messages between them.
 
@@ -60,7 +60,7 @@ We note that the server is still the perfect middleman, but our trust assumption
 \subsubsection{Group Chats}
 \emph{What about group chats? How might we implement this.}
 
-% \Graphic{images/2023-02-23/group_chats.png}{0.8}
+\Graphic{images/2023-02-23/group_chats.png}{0.6}
 
 The first scenario is the same---users can send the encrypted message to the server, the server reveals the message and reencrypts to the group members.
 
