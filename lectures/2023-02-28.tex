@@ -2,18 +2,22 @@
 \section{February 28, 2023}
 \label{20230228}
 \subsection{Secure Messaging, \emph{continued}}
-\todo{Watch first 5 mins of lecture to catch up on this part.}
+This was just a review of \cref{sec:feb23-secure-messaging}. The server with a known verification key will sign public keys for Alice and Bob. Alice and Bob will exchange keys via the server and communicate messages via the server, encrypted with their shared secret. This allows the server to pass messages that remain secret to the server.
+
+\Graphic{images/2023-02-28/secure_messaging.png}{0.6}
 
 \subsubsection{Group Messaging}
 When we move to group chats, there are more things we need to consider. For example, do we want to reveal this message to the server? In this case, Alice can send the message in the clear to the server and it is forwarded. Additionally, we might ask whether we want to hide the group structure from the server.
 
-% \Graphic{images/2023-02-28/group_messaging.png}{0.6}
+\Graphic{images/2023-02-28/group_messaging.png}{0.6}
 
 In general, there are two paradigms for group messaging. Either everyone uses the \emph{same} key, or everyone has a different key. In WhatsApp, Alice would use a symmetric ratchet with key $A, gr$ (Alice's key and group key) to send the message to the server, and WhatsApp will forward the same encrypted message to Bob and Charlie. While the group structure is revealed to the server, but the message contents are unbeknownst to the server.
 
-% \Graphic{images/2023-02-28/whatsapp.png}{0.6}
+\Graphic{images/2023-02-28/whatsapp.png}{0.6}
 
 In Signal, on the other hand, every pair of users has a differnt key. If Alice wants to send a message to Bob and Charlie, Alice will encrypt two messages, one with Alice/Bob's key and another with Alice/Charlie's key. The server will forward the encrypted messages to the users respectively. In Signal, a double ratchet encryption is preformed between every pair of parties. Another guarantee is that the group structure can be hidden against the server---Alice sending individual messages to Bob and Charlie is indistinguishable from their group texts.
+
+\Graphic{images/2023-02-28/signal.png}{0.6}
 
 
 \subsection{Single Sign-On (SSO) Authentication}
@@ -21,7 +25,7 @@ Often, we'll `log in with Google' or `log in with Apple'\footnote{Even Brown has
 
 Implementations include OAuth or OpenID, which is the format used by Google/Apple/Facebook, etc. Within enterprises, Kerberos credentials allow for SSO as well as things such as printing, connecting to servers, etc.
 
-% \Graphic{images/2023-02-28/sso.png}{0.8}
+\Graphic{images/2023-02-28/sso.png}{0.7}
 
 \subsection{Zero-Knowledge Proofs}
 As mentioned in our course outline, a Zero-Knowledge Proof (ZKP) is a scheme that allows a prover to prove to a verifier some knowledge that they have, without revealing that knowledge.
@@ -36,6 +40,8 @@ We can think of NP languages from a proof system perspective.
 
 \begin{example}[Graph 3-Coloring]
     Consider the \emph{Graph 3-coloring}.
+
+    \Graphic{images/2023-02-28/3color.png}{0.3}
 
     We define our language
     \begin{align*}
@@ -54,10 +60,8 @@ We can think of NP languages as a proof system. A language $L$ is in $\mathsf{NP
     \item[Soundness.] $\forall x\not\in L, \forall w^*, V(x, w^*) = 0$.
 \end{description}
 The prover will prove to the verifier that they have knowledge of witness $w$ without revealing the witness itself.
-% \Graphic{images/2023-02-28/zkp.png}{0.8}
 
 \begin{definition}[Zero-Knowledge Proof System]
-    % \Graphic{images/2023-02-28/zkp_definition.png}{0.8}
     Let $(P, V)$ (for \emph{prover} and \emph{verifier}) be a pair of probabilistic poly-time (PPT) interactive machines. $(P, V)$ is a zero-knowledge proof system for a language $L$ with associated relation $R_L$ if
     \begin{description}
         \item[Completeness.] $\forall (x, w)\in R_L$, $\Pr[P(x, w) \leftrightarrow V(x) \text{ outputs }1] = 1$. That is, if there is a $x\in L$ with witness $w$, a prover will be able to prove to the verifier that they have knowledge of $w$.
@@ -68,6 +72,7 @@ The prover will prove to the verifier that they have knowledge of witness $w$ wi
     We'll say $\forall \mathrm{PPT}\ V^*, \exists \mathrm{PPT}\ S$ such that $\forall (x, w)\in R_L$,
     \[\mathrm{Output}_{V^*}[P(x, w)\leftrightarrow V^*(x)]\simeq S(x).\]
     That is to say, for everything in the language, the output transcript between the prover and verifier can be \emph{simulated} by the simulator without knowledge of the witness\framedfootnote{This is \emph{counterintuitive}, because if any PPT can simulate the proof by themselves, how do we know we're even talking to a prover that has a witness? This is subtle, but we give extra power to the simulator that they are allowed to \emph{rewind} the verifier to some previous step. If the transcript can be simulated, then surely no information is leaked from the protocol.}.
+    \Graphic{images/2023-02-28/zkp_definition.png}{0.7}
 \end{definition}
 
 \begin{example}[Diffie-Hellman Tuple]
@@ -75,7 +80,7 @@ The prover will prove to the verifier that they have knowledge of witness $w$ wi
 
     Our witness is `private exponent' $b$. Our statement is that $\exists b\in \ZZ_q$ such that $u = g^b$ and $v = h^b$.
 
-    % \Graphic{images/2023-02-28/dh_tuple_proof.png}{0.8}
+    \Graphic{images/2023-02-28/dh_tuple_proof.png}{0.7}
 
     The prover will randomly sample $r\sampledfrom \ZZ_q$ and send to the verifier $A:=g^r$ and $B:=h^r$. The verifier randomly samples \emph{challenge} $\sigma \sampledfrom \{0, 1\}$, and sends this challenge bit to the prover. The prover will respond with $s := \sigma\cdot b + r\pmod{q}$. If the challenge bit was $0$, $s = r$ and the verifier verifies $A = g^S$ and $B = h^S$. If the challenge bit was $1$, $s = b + r$ and the verifier verifies $u\cdot A = g^s$ and $v\cdot B = h^S$.
 

@@ -43,7 +43,7 @@ Recall that we had an issue from last project that the protocol was vulnerable t
 
 Now, the server can authenticate users, say Alice and Bob. \emph{How might Alice and Bob send messages amongst each other?}
 
-\subsubsection{Secure Messaging}
+\subsubsection{Secure Messaging}\label{sec:feb23-secure-messaging}
 
 One solution is to have Alice sends an encrypted message, with a noted recipient (under Alice/Server's keys) to the server, the server decrypts it in the clear, and encrypts the message (using Bob/Server's keys) to send to Bob.
 
