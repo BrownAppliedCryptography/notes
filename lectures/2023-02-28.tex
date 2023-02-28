@@ -1,0 +1,101 @@
+%!TEX root = ../notes.tex
+\section{February 28, 2023}
+\label{20230228}
+\subsection{Secure Messaging, \emph{continued}}
+\todo{Watch first 5 mins of lecture to catch up on this part.}
+
+\subsubsection{Group Messaging}
+When we move to group chats, there are more things we need to consider. For example, do we want to reveal this message to the server? In this case, Alice can send the message in the clear to the server and it is forwarded. Additionally, we might ask whether we want to hide the group structure from the server.
+
+% \Graphic{images/2023-02-28/group_messaging.png}{0.6}
+
+In general, there are two paradigms for group messaging. Either everyone uses the \emph{same} key, or everyone has a different key. In WhatsApp, Alice would use a symmetric ratchet with key $A, gr$ (Alice's key and group key) to send the message to the server, and WhatsApp will forward the same encrypted message to Bob and Charlie. While the group structure is revealed to the server, but the message contents are unbeknownst to the server.
+
+% \Graphic{images/2023-02-28/whatsapp.png}{0.6}
+
+In Signal, on the other hand, every pair of users has a differnt key. If Alice wants to send a message to Bob and Charlie, Alice will encrypt two messages, one with Alice/Bob's key and another with Alice/Charlie's key. The server will forward the encrypted messages to the users respectively. In Signal, a double ratchet encryption is preformed between every pair of parties. Another guarantee is that the group structure can be hidden against the server---Alice sending individual messages to Bob and Charlie is indistinguishable from their group texts.
+
+
+\subsection{Single Sign-On (SSO) Authentication}
+Often, we'll `log in with Google' or `log in with Apple'\footnote{Even Brown has Shibboleth!}. A user will authenticate themselves with the authentication server (Google, Apple, Shibboleth), and will be issued a `token' (usually a signature/MAC) for them to then authenticate themselves against the service provider.
+
+Implementations include OAuth or OpenID, which is the format used by Google/Apple/Facebook, etc. Within enterprises, Kerberos credentials allow for SSO as well as things such as printing, connecting to servers, etc.
+
+% \Graphic{images/2023-02-28/sso.png}{0.8}
+
+\subsection{Zero-Knowledge Proofs}
+As mentioned in our course outline, a Zero-Knowledge Proof (ZKP) is a scheme that allows a prover to prove to a verifier some knowledge that they have, without revealing that knowledge.
+
+\emph{What is a proof?} We consider what a `proof system' is. For example, we'll have a \emph{statement} and a \emph{proof} that is a purported proof of that statement. What guarantees do we want from this proof system? If the statement is true, we should be able to prove it; and if the statement is false, we shouldn't be able to prove this. These are our guarantees of \emph{completeness} and \emph{soundness}.
+\begin{description}
+    \item[Completeness.] If a statement is true, there exists a proof that proves it is true.
+    \item[Soundness.] If a statement is false, any proof cannot prove it is true.
+\end{description}
+
+We can think of NP languages from a proof system perspective.
+
+\begin{example}[Graph 3-Coloring]
+    Consider the \emph{Graph 3-coloring}.
+
+    We define our language
+    \begin{align*}
+        L   & = \{G: G\text{ has a 3-coloring}\} \\
+        \intertext{and relation}
+        R_L & = \{(G, \textrm{3Col})\}
+    \end{align*}
+    Our statement will be that $G$ has a 3-coloring. Our proof is providing such a coloring $(G, \mathrm{3Col})\in R_L$.
+
+    This satisfies completeness and soundness. Every 3-colorable graph has a proof that is the 3-coloring itself, and if a graph doesn't have a 3-coloring, it will not have a proof.
+\end{example}
+
+We can think of NP languages as a proof system. A language $L$ is in $\mathsf{NP}$ if $\exists \text{poly-time} V$ (verifier) such that
+\begin{description}
+    \item[Completeness.] $\forall x\in L, \exists w$ (witness) such that $V(x, w) = 1$.
+    \item[Soundness.] $\forall x\not\in L, \forall w^*, V(x, w^*) = 0$.
+\end{description}
+The prover will prove to the verifier that they have knowledge of witness $w$ without revealing the witness itself.
+% \Graphic{images/2023-02-28/zkp.png}{0.8}
+
+\begin{definition}[Zero-Knowledge Proof System]
+    % \Graphic{images/2023-02-28/zkp_definition.png}{0.8}
+    Let $(P, V)$ (for \emph{prover} and \emph{verifier}) be a pair of probabilistic poly-time (PPT) interactive machines. $(P, V)$ is a zero-knowledge proof system for a language $L$ with associated relation $R_L$ if
+    \begin{description}
+        \item[Completeness.] $\forall (x, w)\in R_L$, $\Pr[P(x, w) \leftrightarrow V(x) \text{ outputs }1] = 1$. That is, if there is a $x\in L$ with witness $w$, a prover will be able to prove to the verifier that they have knowledge of $w$.
+        \item[Soundness.] $\forall x\not\in L$, $\forall P^*$, $\Pr[P^*(x) \leftrightarrow V(x)\text{ outputs }1]\simeq 0$. That is, for every $x$ not in the language, our prover $P^*$ will not be able to prove its validity to $V$, with negligible probability. If $P^*$ is PPT, we call the system a \emph{zero-knowledge argument}.
+    \end{description}
+    We need an additional property that this is actually \emph{zero-knowledge}\framedfootnote{That is, the prover could just send the witness in the clear to the verifier, which satisfies completeness and soundness.}. We want to say that the verifier is unable to extract any additional information from the interaction between the verifier and prover. That is, even without the witness, a verifier might be able to `simulate' this transaction \emph{by themselves}!
+
+    We'll say $\forall \mathrm{PPT}\ V^*, \exists \mathrm{PPT}\ S$ such that $\forall (x, w)\in R_L$,
+    \[\mathrm{Output}_{V^*}[P(x, w)\leftrightarrow V^*(x)]\simeq S(x).\]
+    That is to say, for everything in the language, the output transcript between the prover and verifier can be \emph{simulated} by the simulator without knowledge of the witness\framedfootnote{This is \emph{counterintuitive}, because if any PPT can simulate the proof by themselves, how do we know we're even talking to a prover that has a witness? This is subtle, but we give extra power to the simulator that they are allowed to \emph{rewind} the verifier to some previous step. If the transcript can be simulated, then surely no information is leaked from the protocol.}.
+\end{definition}
+
+\begin{example}[Diffie-Hellman Tuple]
+    We want to prove that $h = g^a, u = g^b, v = g^{ab}$ is a Diffie-Hellman Tuple in a cyclic group $\GG$ of order $q$ and generator $g$.
+
+    Our witness is `private exponent' $b$. Our statement is that $\exists b\in \ZZ_q$ such that $u = g^b$ and $v = h^b$.
+
+    % \Graphic{images/2023-02-28/dh_tuple_proof.png}{0.8}
+
+    The prover will randomly sample $r\sampledfrom \ZZ_q$ and send to the verifier $A:=g^r$ and $B:=h^r$. The verifier randomly samples \emph{challenge} $\sigma \sampledfrom \{0, 1\}$, and sends this challenge bit to the prover. The prover will respond with $s := \sigma\cdot b + r\pmod{q}$. If the challenge bit was $0$, $s = r$ and the verifier verifies $A = g^S$ and $B = h^S$. If the challenge bit was $1$, $s = b + r$ and the verifier verifies $u\cdot A = g^s$ and $v\cdot B = h^S$.
+
+    \textbf{Completeness:} If this statement is true, the prover will be able to convince the verifier since they have knowledge of $b$.
+
+    \textbf{Soundness:} If the statement is \emph{not true}, what is the probability that the prover will be able to convince the verifier? When $\sigma = 0$, then it's easy for the prover to pass validation. When $\sigma = 1$, is it possible for the prover to send back a valid $s$ (or, knowing that $\sigma = 1$, can they generate a first round message that makes the message valid in the third round). For example, the prover will first randomly sample $s$ and compute $A = g^s\cdot u^{-1}$ and $B = g^s\cdot v^{-1}$ to send in the first round. However, the prover cannot \emph{simultaneously} pass $\sigma = 0$ \emph{and} $\sigma = 1$ without knowing $b$. So the probability that the prover can convince the verifier is exactly $\frac{1}{2}$.
+
+    \emph{Can we bootstrap this to be negligible?} We repeat this protocol $\lambda$ times and the probability will be $\frac{1}{2^\lambda}$. $r, \sigma$ are randomly sampled each time. Note that we are running the protocol a polynomial number of times for an exponential decrease in probability.
+\end{example}
+
+We can deconstruct this probability of $\frac{1}{2}$. If the prover sends $A = g^r, B = h^r$, if $\sigma = 0$, the prover can prove this. If $\sigma = 1$, the prover will need to produce such $s$ such that $u\cdot g^r = g^s$ and $v\cdot h^r = h^s$, but then this reduces to solving for $b$ (we can get $b = s-r$ out of such an $s$). Otherwise, if $A = g^{r_1}$ and $B = g^{r_2}$, and $\sigma = 0$, we'll `catch' the phony prover.
+
+In essence, the prover is using a one-time pad $r$ to mask $b$, but when prompted, the prover can also be asked to reveal $r$ in the clear that it is valid.
+
+\emph{What might a simulator do?} Since the simulator can `rewind' the verifier to a previous step. The simulator will guess whether the challenge bit, and prepare the first round message. If the guess is correct, we proceed. If not, the simulator will just rewind and do it again until it is correct. This gives the basis of our intuition behind the zero-knowledge aspect of this proof system. Rewinding $\lambda$ times per iteration (at most) gives us $1 - \frac{1}{\lambda^2}$ times that it will succeed, and we repeat this over $\lambda$ iterations.
+
+\emph{To bootstrap the soundness error, what if we did the entire procedure in parallel?} So there will be a total of $3$ messages, each containing $\lambda$ iterations of information. In particular, is it still zero-knowledge? We can't rewind anymore, since we need to get $\lambda$ choice bits correct, which means we rewind an exponential number of times (violating PPT simulator). \emph{Maybe there are other ways to construct simulators...} There are some questions:
+\begin{enumerate}
+    \item Can we prove that this is zero-knowledge?
+    \item If not, can we disprove that this is not zero-knowledge?
+    \item Can we, as the verifier, get more information from this protocol running in parallel?
+\end{enumerate}
+This has been an open problem for many years---it was recently proved that this is \emph{not} zero-knowledge. However, it is still not clear whether we can extract more information from this protocol running in parallel.
