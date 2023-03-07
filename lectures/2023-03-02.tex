@@ -1,0 +1,91 @@
+%!TEX root = ../notes.tex
+\section{March 2, 2023}
+\label{20230302}
+\subsection{Zero Knowledge Proofs, \emph{continued}}
+\subsubsection{Recap}
+Recall that a zero-knowledge proof is an interactive proof system between two parties: a \emph{prover} and a \emph{verifier}. We say that $(P, V)$ a pair of probablistic poly-time (PPT) interactive machines is a \emph{zero-knowledge proof system} for a language $L$ with associated relation $R_L$ if we have
+
+% \Graphic{images/2023-03-02/zkp.png}{0.6}
+
+\begin{description}
+    \item[Completeness.] If $\forall (x, w)\in R_L$ ($x$ and witness $w$), the prover will always be able to prove that this is true.
+    \item[Soundness.] If $\forall x\not\in L$, the prover cannot convince the verifier that $x\in L$.
+\end{description}
+
+Furthermore, we have a zero-knowledge definition, which is a bit counterintuitive. To guarantee that the verifier doesn't learn anything from the system, it means that a simulator that doesn't know the witness $w$ can simulate the entire transcript (all transactions between the prover and verifier). That it, since a simulator can simulate this, the verifier had better not learn any additional information.
+
+\begin{example}
+    We saw a quick example of a zero-knowledge proof for the Diffie-Hellman tuple. Our witness $b$ is the Diffie-Hellman exponent, and inputs are $g^a, g^b, g^{ab}$.
+
+    % \Graphic{images/2023-03-02/dh_zkp.png}{0.6}
+
+    The prover will generate a mask $r\sampledfrom \ZZ_q$. The prover sends $A := g^r, B := h^r$ to the verifier. The verifier issues a challenge bit, and the prover either provides the mask $s:=r$ if $\sigma = 0$, otherwise the prover will provide $b$ masked with $r$ $s:=b + r$.
+
+    We'll detail some of the desired properties of this zero-knowledge proof:
+    \begin{description}
+        \item[Completeness.] Completeness is straightforward, since the prover will always convince the verifier.
+
+            Formally, $\forall (x, w)\in R_L$ (any $x$ with witness $w$ in language), $\Pr[P(x, w)\leftrightarrow V(x)\text{ outputs }1] = 1$.
+        \item[Soundness.] If the statement is not true, the prover cannot convince to the verifier. The prover can only convince the verifier with probability $\frac{1}{2}$ on every iteration, repeating $\lambda$ iterations makes this probability $\frac{1}{2^\lambda}$ (we want this! we want negligible probability that the prover succeeds).
+
+            Formally, $\forall x\not\in L$, $\forall \mathrm{PPT}\ P^*$ (a malicious prover, who is trying to prove $x\in L$), $\Pr[P^*(x)\leftrightarrow V(x)\text{ outputs }1]\simeq 0$.
+        \item[Zero Knowledge.] Since the simulator can `rewind time', it will guess the challenge bit $\sigma$. If it is correct, it'll proceed, otherwise it will rewind until the correct $\sigma$ is chosen. This takes at worst\framedfootnote{That is, the probability of reaching a $O(\lambda^2)$ runtime is negligible in $\lambda$.} $O(\lambda^2)$ attempts over $\lambda$.
+
+            Formally, $\forall \mathrm{PPT}\ V^*$ (for any verifier, even one acting maliciously), $\exists \mathrm{PPT}\ S$ (exists a simulator) such that $\forall (x, w)\in R_L$, the simulator's output is computationally indistinguishable from the output $\mathrm{Output}_{V^*}[P(x, w)\leftrightarrow V^*(x)]$ (whatever the verifier outputs in the real world).
+    \end{description}
+\end{example}
+
+\subsubsection{Proof of Knowledge}
+We missed something very subtle in our soundness guarantee. Consider a case where \emph{every} $x\in L$. Our soundness guarantee is moot here---the prover will never be attempting to prove something false. Yet, our model doesn't require the prover to actually know the witness $w$.
+
+There is an even stronger assumption we can make, \emph{Proof of Knowledge} that describes protocols where the prover needs to actively know a witness, not just that a certain element is in the language.
+
+We define Proof of Knowledge similarly to Zero Knowledge property.
+
+% \Graphic{images/2023-03-02/pok.png}{0.6}
+
+An extractor, interacting with a prover (not necessarily honest), should be able to \emph{extract} the witness $w$ out of its communication with the prover, with the additional power that it can rewind the prover.
+
+\begin{example}
+    How might an extractor get witness $b$ in the Diffie-Hellman example?
+
+    % \Graphic{images/2023-03-02/dh_extractor.png}{0.6}
+
+    The extractor can first pick $\sigma = 0$, which gives them $s$ such that $A = g^s, B = h^s$. Then, the extractor rewinds the protocol and issues challenge $\sigma' = 1$, gaining $s'$ such that $u\cdot A = g^{s'}$ and $v\cdot B = h^{s'}$.
+
+    Then, $u = g^{s-s'}$ and $v = h^{s-s'}$, combining these they can extract valid $b = s-s'\pmod{q}$. If the prover can always convince the verifier, then the extractor will always be able to extract the witness $w$.
+\end{example}
+
+Formally, $\exists \mathrm{PPT}\ E$ (called \emph{extractor}) such that $\forall P^*$ (potentially dishonest prover), $\forall x$,
+\[\Pr[E^{P^*(\cdot)}(x) \text{ outputs }w\text{ s.t. }(x, w)\in R_L] \simeq \Pr[P^*\leftrightarrow V(x)\text{ outputs }1].\]
+This is to say, the probability that the extractor can extract a witness is computationally indistinguishable from the probability of the prover successfully proving $x\in R_L$.
+
+So we've built up our four properties:
+\begin{itemize}
+    \item Completeness: The prover can prove whenever $x\in R_L$.
+    \item Soundness: For any $x$ not in $R_L$, the prover can only prove $x\in R_L$ with \emph{negligible} probability.
+    \item Zero Knowledge: The verifier does not gain any additional information from the proof. That is, a simulator could have `thought up' the entire transcript in their head given the ability to rewind.
+    \item Proof of Knowledge: An even stronger guarantee than soundness (this implies soundness)---a prover must have the witness in hand to be able to prove $x\in R_L$. That is, an extractor could interact with the prover (and rewind) to be able to extract the information of $w$ from the interaction.
+\end{itemize}
+
+\subsubsection{Schnorr's Identification Protocol}
+\begin{example}[Schnorr's Identification Protocol]
+    We saw a variant earlier with the Diffie-Hellman triple proof. This is the general form.
+
+    % \Graphic{images/2023-03-02/schnorr.png}{0.6}
+
+    The input is a cyclic group $\GG$ of order $q$, with generator $g$ and $h = g^a$.
+
+    The prover first samples a mask $r\sampledfrom \ZZ_q$, and sends $A:g^r$ to the verifier. The verifier issues challenge $\sigma\sampledfrom \ZZ_q$\framedfootnote{Note that before we only had $\sigma \in\{0, 1\}$, but now $\sigma$ is in the larger space}. The prover will reply with $s:=\sigma\cdot a + r\pmod{q}$.
+
+    The verifier will verify that $g^s \overset{?}{=} h^\sigma\cdot A$ and $g^{s} = g^{\sigma\cdot h + r}\overset{?}{=} (g^a)^r\cdot g^r$.
+
+    We show the desired properties:
+
+    \begin{description}
+        \item[Completeness.] \todo{Complete}
+    \end{description}
+\end{example}
+
+\subsection{Sigma Protocols}
+\todo{Complete}
