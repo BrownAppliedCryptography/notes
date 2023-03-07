@@ -1,3 +1,118 @@
 %!TEX root = ../notes.tex
 \section{March 7, 2023}
 \label{20230307}
+\subsection{Zero-Knowledge Proof, \emph{continued}}
+\subsubsection{Recap}
+We'll review some definitions from last time, pertaining to the \emph{Zero-Knowledge Proof of Knowledge}.
+\begin{description}
+    \item[Completeness.] If $x$ is in the language, the prover is able to prove it.
+    \item[Soundness.] If $x$ is not in the language, the probability that \emph{any} prover can prove $x\in R_L$ is negligible.
+    \item[Proof of Knowledge.] Note in the soundness guarantee, if everything is in the language, we don't have the guarantee that $P$ knows the witness. This notion gives us a guarantee that the prover can only prove it if it has access to the witness. There should be an extractor that, through interacting with the prover, can extract the witness.
+    \item[Honest-Verifier Zero-Knowledge.] $\exists \mathrm{PPT}\ S$ such that $\forall (x, w)\in R_L$,
+        \[\mathrm{View}_V[P(x, w)\leftrightarrow V(x)]\simeq S(x).\]
+        That is, a simulator can simulate the view between an honest prover and verifier.
+    \item[Zero-Knoweledge.] The previous statement, but the verifier is allowed to be malicious---yet the simulator should still be able to simulate the output (with rewinding).
+\end{description}
+
+The following was review of protocols (with completeness, proof of knowledge, and HVZK/ZK properties) from last time. Refer to (Schnorr, Chaum-Pedersen, Okamoto)\todo{Link from before}.
+
+\subsubsection{Arbitrary Linear Equations}
+\begin{example}[Arbitrary Linear Equations]
+    Arbitrary linear equations and do similarly as before. Say we have some private $a, b, c$ such that $u = g^{a}h^{b}$ and $v = u^av^vg^c$.
+    \begin{description}
+        \item[Round 1.] Sample `masks' $r_1, r_2, r_3\sampledfrom\ZZ_q$ for each $r_i$ and send the exponentiated masks. Send
+            \begin{align*}
+                A & = g^{r_1}h^{r_2}        \\
+                B & = u^{r_1}v^{r_2}g^{r_3}
+            \end{align*}
+        \item[Round 2.] Public challenge $\sigma\sampledfrom\ZZ_q$.
+        \item[Round 3.] Send
+            \begin{align*}
+                s_1 & = \sigma\cdot a + r_1 \\
+                s_2 & = \sigma\cdot b + r_2 \\
+                s_3 & = \sigma\cdot c + r_3
+            \end{align*} for each of $a, b, c$ and verify.
+    \end{description}
+    % \Graphic{images/2023-03-07/ale.png}{0.75}
+
+    Completeness, proof-of-knowledge and honest-verifier zero-knowledge done the exactly same way as we've been seeing before.
+\end{example}
+
+\subsubsection{\textsf{AND} and \textsf{OR} statements}
+Let's say we have some $(x_1, w_1)\in R_{L_1}$ and $(x_2, w_2)\in R_{L_2}$, how should we prove and/or relations between these?
+
+The case of $\mathsf{AND}$ is simple: we can just run the protocol twice.
+
+What about an $\mathsf{OR}$ statement? We have one witness for one statement, we want to prove that \emph{at least one} is true, but without revealing to the verifier which they are proving is true exactly.
+
+Here's what we'll do.
+
+% \Graphic{images/2023-03-07/or.png}{0.75}
+
+The prover will prove that \emph{both} are true by running both protocols. The prover sends $A_1, A_2$ to the verifier. The verifier responds with a single challenge $\sigma\sampledfrom \ZZ_q$. Then, the prover will provide $S_1, S_2$ based on challenges $\sigma_1, \sigma_2$, and send all this to the verifier. The verifier checks $\sigma_1 + \sigma_2 = \sigma$. The intuition behind this is that the prover can fix one $\sigma_i$, and the other is a true challenge.
+
+We rely on the fact that if the prover knows the challenge beforehand, they can use the simulator to generate a valid proof. \textsc{wlog} say the prover knows $x_1$, then the prover will \emph{fix} $\sigma_2\sampledfrom \ZZ_q$ and generate a first round message $A_2$ knowing $\sigma_2$. Then, the prover will generate a valid first round message for the statement they know, $A_1$. When they receive challenge $\sigma$ from the verifier, they compute $\sigma_1 = \sigma - \sigma_2$ and prove $x_1$ honestly.
+
+\emph{Completeness?} This is straightforward, it follows from the completeness of the respective protocols.
+
+\emph{Proof of Knowledge?} How can we construct an extractor that can extract a valid witness, either $w_1$ for $x_1$ or $w_2$ for $x_2$? We'll use the previous extractors $E_1$ and $E_2$.
+
+After challenge and response, we'll rewind to before sending challenge $\sigma$ and send a different challenge $\sigma'$. If $\sigma_1 + \sigma_2 = \sigma$, and $\sigma_1' + \sigma_2' = \sigma'\neq \sigma$. Then at least $\sigma_1\neq \sigma_1'$ or $\sigma_2\neq\sigma_2'$. Say \textsc{wlog} $\sigma_1\neq \sigma_1'$, so we know $(A_1, \sigma_1, s_1)$ and $(A_1, \sigma_1', s_1')$, and we use the corresponding extractor to extract $w_1$.
+
+\emph{Honest Verifier Zero Knowledge?} We sample $\sigma_1, \sigma_2, S_1, S_2\sampledfrom$ randomly (then $\sigma = \sigma_1 + \sigma_2$ appears random), then compute our initial commitments $A_1, A_2$.
+
+\subsubsection{Non-Interactive Zero-Knowledge (NIZK) Proofs}
+% \Graphic{images/2023-03-07/sigma.png}{0.75}
+These all fall under a class called Sigma Protocols (they look like a capital $\Sigma$). A prover will first commit to some $A$, the verifier issues a challenge $\sigma$, then the prover will provide a proof corresponding to their $A$ and $\sigma$.
+
+What if we wanted to condense it into a protocol that was \emph{non-interactive}, and only relies on the prover sending \emph{one} round of `proof' to the verifier.
+
+% \Graphic{images/2023-03-07/nizk.png}{0.75}
+
+Completeness and soundness are the same. What about our previous definition of zero-knowledge? For all verifiers, will the simulator be able to simulate the one-way transcript? This is equivalent to the simulator being able to prove the statement itself\footnote{This is generally impossible! For example, a NIZK for the DH tuple that satisfies Zero-Knowledge breaks the Decisional Diffie-Hellman assumption.
+
+    For the sake of contradiction, say we had such a simulator. To distinguish whether $(g^a, g^b, g^c)\overset{c}{\simeq}(g^a, g^b, g^{ab})$, we can feed this to the simulator to get a proof, and check with the verifier whether the proof is valid. The proof is valid if and only if it is a valid tuple. This contradicts DDH. Such a simulator had better not exist. }. Since there is only one round, the simulator `loses' its ability to rewind the prover and verifier. In the plain model, we cannot achieve a NIZK proof.
+
+To make NIZK proofs possible, there are a few models available to us.
+
+\begin{mdframed}[style=mdgreenbox]
+    \begin{description}
+        \item[Common Random String/Common Reference String (CRS):] There is a trusted third-party that both parties have access to, who generates a shared reference string.
+
+            The power that we give to the simulator is that the simulator is allowed to generate this random/reference string together with the proof. This should be indistinguishable against the real-world.
+
+            In reality, the CRS can be generated in a \emph{key ceremony} between parties such that no party can interfere with the generated key.
+    \end{description}
+    % \Graphic{images/2023-03-07/crs.png}{0.75}
+\end{mdframed}
+
+\begin{mdframed}[style=mdgreenbox]
+    \begin{description}
+        \item[Random Oracle (RO) Model:] The prover and verifier have access to a hash function and it is a random oracle (behaves as if it is a random function).
+
+            The additional power we give to the simulator is that they can control the behavior of the random oracle.
+    \end{description}
+    % \Graphic{images/2023-03-07/rom.png}{0.75}
+\end{mdframed}
+
+\subsubsection{Fiat-Shamir Heuristic}
+We can convert any Sigma protocol into a NIZK under the random oracle model. Recall that the only thing that could have gone wrong is that $\sigma\sampledfrom D$ was not computed randomly. Instead of using a challenge from the verifier, the challenge becomes $\sigma: H(x||m_1)$, a hash of the transcript so far. Since both the prover and verifier have access to the hash function, the prover can generate a challenge for themselves. After that, the prover can generate response.
+
+A malicious verifier has no control over $\sigma$ now, so a malicious verifier cannot do anything more than seeing the proof. A malicious prover also cannot produce a valid $\sigma$ without committing to a $m_1$ first before receiving $\sigma$.
+
+We can transform any public-coin\footnote{Every message sent from the verifier is randomly sampled from a distribution, as a challenge.} HVZK of arbitrary number of rounds into a NIZK using the Fiat-Shamir heuristic in the random oracle model.
+
+Every public coin challenge will become the hash of the transcript so far from a random oracle. This condenses the entire proof into a single message that can be sent to the verifier (and that a verifier at a later point in time can also verify).
+
+\begin{example}
+    The Fiat-Shamir Heuristic can also transform Schnorr's Identification Protocol into Schnorr's Signature Scheme in the RO model.
+
+    We have a cyclic group $\GG$ of order $g$, and generator $g$.
+
+    Public verification key $vk = g^a$, secret signing key $sk = a$.
+
+    We condense the Schnorr's Identification Protocol into a NIZK proof. To sign a message $m$, the random coin sample contains a hash of $m$ as well, \todo{Incomplete}
+\end{example}
+
+\subsection{Anonymous Voting}
+\todo{intro to anonymous voting}
