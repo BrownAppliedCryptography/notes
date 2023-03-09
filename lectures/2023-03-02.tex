@@ -5,7 +5,7 @@
 \subsubsection{Recap}
 Recall that a zero-knowledge proof is an interactive proof system between two parties: a \emph{prover} and a \emph{verifier}. We say that $(P, V)$ a pair of probablistic poly-time (PPT) interactive machines is a \emph{zero-knowledge proof system} for a language $L$ with associated relation $R_L$ if we have
 
-% \Graphic{images/2023-03-02/zkp.png}{0.6}
+\Graphic{images/2023-03-02/zkp.png}{0.75}
 
 \begin{description}
     \item[Completeness.] If $\forall (x, w)\in R_L$ ($x$ and witness $w$), the prover will always be able to prove that this is true.
@@ -14,10 +14,12 @@ Recall that a zero-knowledge proof is an interactive proof system between two pa
 
 Furthermore, we have a zero-knowledge definition, which is a bit counterintuitive. To guarantee that the verifier doesn't learn anything from the system, it means that a simulator that doesn't know the witness $w$ can simulate the entire transcript (all transactions between the prover and verifier). That it, since a simulator can simulate this, the verifier had better not learn any additional information.
 
+\Graphic{images/2023-03-02/zkp_simulator.png}{0.75}
+
 \begin{example}
     We saw a quick example of a zero-knowledge proof for the Diffie-Hellman tuple. Our witness $b$ is the Diffie-Hellman exponent, and inputs are $g^a, g^b, g^{ab}$.
 
-    % \Graphic{images/2023-03-02/dh_zkp.png}{0.6}
+    \Graphic{images/2023-03-02/dh_zkp.png}{0.75}
 
     The prover will generate a mask $r\sampledfrom \ZZ_q$. The prover sends $A := g^r, B := h^r$ to the verifier. The verifier issues a challenge bit, and the prover either provides the mask $s:=r$ if $\sigma = 0$, otherwise the prover will provide $b$ masked with $r$ $s:=b + r$.
 
@@ -42,14 +44,14 @@ There is an even stronger assumption we can make, \emph{Proof of Knowledge} that
 
 We define Proof of Knowledge similarly to Zero Knowledge property.
 
-% \Graphic{images/2023-03-02/pok.png}{0.6}
+\Graphic{images/2023-03-02/pok.png}{0.75}
 
 An extractor, interacting with a prover (not necessarily honest), should be able to \emph{extract} the witness $w$ out of its communication with the prover, with the additional power that it can rewind the prover.
 
 \begin{example}
     How might an extractor get witness $b$ in the Diffie-Hellman example?
 
-    % \Graphic{images/2023-03-02/dh_extractor.png}{0.6}
+    \Graphic{images/2023-03-02/dh_extractor.png}{0.75}
 
     The extractor can first pick $\sigma = 0$, which gives them $s$ such that $A = g^s, B = h^s$. Then, the extractor rewinds the protocol and issues challenge $\sigma' = 1$, gaining $s'$ such that $u\cdot A = g^{s'}$ and $v\cdot B = h^{s'}$.
 
@@ -68,24 +70,150 @@ So we've built up our four properties:
     \item Proof of Knowledge: An even stronger guarantee than soundness (this implies soundness)---a prover must have the witness in hand to be able to prove $x\in R_L$. That is, an extractor could interact with the prover (and rewind) to be able to extract the information of $w$ from the interaction.
 \end{itemize}
 
-\subsubsection{Schnorr's Identification Protocol}
-\begin{example}[Schnorr's Identification Protocol]
-    We saw a variant earlier with the Diffie-Hellman triple proof. This is the general form.
+\subsection{Schnorr's Identification Protocol}\label{sec:mar7-schnorr}
+\begin{remark*}
+    \emph{The following is a hodgepodge of (arguably) clearer notes taken for Peihan's previous cryptography seminar, as well as lecture and slides from the current offering of Applied Cryptography. The notation might not correspond to lecture 1-to-1, but they are the same protocols albeit with different symbols.}
+\end{remark*}
+We saw a variant earlier with the Diffie-Hellman triple proof. This, the Schnorr's Identification Protocol, is the general form.
 
-    % \Graphic{images/2023-03-02/schnorr.png}{0.6}
+Let $G$ be a cyclic group of prime order $q$ with generator $g$. We wish to prove the relation
+\[R_L = \{(g^\alpha, \alpha)\}_{\alpha\in \ZZ_q}\]
 
-    The input is a cyclic group $\GG$ of order $q$, with generator $g$ and $h = g^a$.
+Generator $g$ is known, and the prover wishes to prove that they have the discrete log of $h$ ($\alpha$ where $g^\alpha\equiv h$).
 
-    The prover first samples a mask $r\sampledfrom \ZZ_q$, and sends $A:g^r$ to the verifier. The verifier issues challenge $\sigma\sampledfrom \ZZ_q$\framedfootnote{Note that before we only had $\sigma \in\{0, 1\}$, but now $\sigma$ is in the larger space}. The prover will reply with $s:=\sigma\cdot a + r\pmod{q}$.
+\Graphic{images/2023-03-02/schnorr.png}{0.75}
 
-    The verifier will verify that $g^s \overset{?}{=} h^\sigma\cdot A$ and $g^{s} = g^{\sigma\cdot h + r}\overset{?}{=} (g^a)^r\cdot g^r$.
+Completeness here is clear, the prover is able to produce such $s$ if the prover has knowledge of $\alpha$.
 
-    We show the desired properties:
+\subsubsection{Proof of Knowledge}
 
-    \begin{description}
-        \item[Completeness.] \todo{Complete}
-    \end{description}
-\end{example}
+We wish that
+\[\exists\PPT\ E\text{ s.t. }\forall\PPT\ P^*, \forall x\in L, E^{P^*(\cdot)}(x)\text{ outputs }w\text{ s.t. }(x, w)\in R_L\]
+``That there exists an extractor that by interacting to the prover $P^*$ that can extract $w$/$\alpha$''
+
+In this case, $E$ can rewind the prover as well. We do so as follows:
+
+We get the prover to commit to some $r$ and $A := g^r$, and pick $2$ $\sigma$'s (rewinding) such that we have
+\begin{align*}
+    g^s                                                         & = h^\sigma\cdot u               \\
+    g^{s'}                                                      & = h^{\sigma'}\cdot u            \\
+    \intertext{Given these two equations, we can}
+    g^{s - s'}                                                  & = h^{\sigma-\sigma'}
+    \intertext{Then we have}
+    g^{(s - s')(\sigma-\sigma')^{-1}} = h\Longrightarrow \alpha & = (s - s')(\sigma-\sigma')^{-1}
+\end{align*}
+
+\Graphic{images/2023-03-02/schnorr_pok.png}{0.75}
+
+\subsubsection{Honest-Verifier Zero-Knowledge}
+Can we also construct Zero-Knowledge for this protocol?
+\[\forall\PPT\ V^*, \exists\PPT\ S \text{ s.t. }\forall (x, w)\in R_L, \mathrm{Output}_{V^*}(P(x, w)\leftrightarrow V^*(x))\overset{C}{\simeq} S(x)\]
+
+We first do this for Honest-Verifier Zero-Knowledge. This can be thought of as security against a semi-honest verifier.
+\[\exists\PPT\ S\text{ s.t. }\forall(x, w)\in R_L, \mathrm{View}_V(P(x, w)\leftrightarrow V(x))\simeq S(x)\]
+That is, that the transcript can be simulated by a simulator $S$ without interaction with the verifier, and without $w$.
+
+\Graphic{images/2023-03-02/schnorr_hvzk.png}{0.75}
+
+We construct a simulator that gives us specific values of $A, \sigma, s$ where we can satisfy the equation $g^s = h^\sigma\cdot A$. Once we have $s$ and $\sigma$, we can easily compute the $A$ desired.
+
+We don't have to generate them in order. Fixing $s$ and sampling $\sigma\sampledfrom \ZZ_g$, we can compute $g^s\cdot h^{-\sigma} = A$.
+
+\subsubsection{Zero-Knowledge}
+What about Zero-Knowledge? This interaction happens in order so we cannot do the same neat trick we performed earlier. We have to commit to a $u$ first before we get $c$. \emph{It turns out that this is an open question}.
+
+However, given that it is Honest-Verifier Zero-Knowledge, can we make it Malicious-Verifier ZK? We can construct another protocol that is resistant against a malicious verifier.
+
+We can have the challenger commit to $\sigma$ before $A$ is transmitted.
+
+How can we make a simulator that talks to a malicious verifier? After the commitment is opened, the simulator can rewind to a state after the commitment (but before the opening), and the simulator can generate $u$ and $s$ such that they are consistent in the same way we did in the Honest-Verifier Zero-Knowledge case.
+
+\Graphic{images/2023-03-02/schnorr_zk.png}{0.75}
 
 \subsection{Sigma Protocols}
-\todo{Complete}
+\vspace{1em}
+\begin{definition*}[Sigma Protocols]
+    Sigma Protocols are generally 3-round protocols:
+    \begin{description}
+        \item[Round 1.] The prover has some input $x, w$, and commits to these inputs.
+        \item[Round 2.] \emph{Public coin.} The verifier samples $c\sampledfrom D$.
+        \item[Round 3.] The prover gives a response and the verifier checks if this is consistent.
+    \end{description}
+    \Graphic{images/2023-03-02/sigma.png}{0.75}
+\end{definition*}
+
+It's called a \emph{sigma protocol} because the shape looks like a capital sigma ($\Sigma$). It's a special zero-knowledge proof-of-knowledge.
+
+\subsubsection{Motivation}
+
+Why do we care about Sigma Protocols?
+
+Theoretically, a ZK proof can be given for any NP language: any NP language can be reduced to three-colorings which has a ZK proof. However, these are very complicated and expensive. The NP reduction is also expensive in practice.
+
+To make Zero-Knowledge proofs more accssible and usable, we have differnt techniques for different languages and scenarios. Sigma protocols are a special case of ZK proofs that are very efficient to perform, especially for languages that are useful in crypto.
+
+For example, the case of discrete-log is very useful in cryptography. We'll see some other examples of languages that can be proved through a Sigma protocol.
+
+\subsection{Chaum-Pedersen Protocol for Diffie-Hellman Tuple}\label{sec:mar7-cp}
+\vspace{1em}
+\begin{example}[Diffie-Hellman Tuple]
+    We want to prove that $h, v, w$ is a valid Diffie-Hellman Tuple (that is, $h = g^\alpha, v = g^\beta, w = g^{\alpha\beta}$) without exposing their exponents.
+
+    \begin{description}
+        \item[Round 1.] The prover has some $(h, v, w, \alpha)$. The prover sends $u_1 = g^\beta$ and $u_2 = v^\beta$ with $\beta\sampledfrom\ZZ_q$.
+        \item[Round 2.] The verifier samples the public coin $c\sampledfrom \ZZ_q$ randomly.
+        \item[Round 3.] The prover sends $\gamma = \alpha\cdot c + \beta$ and the verifier checks that $g^\gamma \overset{?}{=} h^c\cdot u_1$ and $v^\gamma \overset{?}{=} w^c\cdot u_2$
+    \end{description}
+    \Graphic{images/2023-03-02/cp_dh_tuple.png}{0.75}
+\end{example}
+
+\subsubsection{Proof-of-Knowledge}
+
+How do we construct Proof-of-Knowledge? How do we construct an extractor that talks to a (potentially malicious) prover to try to extract the knowledge from the protocol.
+
+We do the same thing: run it for two iterations. We have $g^\gamma = h^c\cdot u_1$ and $v^\gamma = w^c\cdot u_2$, $g^{\gamma'} = h^{c'}\cdot u_1$ and $v^{\gamma'} = w^{c'}\cdot u_2$. Then we have
+\begin{align*}
+    g^{\gamma-\gamma'} = h^{c-c'} \\
+    v^{\gamma-\gamma'} = w^{c-c'}
+\end{align*}
+Then we have
+\[\alpha = (\gamma - \gamma')\cdot (c - c')^{-1}.\]
+
+\subsubsection{Honest-Verifier Zero-Knowledge}
+
+If we have a simulator, can we simulate the transcript that is indistinguishable from the real world transcript?
+
+We can do the same thing again. We fix $c\sampledfrom \ZZ_q, \gamma\sampledfrom \ZZ_q$ first and then derive $u_1$ and $u_2$:
+\begin{align*}
+    u_1 & = g^\gamma / h^c \\
+    u_2 & = v^\gamma / w^c
+\end{align*}
+
+\subsection{Okamoto's Protocol for Representation}\label{sec:mar7-okamoto}
+\vspace{1em}
+
+\begin{example}
+    We have 2 elements $g, h$. We want to prove we can show existence of $\alpha_1, \alpha_2$ such that $v = g^{\alpha_1}h^{\alpha_2}$.
+    \begin{description}
+        \item[Round 1.] We sample $\beta_1, \beta_2\sampledfrom\ZZ_q$ and send $u = g^{\beta_1}h^{\beta_2}$, in the same form as $v$.
+        \item[Round 2.] Verifier samples public coin challenge $c\sampledfrom\ZZ_q$.
+        \item[Round 3.] Prover computes 2 exponents, $\gamma_1 = \alpha_1 c+\beta_1, \gamma_2 = \alpha_2 c + \beta_2$. Verifier checks $g^{\gamma_1}h^{\gamma_2}\overset{?}{=}v^c\cdot u$.
+    \end{description}
+    \Graphic{images/2023-03-02/okamoto.png}{0.75}
+\end{example}
+
+We can prove proof-of-knowledge and honest-verifier zero-knowledge in the same way.
+
+\subsubsection{Proof-of-Knowledge}
+We get two sets
+\begin{align*}
+    g^{\gamma_1}h^{\gamma_2}                                                         & = v^c\cdot u    \\
+    g^{\gamma_1'}h^{\gamma_2'}                                                       & = v^{c'}\cdot u \\
+    \intertext{so}
+    g^{\gamma_1 - \gamma_1'}\cdot h^{\gamma_2 - \gamma_2'}                           & = v^{c - c'}    \\
+    g^{\frac{\gamma_1 - \gamma_1'}{c-c'}}\cdot h^{\frac{\gamma_2 - \gamma_2'}{c-c'}} & = v
+\end{align*}
+where $\alpha_1 = \frac{\gamma_1 - \gamma_1'}{c-c'}, \alpha_2 = \frac{\gamma_2 - \gamma_2'}{c-c'}$.
+
+\subsubsection{Honest-Verifier Zero-Knowledge}
+Can be done in the same way.

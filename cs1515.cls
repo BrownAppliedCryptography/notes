@@ -423,3 +423,5 @@
         \includegraphics[width=#2\textwidth]{#1}
     \end{center}
 }
+
+\newcommand{\PPT}{\mathrm{PPT}}

@@ -1,7 +1,7 @@
 %!TEX root = ../notes.tex
 \section{March 7, 2023}
 \label{20230307}
-\subsection{Zero-Knowledge Proof, \emph{continued}}
+\subsection{Zero-Knowledge Proof, \emph{continued again}}
 \subsubsection{Recap}
 We'll review some definitions from last time, pertaining to the \emph{Zero-Knowledge Proof of Knowledge}.
 \begin{description}
@@ -14,11 +14,11 @@ We'll review some definitions from last time, pertaining to the \emph{Zero-Knowl
     \item[Zero-Knoweledge.] The previous statement, but the verifier is allowed to be malicious---yet the simulator should still be able to simulate the output (with rewinding).
 \end{description}
 
-The following was review of protocols (with completeness, proof of knowledge, and HVZK/ZK properties) from last time. Refer to (Schnorr, Chaum-Pedersen, Okamoto)\todo{Link from before}.
+The following was review of protocols (with completeness, proof of knowledge, and HVZK/ZK properties) from last time. Refer to the Schnorr (\cref{sec:mar7-schnorr}), Chaum-Pedersen (\cref{sec:mar7-cp}), and Okamoto (\cref{sec:mar7-okamoto}) ZKP protocols.
 
 \subsubsection{Arbitrary Linear Equations}
 \begin{example}[Arbitrary Linear Equations]
-    Arbitrary linear equations and do similarly as before. Say we have some private $a, b, c$ such that $u = g^{a}h^{b}$ and $v = u^av^vg^c$.
+    Arbitrary linear equations and do similarly as before. We're in cyclic group $\GG$ of order $q$ with generator $g$. Say we have some private $a, b, c$ such that $u = g^{a}h^{b}$ and $v = u^av^vg^c$.
     \begin{description}
         \item[Round 1.] Sample `masks' $r_1, r_2, r_3\sampledfrom\ZZ_q$ for each $r_i$ and send the exponentiated masks. Send
             \begin{align*}
@@ -33,7 +33,7 @@ The following was review of protocols (with completeness, proof of knowledge, an
                 s_3 & = \sigma\cdot c + r_3
             \end{align*} for each of $a, b, c$ and verify.
     \end{description}
-    % \Graphic{images/2023-03-07/ale.png}{0.75}
+    \Graphic{images/2023-03-07/ale.png}{0.75}
 
     Completeness, proof-of-knowledge and honest-verifier zero-knowledge done the exactly same way as we've been seeing before.
 \end{example}
@@ -47,7 +47,7 @@ What about an $\mathsf{OR}$ statement? We have one witness for one statement, we
 
 Here's what we'll do.
 
-% \Graphic{images/2023-03-07/or.png}{0.75}
+\Graphic{images/2023-03-07/or.png}{0.75}
 
 The prover will prove that \emph{both} are true by running both protocols. The prover sends $A_1, A_2$ to the verifier. The verifier responds with a single challenge $\sigma\sampledfrom \ZZ_q$. Then, the prover will provide $S_1, S_2$ based on challenges $\sigma_1, \sigma_2$, and send all this to the verifier. The verifier checks $\sigma_1 + \sigma_2 = \sigma$. The intuition behind this is that the prover can fix one $\sigma_i$, and the other is a true challenge.
 
@@ -62,12 +62,12 @@ After challenge and response, we'll rewind to before sending challenge $\sigma$ 
 \emph{Honest Verifier Zero Knowledge?} We sample $\sigma_1, \sigma_2, S_1, S_2\sampledfrom$ randomly (then $\sigma = \sigma_1 + \sigma_2$ appears random), then compute our initial commitments $A_1, A_2$.
 
 \subsubsection{Non-Interactive Zero-Knowledge (NIZK) Proofs}
-% \Graphic{images/2023-03-07/sigma.png}{0.75}
+\Graphic{images/2023-03-07/sigma.png}{0.75}
 These all fall under a class called Sigma Protocols (they look like a capital $\Sigma$). A prover will first commit to some $A$, the verifier issues a challenge $\sigma$, then the prover will provide a proof corresponding to their $A$ and $\sigma$.
 
 What if we wanted to condense it into a protocol that was \emph{non-interactive}, and only relies on the prover sending \emph{one} round of `proof' to the verifier.
 
-% \Graphic{images/2023-03-07/nizk.png}{0.75}
+\Graphic{images/2023-03-07/nizk.png}{0.75}
 
 Completeness and soundness are the same. What about our previous definition of zero-knowledge? For all verifiers, will the simulator be able to simulate the one-way transcript? This is equivalent to the simulator being able to prove the statement itself\footnote{This is generally impossible! For example, a NIZK for the DH tuple that satisfies Zero-Knowledge breaks the Decisional Diffie-Hellman assumption.
 
@@ -82,8 +82,10 @@ To make NIZK proofs possible, there are a few models available to us.
             The power that we give to the simulator is that the simulator is allowed to generate this random/reference string together with the proof. This should be indistinguishable against the real-world.
 
             In reality, the CRS can be generated in a \emph{key ceremony} between parties such that no party can interfere with the generated key.
+
     \end{description}
-    % \Graphic{images/2023-03-07/crs.png}{0.75}
+    \Graphic{images/2023-03-07/crs.png}{0.75}
+    \emph{There are some formal proof definitions of Zero-Knowledge, etc elided here but are in the post-notes. }
 \end{mdframed}
 
 \begin{mdframed}[style=mdgreenbox]
@@ -92,7 +94,7 @@ To make NIZK proofs possible, there are a few models available to us.
 
             The additional power we give to the simulator is that they can control the behavior of the random oracle.
     \end{description}
-    % \Graphic{images/2023-03-07/rom.png}{0.75}
+    \Graphic{images/2023-03-07/rom.png}{0.75}
 \end{mdframed}
 
 \subsubsection{Fiat-Shamir Heuristic}
@@ -115,4 +117,13 @@ Every public coin challenge will become the hash of the transcript so far from a
 \end{example}
 
 \subsection{Anonymous Voting}
-\todo{intro to anonymous voting}
+We'll go over a very high level idea for anonymous online voting systems.
+
+Say we have $n$ voters, and each will vote $0$ or $1$ for some candidate. Each voter will generate an encryption of their vote, encrypting $0$ or $1$. We want to add the votes together, in a \emph{homomorphic} way. We'll homomorphically (that is, the sum of ciphertexts is the sum of plaintexts) combine these votes altogether. We'll then decrypt the final encryption to learn the summation.
+
+There are some problems we need to solve:
+\begin{itemize}
+    \item Who is going to decrypt? Is there a single party who can decrypt the final ciphertext? If a single party can decrypt the final ciphertext, then one party can decrypt every single vote. We want the final decryption to be done jointly by a few parties.
+    \item How can we combine these encryptions into an encryption of the summation based on the schemes we've learned so far?
+    \item What if voters behave maliciously? What if a voter encrypts, say, 100? \emph{We'll use zero-knowledge proofs for this.}
+\end{itemize}
