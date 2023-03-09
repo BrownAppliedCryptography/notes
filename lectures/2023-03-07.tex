@@ -38,7 +38,7 @@ The following was review of protocols (with completeness, proof of knowledge, an
     Completeness, proof-of-knowledge and honest-verifier zero-knowledge done the exactly same way as we've been seeing before.
 \end{example}
 
-\subsubsection{\textsf{AND} and \textsf{OR} statements}
+\subsubsection{\textsf{AND} and \textsf{OR} statements}\label{sec:mar7-sigma-or}
 Let's say we have some $(x_1, w_1)\in R_{L_1}$ and $(x_2, w_2)\in R_{L_2}$, how should we prove and/or relations between these?
 
 The case of $\mathsf{AND}$ is simple: we can just run the protocol twice.
@@ -97,7 +97,7 @@ To make NIZK proofs possible, there are a few models available to us.
     \Graphic{images/2023-03-07/rom.png}{0.75}
 \end{mdframed}
 
-\subsubsection{Fiat-Shamir Heuristic}
+\subsubsection{Fiat-Shamir Heuristic}\label{sec:mar7-fiat-shamir}
 We can convert any Sigma protocol into a NIZK under the random oracle model. Recall that the only thing that could have gone wrong is that $\sigma\sampledfrom D$ was not computed randomly. Instead of using a challenge from the verifier, the challenge becomes $\sigma: H(x||m_1)$, a hash of the transcript so far. Since both the prover and verifier have access to the hash function, the prover can generate a challenge for themselves. After that, the prover can generate response.
 
 A malicious verifier has no control over $\sigma$ now, so a malicious verifier cannot do anything more than seeing the proof. A malicious prover also cannot produce a valid $\sigma$ without committing to a $m_1$ first before receiving $\sigma$.

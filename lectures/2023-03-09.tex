@@ -1,0 +1,141 @@
+%!TEX root = ../notes.tex
+\section{March 9, 2023}
+\label{20230309}
+\subsection{Intuition for Zero Knowledge Proofs}
+There has been feedback that the sections covering Zero Knowledge Proofs have been mathematical and unintuitive.
+
+We'll try to provide some intuition for Zero Knowledge Proofs. There are two main components: \emph{Zero Knowledge} and \emph{Proof}.
+
+A prover, in a proof, is trying to prove that they know some witness of an element in a language $R_L$. They need to be able to prove that they have this knowledge if they do (\emph{completeness}), and they should not be able to prove this if they don't have this information (\emph{soundness}).
+
+For the zero-knowledge aspects: a verifier should not learn any information about the witness. One standard of security (honest-verifier zero knowledge) asks that the verifier acts honestly. Other standards allow all forms of verifiers.
+
+One can review \cref{sec:mar7-schnorr} for an example of a zero-knowledge proof and components involved.
+
+\subsection{Putting it Together: Anonymous Online Voting}
+We identified a few issues we would like resolved for our voting scheme:
+
+\subsubsection{Homomorphic Encryption}
+Homomorphic encryption refers to encryption that allows for operations on the ciphertext corresponding to operations on the plaintext.
+
+For example, an additively homomorphic scheme has the property that
+\[\Enc(m_1) + \Enc(m_2) = \Enc(m_1 + m_2).\]
+Similarly for multiplicatively homomorphic schemes,
+\[\Enc(m_1) \cdot \Enc(m_2) = \Enc(m_1 \cdot m_2).\]
+
+\begin{example}[ElGamal Homomorphism]
+    Let's look at the ElGamal encryption scheme. We have a cyclic group $\GG$ with generator $g$, public key $pk$.
+    \begin{align*}
+        \Enc_{pk}(m_1) & =(g^{r_1}, pk^{r_1}\cdot m_1) \\
+        \Enc_{pk}(m_2) & =(g^{r_2}, pk^{r_2}\cdot m_2)
+    \end{align*}
+    We note that this is multiplicatively homomorphic (element-wise):
+    \[\Enc_{pk}(m_1)\cdot \Enc_{pk}(m_2) = (g^{r_1 + r_2}, pk^{r_1 + r_2}\cdot (m_1\cdot m_2)) = \Enc_{pk}(m_1\cdot m_2).\]
+    This gives us multiplicative homomorphism, but we want additive homomorphism (we want votes to add, not multiply).
+
+    We can consider exponential ElGamal, where the message is a power of $g$ (and exponents add).
+    \begin{align*}
+        \Enc_{pk}(m_1) & =(g^{r_1}, pk^{r_1}\cdot g^{m_1}) \\
+        \Enc_{pk}(m_2) & =(g^{r_2}, pk^{r_2}\cdot g^{m_2})
+    \end{align*}
+    then
+    \[\Enc(m_1)\cdot \Enc(m_2) = (g^{r_1 + r_2}, pk^{r_1 + r_2}\cdot g^{m_1\cdot m_2}) = \Enc(m_1 + m_2).\]
+    but how do we recover the message? We can decrypt (normally) to get $g^{m_1 + m_2}$, but solving for $m_1 + m_2$ is \emph{hard}, since it is a discrete log.
+
+    However, we're using this in the context of online voting. If $m\in \{0, \dots, n\}$ for $n$ the total number of voters (some polynomial range). This is fine for our uses!\framedfootnote{Normally, we talk about exponents from exponentially large sizes. Here, we can solve the discrete log since $n$ is quite small.}
+\end{example}
+
+\subsubsection{Threshold Encryption}
+We've solved our first problem---we can add our votes together. We move on to figuring out which party will decrypt the vote. If one party could decrypt the vote, they would decrypt every vote.
+
+Our solution is to use a threshold encryption scheme. Many parties will generate a \emph{partial} public key, and only together can they form a public key that can decrypt the message. Even if \emph{all but one} party colludes to try to decrypt, they will not be able to gain information about the ciphertext.
+
+To decrypt, all parties will partially decrypt the ciphertext. They can use the partial keys to partially decrypt the ciphertext.
+
+This is $t$ out of $t$ threshold encryption---all $t$ parties will need to decrypt. You can have arbitrary ratios, like $3$-out-of-$t$ (you can only decrypt if you have $3$ parties), or $\frac{t+1}{2}$-out-of-$t$ (you need a majority to decrypt).
+
+\begin{example}
+    This works quite well for ElGamal encryption. Each partial decryptor will generate their own ElGamal secret key and public key.
+    \begin{align*}
+        P_1 & : sk_1\sampledfrom \ZZ_q,\qquad pk_2 = g^{sk_1} \\
+        P_2 & : sk_2\sampledfrom \ZZ_q,\qquad pk_2 = g^{sk_2} \\
+            & \qquad \vdots                                   \\
+        P_t & : sk_t\sampledfrom \ZZ_q,\qquad pk_t = g^{sk_t}
+    \end{align*}
+    The combined public key will be $pk = \prod pk_i = \prod g^{sk_i} = g^{\sum sk_i}$. The combined secret key will be $\sum sk_i\pmod{q}$. We have to figure out the summation of \emph{all} the $sk_i$. If we only have $t-1$ secret keys, we're still missing one summand which acts as a one-time pad masking the entire secret key.
+
+    To encrypt, we'll just encrypt using $pk$. $\Enc_{pk}(m) = (g^r, pk^r, g^m)$.
+
+    To decrypt, \emph{every party} will need to decrypt using their partial key. Each party will unravel $c_1$,
+    \begin{align*}
+        P_1 & : \alpha_1 = c_1^{sk_1}\longrightarrow \alpha_1 \\
+        P_2 & : \alpha_2 = c_2^{sk_2}\longrightarrow \alpha_2 \\
+            & \qquad \vdots                                   \\
+        P_t & : \alpha_t = c_t^{sk_t}\longrightarrow \alpha_t
+    \end{align*}
+    and $\frac{c_2}{\alpha_1\cdot \alpha_2\cdots \alpha_t} = g^m$ exactly noting $\prod \alpha_i = \prod c_1^{sk_i} = c_1^{\sum sk_i} = c_1^{sk}$. This ensures that everyone has to participate in the decryption.
+
+    Note that they decrypt to a specific message with a specific $c_1$, so you couldn't use this reconstituted decryption key to decrypt an individual vote.
+\end{example}
+
+\subsubsection{Voting Framework}
+% \Graphic{images/2023-03-09/framework.png}{0.8}
+We have some servers:
+\begin{description}
+    \item[Registrar.] For a voter to be able to vote, they register with the Registrar to obtain a certificate to vote. They get a certificate for their verification key.
+    \item[Arbiters.] The arbiters will generate the threshold encryption keys. There will be $t$ arbiters and each will have their $(pk_i, sk_i)$. They all reveal $pk_i$ to the public, so that everyone can compute the full public key $pk$.
+    \item[Voter.] The voter, using the public key, will encrypt $v_i \in\{0, 1\}$. The voter will sign this vote using their signing key. They will send this vote to the Tallyer.
+    \item[Tallyer.] The tallyer will check that the signature is valid\footnote{This way, the registrar cannot figure out who has voted and who hasn't.}. Then, they will strip the signature and output $\Enc_{pk}(v_1), \dots, \Enc_{pk}(v_i), \dots, \Enc_{pk}(v_n)$.
+\end{description}
+At the end, arbiters will take the published votes and multiply them all together, then jointly decrypt them.
+
+\textbf{What if the voter is malicious?} Nothing stops the voter from encrypting $5$, or $100$. This is guaranteed since votes are \emph{hiding} so we won't know what is under a vote.
+
+\textbf{What if an arbiter is malicious?} What if an arbiter doesn't partially decrypt honestly, and they can tweak the vote. If an arbiter computed $\alpha_i = c_1^{sk_i}g^k$, then decryption will give us $\frac{c_2}{\prod \alpha_i} = \frac{c_2}{\prod c_1^{sk_i}\cdot g^k} = \frac{c_2}{c_1^{sk_i}\cdot g^k} = g^{\sum v_i - k}$. This allows each arbiter to easily change the vote outcome.
+
+We'll use zero knowledge proofs here: the voter will use a zero knowledge proof to prove that they only encrypted $0$ or $1$, and the arbiter will use a zero knowledge proof to prove that their $\alpha_i$ is correcet.
+
+\subsubsection{Correctness of Encryption}
+We want voters to prove that their encryption is either of $0$ or $1$. This is perfect for a sigma $\mathsf{OR}$ protocol!
+
+We're in group $\GG$ with order $q$ and generator $g$. We have public key $pk\in \GG$, and ciphertext $c = (c_1, c_2)$.
+
+We're trying to prove the statement ``$c$ is an encryption of $0$ $\mathsf{OR}$\footnote{This is a Sigma $\mathsf{OR}$ statement, not just any plain `or'. Recall in \cref{sec:mar7-sigma-or} that a prover can prove arbitrary $\mathsf{OR}$ statements wihout revealing to the verifier which statement they are proving. So that, in this scenario, no verifier can know which statement the voter is attempting to prove, so nothing about their vote is revealed.} $c$ is an encryption of $1$.''
+
+Our languages are then encryptions of $0$ and encryptions of $1$:
+\begin{align*}
+    R_{L_0} & = \{(\smallunderbrace{(pk, c_1, c_2)}_{x}, \smallunderbrace{r}_{w}) : c_1 = g^r\land c_2 = pk^r\}        \\
+    R_{L_1} & = \{(\smallunderbrace{(pk, c_1, c_2)}_{x}, \smallunderbrace{r}_{w}) : c_1 = g^r\land c_2 = pk^r\cdot g\}
+\end{align*}
+where $r$ is our private key. Using this, we can prove that $c$ is an encryption of $0$ ($c_2 = pk^r$) or $c$ is an encryption of $1$ ($c_2 = pk^r\cdot g$).
+
+In both cases, we can use Chaum-Pedersen exactly (\cref{sec:mar7-cp}) to prove Diffie-Hellman tuples. For the former, $(c_1, pk, c_2)$ is a Diffie-Hellman tuple in the form $(g^a, g^b, g^{ab})$. For the latter, $(c_1, pk, c_2\cdot g^{-1})$ is a Diffie-Hellman tuple in the same form.
+
+Using the Fiat-Shamir heuristic (see \cref{sec:mar7-fiat-shamir}), we can convert this proof to a NIZK proof, and the voter can just publish their proof along with their vote.
+
+\subsubsection{Correctness of Partial Decryption}
+Again, given cyclic group $\GG$ of order $q$ with generator $g$, we have partial public key $pk_i\in \GG$ which produces partial decryption $\alpha_i$. Our witness is the partial secret key $sk_i$.
+
+Out language is
+\[R_L = \{((pk_i, c_1, \alpha_i), \smallunderbrace{sk_i}_{w}): pk_i = g^{sk_i}\land \alpha_i = c_1^{sk_i}\}\]
+and we prove that $pk_i = g^{sk_i}$ and $\alpha_i = c_1^{sk_i}$. How might we prove this?
+
+This is still the Diffie-Hellman tuple! $pk_i = g^{sk_i}, c_1 = g^r, \alpha_i = g^{r\cdot sk_i}$.
+
+We'll use Chaum-Pedersen again, and condense this into a non-interactive proof using the Fiat-Shamir heuristic the same way. Each arbiter will publish a their NIZK proof that their partial decryption is correct.
+
+\subsubsection{Generalizations?}
+This is currently for $1$ candidate. What if we have $k$ candidates?
+
+A na\"ive solution is to encrypt $v_n\in \{0, 1, \dots, k-1\}$. But then adding the votes wouldn't give us any information of how people voted.
+
+One solution is that each voter will vote once (provide some $(c_1, c_2)$) for each candidate. Then, the voter will prove in zero knowledge that each vote is $0, 1$ and that the sum of votes is $1$ exactly (if we restrict every voter to vote for exactly $1$, but we can adapt this scheme by composing our ZK proofs for arbitrary configurations). The arbiters run each election separately.
+
+\subsection{Zero-Knowledge Proof for Graph 3-Coloring}
+We'll show a zero-knowledge proof for an $\mathsf{NP}$-hard problem, the graph 3-coloring. To prove any arbitrary $\mathsf{NP}$ language, we can reduce it to graph 3-coloring (by a polynomial-time reduction), and prove that.\footnote{This is a\dots theoretical result. It signifies that any $\mathsf{NP}$ language can be proved in zero-knowledge, but is not used in practice that I know of. Most applications of ZK proofs will use sigma protocols.}
+
+% \Graphic{images/2023-03-09/3color.png}{0.6}
+
+Our $\mathsf{NP}$ language is $L = \{G : G\text{ has a 3-coloring}\}$. Our $\mathsf{NP}$ relation is $R_L = \{(G, \mathsf{3col})\}$ where $\mathsf{3col}$ is a 3-coloring for graph $G$ (our witness).
+
+\emph{We'll continue this next time.}
