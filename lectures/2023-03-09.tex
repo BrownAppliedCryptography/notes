@@ -79,7 +79,7 @@ This is $t$ out of $t$ threshold encryption---all $t$ parties will need to decry
 \end{example}
 
 \subsubsection{Voting Framework}
-% \Graphic{images/2023-03-09/framework.png}{0.8}
+\Graphic{images/2023-03-09/framework.png}{0.8}
 We have some servers:
 \begin{description}
     \item[Registrar.] For a voter to be able to vote, they register with the Registrar to obtain a certificate to vote. They get a certificate for their verification key.
@@ -134,7 +134,7 @@ One solution is that each voter will vote once (provide some $(c_1, c_2)$) for e
 \subsection{Zero-Knowledge Proof for Graph 3-Coloring}
 We'll show a zero-knowledge proof for an $\mathsf{NP}$-hard problem, the graph 3-coloring. To prove any arbitrary $\mathsf{NP}$ language, we can reduce it to graph 3-coloring (by a polynomial-time reduction), and prove that.\footnote{This is a\dots theoretical result. It signifies that any $\mathsf{NP}$ language can be proved in zero-knowledge, but is not used in practice that I know of. Most applications of ZK proofs will use sigma protocols.}
 
-% \Graphic{images/2023-03-09/3color.png}{0.6}
+\Graphic{images/2023-03-09/3color.png}{0.3}
 
 Our $\mathsf{NP}$ language is $L = \{G : G\text{ has a 3-coloring}\}$. Our $\mathsf{NP}$ relation is $R_L = \{(G, \mathsf{3col})\}$ where $\mathsf{3col}$ is a 3-coloring for graph $G$ (our witness).
 
