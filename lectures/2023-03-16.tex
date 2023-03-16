@@ -1,0 +1,168 @@
+%!TEX root = ../notes.tex
+\section{March 16, 2023}
+\label{20230316}
+\subsection{Succinct Non-Interactive Argument (SNARG)}
+\begin{definition}
+    A non-interactive proof (unbounded prover) or argument (polybounded prover) system is \ul{succinct} if
+    \begin{itemize}
+        \item The proof $\pi$ is of length $|\pi| = \mathrm{poly}(\lambda, \log|c|)$.
+        \item The verifier runs in time $\mathrm{poly}(\lambda, |x|, \log |c|)$.
+    \end{itemize}
+\end{definition}
+
+A SNARK is a Succinct Non-Interactive Argument of Knowledge. A zk-SNAR\{K/G\} is a SNAR\{K/G\} with zero-knowledge.
+
+We rely on this theorem (without proof):
+
+\begin{theorem}[PCP Theorem]
+    Every NP language has a PCP where the verifier reads only a \emph{constant} number of bits of the proof.
+\end{theorem}
+
+This theorem states that a verifier only needs to read a constant number of bits of the proof, which could condense a proof into some constant time.
+
+Our first attempt could be to commit to the entire proof, and the verifier challenges with the bits it would like to observe, which the prover will open.
+
+% \Graphic{images/2023-03-16/first_attempt.png}{0.8}
+
+However, this entire message will still send the entire proof, which isn't what we want.
+
+Our solution is to use a Merkle Tree.
+% \Graphic{images/2023-03-16/merkle.png}{0.8}
+
+We hash values in a tree format, with each parent node being the hash of its children. We only send the \emph{root note}. Whenever the verifier requests a certain bit, we send the path from the root to the bit (revealing all hashes, and siblings) to verify that this is indeed.
+
+It's very difficult to change any bit. If we changed a bit, at some point up the path of the tree we'll have found a collision for a hash. That is to say, a specific bit being correct is predicated on whether the path to the root is valid and the root hash matches.
+
+\emph{Can we make this hiding?} Right now, we don't guarantee the hiding property. If we only had one layer, every bit would be revealed. How can we modify this algorithm to ensure that each bit is hiding?
+
+One solution would be to add a random string $r$ as a sibling to every leaf. However, this would require us to reveal all siblings when we're verifying a certain leaf node. We can easily modify this to \emph{salt} \emph{every} leaf node. We can add some random $r_i$ to the hash of \emph{every} bit that hides those bits.
+
+% \Graphic{images/2023-03-16/second_attempt.png}{0.8}
+
+Now, instead of sending a commitment of the entire proof, we send a Merkle Tree of the commitment of the proof. Then, when requested for certain bits $i, j, k$, we'll open those commitments as pathes on the tree.
+
+\emph{Is this zero-knowledge?} Note that in the PCP theorem, we did not have the zero-knowledge property. Our solution is that when opening commitments, we can instead provide ZK proofs for our `reveals' instead of the actual bits themselves. Asymptotically, this still preserves our succinctness property.
+
+Theoretically, this lets us construct zk-SNARGs. However, this is not practical.
+
+\subsubsection{Linear PCP}
+
+% \Graphic{images/2023-03-16/linear_pcp.png}{0.8}
+
+We can use a Linear PCP instead. The prover sends $\pi\in\FF^m$, instead of checking a constant number of bits, we check a constant number of inner products $\langle \pi, q_i\rangle\in\FF$. Constructions have size $m = O(|c|^2)$ for Walsh-Hadard codes or $m = O(|c|)$ for quadratic span programs.
+
+The verifier will preprocess first by generating public and secret keys. The verifier encrypts challenges $q_i\in\FF^m$ and sends $c_i\leftarrow \Enc_{pk}(q_i)$. The public and ciphertexts are published.
+
+The prover will generate such $\pi\in\FF^m$, and in an additively homomorphic encryption scheme, the prover can provide $\Enc_{pk}(\langle \pi, q_i\rangle)\rightarrow r_i$.
+
+The verifier checks $x, \tau_\mathrm{LPCP}$ and $r_i$s in quadratic time.
+
+However, this is \emph{designated verifier}. Every verifier will need to generate their values $q_i$ and $c_i$. This doesn't allow for us to publicly verify, and the preprocessing doesn't really allow for the random oracle model.
+
+% \Graphic{images/2023-03-16/crs_linear_pcp.png}{0.8}
+
+We can, however, use the common reference string (CRS) model. The assumption is that some trusted third party will generate a `common reference string' $c_i =g^{q_t}$ and $c_\tau = g^{\tau_\mathrm{LPCP}}$.
+
+The prover can still multiply ciphertexts to get $g^{\langle\pi, q_i\rangle} = g^{r_i}$ (exponents are linear). Then the verifier can take $g^x, g^{\tau_\mathrm{LPCP}}, g^{r_i}$ to verify.
+
+\emph{But the verifier does not have the secret key!} There are some nasty ways around this, but we'll use a piece of new technology in cryptography called \emph{Bilinear Pairings}.
+
+\begin{definition}[Bilinear Pairing]
+    A \ul{Bilinear Pairing} is a set of groups $G_1, G_2, G_T$ with generators $g_1, g_2, g_T$ and a function\framedfootnote{The target group should be different than the initial groups, but the first two groups can be the same. If all groups are the same then DDH is made easy.}
+    \[e: G_1\times G_2\to G_T\]
+    such that
+    \[e(g_1^a, g_2^b) = g_T^{ab}\]
+\end{definition}
+
+Using this, we can verify without knowing secrets. Note that it's crucial that the CRS is generated correctly. This is usually done using MPC (multi-party computation) in a \emph{key ceremony}\footnote{Zcash, at one point, had a bad vulnerability which exposed CRS privates. }
+
+\subsection{Secure Multi-Party Computation}
+
+\subsubsection{2-Party Computation}
+
+We've seen this before, but it is whensome parties want to compute the output of some function on their individual inputs, without revealing their own inputs.
+
+\begin{example}
+    Alice and Bob just returned from a date, and want to figure out if they each want a second date. Alice has some choice bit $x$ and Bob some choice bit $y$. They want to jointly compute $f(x, y) = x\land y$.
+\end{example}
+\begin{example}
+    Alice and Bob want to compare riches (who is richer?). They compute
+    \[f(x, y) = \begin{cases}
+            0 & \text{if }x>y    \\
+            1 & \text{otherwise}
+        \end{cases}\]
+\end{example}
+\begin{example}
+    Alice and Bob meet for the first time and want to see if they have friends in common. They have sets of friends $X,Y$, and compute
+    \[f(X, Y) = X\cap Y.\]
+    There are variants of this which only give cardinality of $X\cap Y$, etc.
+\end{example}
+
+% \Graphic{images/2023-03-16/2pc.png}{0.8}
+
+In general, this is when two parties have inputs $x, y$ and want to compute some function $f(x, y)$ on them.
+
+Use cases include:
+\begin{itemize}
+    \item Password breach alert (Chrome/Firefox/Azure/iOS Keychain) runs a set intersection on your passwords and server leaked passwords.
+    \item Privacy-preserving contact tracing for COVID-19 (Apple and Google). We want to know if we have contact but not who had contact with.
+    \item Ads conversion measurements/personalized advertising (Google/Meta). We want to match conversions without either party knowing who converted.
+\end{itemize}
+
+\subsubsection{Multiple Parties!}
+The general case of this is Secure Multi-Party Computation (MPC)
+
+% \Graphic{images/2023-03-16/mpc.png}{0.8}
+
+This is when we have some parties $P_i$ and want to compute input on $f(x_i, \cdots, x_n)$.
+
+Here are some applications:
+\begin{itemize}
+    \item \todo{A bunch missed}
+    \item Federated learning (used in Google Keyboard Search Suggestion). We want to run machine learning, federated amongst multiple devices. However, we don't want to leak the actual training data from users.
+    \item Auctions (Danish sugar beet auction). Nobody should reveal their bid in the clear.
+    \item Also deployed in Boston area to analyze the wage gap between genders without revealing the individual salaries.
+\end{itemize}
+Some applications are still in the works:
+\begin{itemize}
+    \item Study/Analysis on Medical Data. Every institution has limited data, but they cannot openly share that data due to regulations. How could they jointly do analysis on this data without revealing the data.
+    \item Fraud Detection (banks). Users might have cards at multiple banks, they want to jointly detect fraud but do not want to share their transactions.
+\end{itemize}
+
+When we normally talk about cryptography, we talk about `slowing down' the system (crypto makes everything slower). In the case of MPC, though, we've enabled new features that were not otherwise possible without these tools.
+
+\subsection{Definition}
+Our setting is that we have $n$ parties $P_1, \dots, P_n$ with private inputs $x_1, \dots, x_n$. They want to jointly compute $f(x_1, \dots, x_n)$.
+
+In terms of communication infrastructure: we usually assume point-to-point channels between each pair $(p_i, p_j)$. We know how to do this (key exchange, authenticated encryption, etc). Sometimes, we also assume a reliable broadcast channel where every other party gets information.
+
+There is a single adversary that can ``corrupt'' a subset of the parties (at most $t$).
+
+\emph{What properties do we want out of this system?} Here are some common security properties we might want:
+\begin{description}
+    \item[Correctness.] The function is computed correctly.
+    \item[Privacy.] Only the output is revealed.
+    \item[Independence of Inputs.] Parties cannot choose their inputs depending on others' inputs.
+\end{description}
+Also with security guarantees:
+\begin{description}
+    \item[Security with Abort.] The adversary may ``abort'' the protocol. This prevents honest parties from receiving the output. This is the weakest model.
+    \item[Fairness.] If one party receives the output, then all parties will receive the output.
+    \item[Guaranteed Output Delivery (GOD):] Honest parties \emph{always} receive output. Even if adversarial parties leave, the honest parties will simply continue the protocol.
+\end{description}
+
+We also have some characterizations of adversaries:
+\begin{itemize}
+    \item Allowed adversarial behavior:
+          \begin{itemize}
+              \item Semi-honest (or passive/honest-but-curious): They follow the protocol description honestly, but they try to extract more information by inspecting the transcript. This is the weaker model.
+              \item Malicious/active: These adversaries can deviate arbitrarily from protocol description.
+          \end{itemize}
+    \item Adversary's computing power:
+          \begin{itemize}
+              \item Unbounded computing power: this gives us information-theoretic (IT) security.
+              \item PPT bounded: this gives us computational security.
+          \end{itemize}
+\end{itemize}
+
+If you're interested, you can look into the literature of how to define security for MPCs. The idea is similar to that of ZK proofs---everything an adversary can do (see the transcript) can be simulated by a simulator who only has the input and output.
