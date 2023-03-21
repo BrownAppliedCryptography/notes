@@ -37,7 +37,17 @@
 
 \usepackage[all,cmtip]{xy}
 
-% \includeonly{lectures/2023-03-09.tex, lectures/2023-03-14.tex, lectures/2023-03-16.tex}
+% Commas in footnotes:
+\let\oldFootnote\footnote
+\newcommand\nextToken\relax
+
+\renewcommand\footnote[1]{%
+    \oldFootnote{#1}\futurelet\nextToken\isFootnote}
+
+\newcommand\isFootnote{%
+    \ifx\footnote\nextToken\textsuperscript{,}\fi}
+
+\includeonly{lectures/2023-03-21.tex, lectures/2023-03-16.tex}
 
 \begin{document}
 \maketitle
@@ -67,5 +77,6 @@
 \include{lectures/2023-03-09.tex}
 \include{lectures/2023-03-14.tex}
 \include{lectures/2023-03-16.tex}
+\include{lectures/2023-03-21.tex}
 
 \end{document}
