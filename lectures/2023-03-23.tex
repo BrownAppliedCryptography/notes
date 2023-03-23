@@ -1,0 +1,106 @@
+%!TEX root = ../notes.tex
+\section{March 23, 2023}
+\label{20230323}
+Some quick notes: if you submit homework after your alloted late allotment, we will still grade it, but it will not count toward your grade.
+
+Additionally, we're seeing some responses that look like they were from chatbots like ChatGPT. They \emph{will not} produce the correct responses and are definitely a violation of academic code. This has been placed in the syllabus.
+
+\subsection{Oblivious Transfer}
+We saw last time how to construct Yao's garbled circuit using oblivious transfer, but we black boxed the implementation of OT.
+
+We'll go over the implementation of semi-honest OT here. It will follow similarly to the Diffie-Hellman key exchange.
+
+% \Graphic{images/2023-03-23/ot.png}{0.8}
+
+The sender will send $A = g^a$. The receiver will mask $A^c$ with $c\in \{0,1\}$ and $b\sampledfrom \ZZ_q$. $a,b$ here are like Diffie-Hellman privates.
+
+Then, the sender will compute $k_0 := H(B^a), k_1 := H\left( \left( \frac{B}{A} \right)^a \right)$. This means that $k_c$ will be exactly $g^{ab} = A^b$ (whether $c = 0$ or $c = 1$). Then, $k_0$ and $k_1$ will be used to encrypt $m_0, m_1$ respectively.
+
+Since only one will be the shared Diffie-Hellman key (and the other will require knowledge of $a$), the receiver will only be able to reveal one such message.
+
+Doing out the algebra, we can conclude that the receiver can access the key.
+
+\emph{Is this secure against a semi-honest receiver?} If the key is $c = 0$, then the other key will be $g^{ab-a^2}$. $g^{a^2}$ is difficult to compute, since the receiver only has $A = g^a$ and will need secret $a$ to compute $g^{a^2}$.\footnote{Formally, this security is guaranteed by the CDH assumption, that if we have $g^{\alpha}, g^{\beta}$, it's computationally hard to determine $g^{\alpha\beta}$. If an adversary can derive $g^{\alpha^2}$ from $g^{\alpha}$, they can also derive $g^{\alpha\beta}$. We can get $g^{\alpha^2}, g^{\beta^2}$, then we can get $g^{(\alpha+\beta)^2}=g^{\alpha^2 + 2\alpha\beta + \beta^2}$ and taking inverses we can peel off the $\alpha^2,\beta^2$ exponents to get $g^{\alpha\beta}$.} If $c = 1$, then the other key will be $g^{a^2 + ab}$ which is hard again. So, for the receiver, it is computationally secure.
+
+\emph{Is this secure against a semi-honest sender?} $g^b$ is a random mask on $A^c$, so the sender will not be able to distinguish between this.
+
+\subsubsection{OT Extension}
+We used public-key operations to achieve our OT. Is it possible to construct OT only using symmetric-key primitives? Unlikely\dots
+
+There are impossibility results that show that if we assume $\mathsf{P}\neq \mathsf{NP}$, it's not possible to construct an OT using symmetric-key primitives.
+
+This makes OTs very difficult---since it takes an entire protocol (including expensive exponentiations) to transfer one bit. There has been current research in \emph{extending} OT so we can use more bits.
+
+An OT extension can extend $O(\lambda)$ OTs (with $O(\lambda)$ public-key operations) into a $\mathrm{poly}(\lambda)$ bit OTs.
+
+% \Graphic{images/2023-03-23/ot_extension.png}{0.6}
+
+\subsection{Putting it Together: Semi-Honest 2PC}
+
+We can now construct our 2PC protocol. Alice, the garbler, will create the circuit with garbled inputs and wires (shuffling order of ciphertexts). Alice sends this circuit to Bob, and Bob will use OTs with his input bits to get the wire labels that he should use. Then, Bob runs these labels on the garbled circuit.
+
+% \Graphic{images/2023-03-23/ot.png}{0.8}
+
+In the semi-honest case, Alice will generate this circuit correctly and Bob will follow the protocol correctly. \emph{What could go wrong against malicious adversaries?}
+\begin{itemize}
+    \item Alice could garble an incorrect gate, or give an entirely incorrect circuit.
+    \item Alice could refuse to send the result (translate output label to bits) back to Bob, or send an incorrect result to Bob. If the outputs are not garbled, then Bob could similarly refuse to send this back to Alice.
+    \item Alice and Bob could both cheat about their inputs.
+\end{itemize}
+
+\subsection{GMW}
+
+We can convert this into a MPC for any function with $t \leq n - 1$ (corrupted parties up to all but one).
+
+Throughout the protocol, we keep the invariant that for each wire $w$, if the value of the wire is $v^w \in\{0, 1\}$, then the parties hold an \ul{additive secret share} of $v^w$. Each party $P_i$ holds a random share $v_i^w\in\{0,1\}$ such that
+\[\bigoplus_{i=1}^n v_i^w = v^w\]
+and we keep this invariant throughout the entire circuit.
+
+We need to be able to preserve this invariant throughout \textsf{AND} and \textsf{XOR} gates. The \textsf{XOR} case is easy, since \textsf{XOR} is completely commutative and associative, so each party can locally \textsf{XOR} their shares $c_i := a_i\oplus b_i$ for $c := a\oplus b$.
+
+We'll wave our hands over the \textsf{AND} case, but we can do this. We'll proceede gate-by-gate for everyone to compute the result. Each party will publish their local shares, and everyone will \textsf{XOR} the result together to get the final result.
+
+\subsubsection{AND Gates}
+We now finish addressing the \textsf{AND} gates. We have $\bigoplus^n_{i=1}a_i = a$ and $\bigoplus^n_{i=1}b_i = b$.
+
+We want a set of $\left\{ c_i \right\}$ s.t. $\bigoplus^n_{i=1}c_i = c = a \cdot b$ (multiplication of bits is \textsf{AND}). But
+\begin{align*}
+    a\cdot b
+     & = \left( \sum^n_{i=1}a_i \right)\cdot \left( \sum^n_{i=1}b_i \right)\pmod{2}                \\
+     & = \left( \sum^n_{i=1}a_i\cdot b_i \right)\cdot \left( \sum_{i\neq j}a_i b_i \right)\pmod{2}
+\end{align*}
+The first sum is easy and computed locally, but the second sum requires parties to communicate. We do something called \ul{resharing}.
+
+% \Graphic{images/2023-03-23/reshare.png}{0.8}
+
+Between $P_i, P_j$, we want random $r_i, r_j\in\{0, 1\}$ such that $r_i + r_j = a_i \cdot b_j \pmod{2}$. $P_i$ will randomly sample $r_i\sampledfrom \left\{ 0, 1 \right\}$. We can use OT (!) to allow $P_j$ to learn $r_j$ such that $r_i + r_j = a_i\cdot b_j\pmod{2}$ without revealing $a_i$ or $r_i$.
+
+$P_i$ will be the sender, $P_j$ is the receiver. $P_j$'s choice bit is $b_j$. Then the messages will be
+\begin{align*}
+    m_0 & = (a_i\cdot 0) - r_i \\
+    m_1 & = (a_i\cdot 1) - r_i
+\end{align*}
+such that $r_i, r_j$ are two shares of $a_i\cdot b_j$.
+
+\subsubsection{Complexities}
+What is the computational complexity for each party? Computational complexity is $O(\#\mathsf{AND}\cdot n)$ for each party. And for communication, every pair of parties needs to communicate for every \textsf{AND} gate, so $O(n^2\cdot \#\mathsf{AND})$.
+
+The round complexity is the depth of the circuit, \emph{only counting \textsf{AND} gates} (we can ignore \textsf{XOR} gates).
+
+\subsubsection{Entire Protocol}
+
+Here's our entire protocol:
+% \Graphic{images/2023-03-23/gmw.png}{0.8}
+
+We now have a secure multi-party computation scheme. How might we compare them?
+
+\begin{itemize}
+    \item Yao's Garbled Circuit
+          \begin{itemize}
+              \item Malicious security lower overhead
+          \end{itemize}
+    \item Goldreich-Micali-Wigderson (GMW)
+          \begin{itemize}
+              \item The number of OTs is $\#\mathsf{AND}\cdot n^2$.
+          \end{itemize}
+\end{itemize}
