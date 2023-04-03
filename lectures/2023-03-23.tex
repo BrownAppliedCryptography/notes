@@ -10,7 +10,7 @@ We saw last time how to construct Yao's garbled circuit using oblivious transfer
 
 We'll go over the implementation of semi-honest OT here. It will follow similarly to the Diffie-Hellman key exchange.
 
-% \Graphic{images/2023-03-23/ot.png}{0.8}
+\Graphic{images/2023-03-23/ot.png}{0.7}
 
 The sender will send $A = g^a$. The receiver will mask $A^c$ with $c\in \{0,1\}$ and $b\sampledfrom \ZZ_q$. $a,b$ here are like Diffie-Hellman privates.
 
@@ -19,6 +19,8 @@ Then, the sender will compute $k_0 := H(B^a), k_1 := H\left( \left( \frac{B}{A} 
 Since only one will be the shared Diffie-Hellman key (and the other will require knowledge of $a$), the receiver will only be able to reveal one such message.
 
 Doing out the algebra, we can conclude that the receiver can access the key.
+
+\Graphic{images/2023-03-23/ot_steps.png}{0.8}
 
 \emph{Is this secure against a semi-honest receiver?} If the key is $c = 0$, then the other key will be $g^{ab-a^2}$. $g^{a^2}$ is difficult to compute, since the receiver only has $A = g^a$ and will need secret $a$ to compute $g^{a^2}$.\footnote{Formally, this security is guaranteed by the CDH assumption, that if we have $g^{\alpha}, g^{\beta}$, it's computationally hard to determine $g^{\alpha\beta}$. If an adversary can derive $g^{\alpha^2}$ from $g^{\alpha}$, they can also derive $g^{\alpha\beta}$. We can get $g^{\alpha^2}, g^{\beta^2}$, then we can get $g^{(\alpha+\beta)^2}=g^{\alpha^2 + 2\alpha\beta + \beta^2}$ and taking inverses we can peel off the $\alpha^2,\beta^2$ exponents to get $g^{\alpha\beta}$.} If $c = 1$, then the other key will be $g^{a^2 + ab}$ which is hard again. So, for the receiver, it is computationally secure.
 
@@ -33,13 +35,13 @@ This makes OTs very difficult---since it takes an entire protocol (including exp
 
 An OT extension can extend $O(\lambda)$ OTs (with $O(\lambda)$ public-key operations) into a $\mathrm{poly}(\lambda)$ bit OTs.
 
-% \Graphic{images/2023-03-23/ot_extension.png}{0.6}
+\Graphic{images/2023-03-23/ot_extension.png}{0.7}
 
 \subsection{Putting it Together: Semi-Honest 2PC}
 
 We can now construct our 2PC protocol. Alice, the garbler, will create the circuit with garbled inputs and wires (shuffling order of ciphertexts). Alice sends this circuit to Bob, and Bob will use OTs with his input bits to get the wire labels that he should use. Then, Bob runs these labels on the garbled circuit.
 
-% \Graphic{images/2023-03-23/ot.png}{0.8}
+\Graphic{images/2023-03-23/2pc_protocol.png}{0.8}
 
 In the semi-honest case, Alice will generate this circuit correctly and Bob will follow the protocol correctly. \emph{What could go wrong against malicious adversaries?}
 \begin{itemize}
@@ -71,7 +73,7 @@ We want a set of $\left\{ c_i \right\}$ s.t. $\bigoplus^n_{i=1}c_i = c = a \cdot
 \end{align*}
 The first sum is easy and computed locally, but the second sum requires parties to communicate. We do something called \ul{resharing}.
 
-% \Graphic{images/2023-03-23/reshare.png}{0.8}
+\Graphic{images/2023-03-23/reshare.png}{0.7}
 
 Between $P_i, P_j$, we want random $r_i, r_j\in\{0, 1\}$ such that $r_i + r_j = a_i \cdot b_j \pmod{2}$. $P_i$ will randomly sample $r_i\sampledfrom \left\{ 0, 1 \right\}$. We can use OT (!) to allow $P_j$ to learn $r_j$ such that $r_i + r_j = a_i\cdot b_j\pmod{2}$ without revealing $a_i$ or $r_i$.
 
@@ -90,7 +92,7 @@ The round complexity is the depth of the circuit, \emph{only counting \textsf{AN
 \subsubsection{Entire Protocol}
 
 Here's our entire protocol:
-% \Graphic{images/2023-03-23/gmw.png}{0.8}
+\Graphic{images/2023-03-23/gmw.png}{0.9}
 
 We now have a secure multi-party computation scheme. How might we compare them?
 

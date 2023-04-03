@@ -22,12 +22,12 @@ This theorem states that a verifier only needs to read a constant number of bits
 
 Our first attempt could be to commit to the entire proof, and the verifier challenges with the bits it would like to observe, which the prover will open.
 
-% \Graphic{images/2023-03-16/first_attempt.png}{0.8}
+\Graphic{images/2023-03-16/first_attempt.png}{0.8}
 
 However, this entire message will still send the entire proof, which isn't what we want.
 
 Our solution is to use a Merkle Tree.
-% \Graphic{images/2023-03-16/merkle.png}{0.8}
+\Graphic{images/2023-03-16/merkle.png}{0.7}
 
 We hash values in a tree format, with each parent node being the hash of its children. We only send the \emph{root note}. Whenever the verifier requests a certain bit, we send the path from the root to the bit (revealing all hashes, and siblings) to verify that this is indeed.
 
@@ -37,8 +37,6 @@ It's very difficult to change any bit. If we changed a bit, at some point up the
 
 One solution would be to add a random string $r$ as a sibling to every leaf. However, this would require us to reveal all siblings when we're verifying a certain leaf node. We can easily modify this to \emph{salt} \emph{every} leaf node. We can add some random $r_i$ to the hash of \emph{every} bit that hides those bits.
 
-% \Graphic{images/2023-03-16/second_attempt.png}{0.8}
-
 Now, instead of sending a commitment of the entire proof, we send a Merkle Tree of the commitment of the proof. Then, when requested for certain bits $i, j, k$, we'll open those commitments as pathes on the tree.
 
 \emph{Is this zero-knowledge?} Note that in the PCP theorem, we did not have the zero-knowledge property. Our solution is that when opening commitments, we can instead provide ZK proofs for our `reveals' instead of the actual bits themselves. Asymptotically, this still preserves our succinctness property.
@@ -47,7 +45,7 @@ Theoretically, this lets us construct zk-SNARGs. However, this is not practical.
 
 \subsubsection{Linear PCP}
 
-% \Graphic{images/2023-03-16/linear_pcp.png}{0.8}
+\Graphic{images/2023-03-16/linear_pcp.png}{0.6}
 
 We can use a Linear PCP instead. The prover sends $\pi\in\FF^m$, instead of checking a constant number of bits, we check a constant number of inner products $\langle \pi, q_i\rangle\in\FF$. Constructions have size $m = O(|c|^2)$ for Walsh-Hadard codes or $m = O(|c|)$ for quadratic span programs.
 
@@ -59,7 +57,7 @@ The verifier checks $x, \tau_\mathrm{LPCP}$ and $r_i$s in quadratic time.
 
 However, this is \emph{designated verifier}. Every verifier will need to generate their values $q_i$ and $c_i$. This doesn't allow for us to publicly verify, and the preprocessing doesn't really allow for the random oracle model.
 
-% \Graphic{images/2023-03-16/crs_linear_pcp.png}{0.8}
+\Graphic{images/2023-03-16/crs_linear_pcp.png}{0.7}
 
 We can, however, use the common reference string (CRS) model. The assumption is that some trusted third party will generate a `common reference string' $c_i =g^{q_t}$ and $c_\tau = g^{\tau_\mathrm{LPCP}}$.
 
@@ -98,7 +96,7 @@ We've seen this before, but it is whensome parties want to compute the output of
     There are variants of this which only give cardinality of $X\cap Y$, etc.
 \end{example}
 
-% \Graphic{images/2023-03-16/2pc.png}{0.8}
+\Graphic{images/2023-03-16/2pc.png}{0.6}
 
 In general, this is when two parties have inputs $x, y$ and want to compute some function $f(x, y)$ on them.
 
@@ -112,7 +110,7 @@ Use cases include:
 \subsubsection{Multiple Parties!}
 The general case of this is Secure Multi-Party Computation (MPC)
 
-% \Graphic{images/2023-03-16/mpc.png}{0.8}
+\Graphic{images/2023-03-16/mpc.png}{0.4}
 
 This is when we have some parties $P_i$ and want to compute input on $f(x_i, \cdots, x_n)$.
 
