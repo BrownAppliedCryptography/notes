@@ -1,0 +1,13 @@
+%!TEX root = ../notes.tex
+\section{April 4, 2023}
+\label{20230404}
+\subsection{Secure Multiparty Computation, \emph{continued}}
+We'll briefly recap what we covered before the break.
+
+Recall we have the Yao's Garbled Circuit for semi-honest 2PC for any function (see \cref{sec:mar23-semihonest-2pc-together}), and the GMW compiler for semi-honest MPC for any function (see \cref{sec:mar23-gmw}). They all rely on the semi-honest OT. We've been focusing on the semi-honest case, which is that parties will not deviate from protocol but can try to extract more information.
+
+In the case of Yao's Garbled Circuit, one or the other party could behave maliciously, sending the wrong circuit, etc.
+
+In the case of GMW, we discussed last class the complexity and flaws against malicious attackers. The complexity is generally the depth of \textsf{AND} gates, since \textsf{XOR} gates can be computed offline.
+
+We started to compare Yao's with GMW last time. Malicious security for Yao's garbled circuit relies on security against Alice, since there is not much that Bob can do. We just need to

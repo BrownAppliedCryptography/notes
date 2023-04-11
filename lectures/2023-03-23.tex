@@ -37,7 +37,7 @@ An OT extension can extend $O(\lambda)$ OTs (with $O(\lambda)$ public-key operat
 
 \Graphic{images/2023-03-23/ot_extension.png}{0.7}
 
-\subsection{Putting it Together: Semi-Honest 2PC}
+\subsection{Putting it Together: Semi-Honest 2PC}\label{sec:mar23-semihonest-2pc-together}
 
 We can now construct our 2PC protocol. Alice, the garbler, will create the circuit with garbled inputs and wires (shuffling order of ciphertexts). Alice sends this circuit to Bob, and Bob will use OTs with his input bits to get the wire labels that he should use. Then, Bob runs these labels on the garbled circuit.
 
@@ -50,7 +50,7 @@ In the semi-honest case, Alice will generate this circuit correctly and Bob will
     \item Alice and Bob could both cheat about their inputs.
 \end{itemize}
 
-\subsection{GMW}
+\subsection{GMW} \label{sec:mar23-gmw}
 
 We can convert this into a MPC for any function with $t \leq n - 1$ (corrupted parties up to all but one).
 
