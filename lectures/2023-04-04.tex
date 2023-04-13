@@ -2,6 +2,7 @@
 \section{April 4, 2023}
 \label{20230404}
 \subsection{Secure Multiparty Computation, \emph{continued}}
+\subsubsection{Comparing Yao's and GMW}
 We'll briefly recap what we covered before the break.
 
 Recall we have the Yao's Garbled Circuit for semi-honest 2PC for any function (see \cref{sec:mar23-semihonest-2pc-together}), and the GMW compiler for semi-honest MPC for any function (see \cref{sec:mar23-gmw}). They all rely on the semi-honest OT. We've been focusing on the semi-honest case, which is that parties will not deviate from protocol but can try to extract more information.
@@ -10,4 +11,89 @@ In the case of Yao's Garbled Circuit, one or the other party could behave malici
 
 In the case of GMW, we discussed last class the complexity and flaws against malicious attackers. The complexity is generally the depth of \textsf{AND} gates, since \textsf{XOR} gates can be computed offline.
 
-We started to compare Yao's with GMW last time. Malicious security for Yao's garbled circuit relies on security against Alice, since there is not much that Bob can do. We just need to
+We started to compare Yao's with GMW last time. Malicious security for Yao's garbled circuit relies on security against Alice, since there is not much that Bob can do. We just need to protect against malicious Alice.
+
+The advantages for Yao's is that it offeres malicious security with lower overhead (since we only need to protect against malicious Alice), and we only require OTs equal the number of inputs. On the other hand, the GMW protocol requires $\#\mathsf{AND}\cdot n^2$.
+
+The computational complexity of Yao's and GMW is approximately the same. In GMW, we have $O(\#\mathsf{AND}\cdot n)$ for each party, and using free \textsf{XOR} we can also get $O(\#\text{input}) \text{OTs} + O(\#\mathsf{AND}) \text{AES}$ in Yao's. Communication complexity is also roughly the same at $O(\#\mathsf{AND}\cdot n^2)$ for GMW and $O(\#\text{input} + \#\mathsf{AND})$ for Yao's. However, the round complexity is constant in Yao's since it only requires a back-and-forth, while GMW requires resharing on depth of \textsf{AND} gates. This is a big advantage.
+
+\emph{Is there any advantage for GMW?} It supports any number of parties, while Yao's is solely for two parties. Additionally, GMW is extentable to arithmetic circuits (\textsf{XOR} becomes addition and \textsf{AND} becomes multiplication in some $\ZZ_p$), while Yao's is limited to bits.
+
+\begin{remark*}
+    There's a fun story. The Yao's garbled circuit papers came out in 1982 and 1986 with about the same number of citations. Papers back in the days talked about these in high-level.
+
+    The GMW paper came out in 1987.
+
+    It becomes a question which Yao paper to cite---it was determined that it would be better to cite the 1986 paper since it then seems like GMW was developed just a year later, instead of having taken researchers 5 years to devise another protocol.
+\end{remark*}
+
+\subsubsection{GMW Malicious Security}
+We currently have semi-honest MPCs in both cases. We can apply a general compiler to convert our semi-honest protocol into a malicious protocol.
+
+Given a semi-honest protocol (GMW), once inputs and randomness are fixed, then the protocol becomes entirely \emph{deterministic}. We have two steps:
+\begin{enumerate}
+    \item Each party $P_i$ commits to its input $x_i$ and randomness $r_i$ to be used in the semi-hoenst protocol.
+    \item We run the semi-honest protocol. Along with every message, prove in zero-knowledge that the message has been computed correctly (based on its input, randomness, as well as transcript so far).
+\end{enumerate}
+
+\emph{Are there any issues with this protocol?} Parties can `fake' their randomness that benefits them. Here are some proposed solutions:
+\begin{enumerate}
+    \item While we could use a hash function (with the random oracle model) to generate the randomness, we want to hide the randomness instead of showing---but then we wouldn't be able to verify that the randomness was generated properly.
+    \item We could also use a common randomness model, but this exposes the same issue that the randomness is not shown.
+    \item We want to generate something that is not just contributed by the party themselves, but also by some external randomness. The idea is for every party to compute some randomness for you $r_i^j$ ($P_j$ providing shares for $P_i$), and your randomness is the \textsf{XOR} of everyone's randomness that they contributed to you.
+\end{enumerate}
+
+This is a very expensive protocol. For every step, you need to be proving in zero-knowledge that the message is being computed correctly.
+
+\subsubsection{Yao's Malicious Security}
+It's much easier to achieve malicious security for Yao's garbled circuit, since we only need to prevent against a malicious garbler. We'll employ a cut-and-choose model.
+
+% \Graphic{images/2023-04-04/cut_and_choose.png}{0.7}
+
+As an initial approach, Alice will garble $\lambda$ circuits, and send those to Bob. Bob will randomly pick all but one for Alice to reveal, and will evaluate on the last garbled circuit.
+
+If Alice generates 1 bad garbled circuit, then the probability that Alice is caught is $\frac{\lambda - 1}{\lambda} = 1 - \frac{1}{\lambda}$. Which is a small probability, but it's not overwhelming.
+
+Instead, Alice will generate $2\lambda$ garbled circuits, and Bob will pick $\lambda$ circuits. Alice will reveal the selected $\lambda$ circuits, and Bob will evaluate on the remaining $\lambda$ and take a majority. What's the probability that Bob will run a bad circuit. What, then, is the probability that Alice gets caught given that Alice generated $\leq \frac{\lambda}{2}$ garbled circuits incorrectly\footnote{If she generated less than this, then the majority will be correct anyways.}.
+
+The probability that Alice passed is
+\[\Pr\left[ \text{Alice Passed} \right] = \frac{2\lambda - \frac{\lambda}{2}}{2\lambda}\cdot \frac{2\lambda - \frac{\lambda}{2} - 1}{2\lambda - 1} \cdots \cdot \frac{\frac{\lambda}{2} + 1}{\lambda + 1} \geq \left( \frac{3}{4} \right)^\lambda\]
+which is negligible. Then, Alice will fail with high probability.
+
+Cut-and-choose OT follows similarly, and should be used. The idea is that cut-and-choose will allow you to convert a semi-honest protocol into a malicious-secure one.
+
+\subsection{Specialized MPC}
+We've so far only seen generalized MPC. We can construct efficient protocols for specific MPC. Recall the Private Set Intersection (PSI) problem from \cref{ex:psi}.
+
+% \Graphic{images/2023-04-04/psi.png}{0.7}
+
+Alice and Bob want to compute the intersection of their sets $X = \{x_1, x_2, \dots, x_n\}$ and $Y = \{y_1, y_2, \cdots, y_n\}$. We extend Alice to have some weights $V = \{v_1, v_2, \dots, v_n\}$. There are multiple problems under this class:
+\begin{itemize}
+    \item PSI: $f(X, Y) = X\cap Y$.
+    \item PSI-Cardinality: $f(X, Y) = |X\cap Y|$ which counts the number of items in the intersection without revealing the items.
+    \item PSI-Sum: $f(X, Y) = |X\cap Y|, \sum_{i: x_i\in Y}v_i$ which adds up the weights from $V$ of those elements that intersect. This is useful in ads conversion settings (and returns the cardinality too).
+\end{itemize}
+
+\subsubsection{Na\"ive Solution}
+Here's a na\"ive solution: Alice and Bob hash all their inputs, exchange hash values, and see which ones they have in common. You can learn the intersection, but could you learn \emph{more} than that?
+
+% \Graphic{images/2023-04-04/psi_naive.png}{0.7}
+
+If the input space is a relatively small space, we can do a dictionary attack (for example, with names). This is not even semi-honest secure.
+
+\emph{Can we even achieve 2PC/MPC with just a single round of communication (as we have done here, sending hashes one way)?} Taking a step back, we receive a message from Alice and can derive the solution regardless of \emph{any} $y$ we have. This allows us to just test multiple inputs on the function received and we'll receive that output, so we can derive $x$ from that input.
+
+\subsubsection{DDH-Based PSI}
+We start with a cyclic group $\GG$ of order $q$ with generator $g$, where DDH holds. We also have a hash function $H: \left\{ 0, 1 \right\}^{*}\to \GG$ (modeled as a random oracle).
+
+% \Graphic{images/2023-04-04/ddh_psi.png}{0.7}
+
+Bob and Alice generate private exponents $k_B\sampledfrom \ZZ_q, k_A\sampledfrom \ZZ_q$ respectively. Bob will send
+\[H(Y)^{k_B} := \left\{ H(y_1)^{k_B}, \cdots, H(y_n)^{k_B} \right\}\]
+Alice does the same for $X$, $H(X)^{k_A}$, and sends $H(Y)^{k_A\cdots k_B}$. Bob then raises $H(X)^{k_A}$ to $k_B$ and compares. In the semi-honest case, for Bob to perform the same dictionary attack, Bob will need to break DDH in order to raise arbitrary elements $y'$ to $k_A\cdot k_B$.
+
+We can modify this to count cardinality by randomly shuffling the returned $H(Y)^{k_A\cdot k_B}$ such that Bob cannot relate the re-encrypted hashes to the previous order.
+
+% \Graphic{images/2023-04-04/ddh_psi-ca.png}{0.7}
+
+We can also think about how we can achieve this for PSI-Sum.
