@@ -1,0 +1,166 @@
+%!TEX root = ../notes.tex
+\section{April 6, 2023}
+\label{20230406}
+We'll review PSI-Sum and information theoretic MPC.
+
+\subsection{Private Set Intersection, \emph{continued}}
+Recall the Private Set Intersection (PSI) problem. Alice and Bob have some sets of elements $X = \left\{ x_1, x_2, \dots, x_n \right\}, Y = \left\{ y_1, y_2, \dots, y_m \right\}$ and they want to compute some information about the intersection.
+
+PSI gives the intersection, PSI-cardinality gives the cardinality of the intersection, and PSI-sum gives the sum of intersecting weights.
+
+Last time, we provided a construction of PSI and PSI-cardinality using Diffie-Hellman. The protocol can be found in \cref{sec:apr04-psi-ddh}.
+
+% \Graphic{images/2023-04-06/psi_ddh.png}{0.7}
+
+Now, we want to work toward a protocol for PSI-Sum using our previous Diffie-Hellman techniques (now, in addition to learning the cardinality of the intersection, we want to learn the sum of Alice's weights $V = \{v_1, v_2, \dots, v_n\}$ for every element in the intersection).
+
+Using homomorphic encryption, Alice can compute $\{\Enc(v_i)\}$ in an encryption scheme that allows homomorphic addition\footnote{Note that we don't have guarantees that the weights are \emph{small}, so we can't use ElGamal again (as we did in Vote). We can use Paillier Encryption, which is fully additively homomorphic, instead. }. Everything else follows similarly from the PSI-CA protocol. Bob will find elements in the intersection (Bob knows this, since he can compare Alice's encrypted elements to his shuffled encrypted elements), and add the corresponding indexed element in Alice's encrypted weights.
+
+% \Graphic{images/2023-04-06/psi-sum_ddh.png}{0.7}
+
+\subsection{Information Theoretic MPC}
+We've been using cryptographic primitives with computational assumptions and extending them to malicious MPC, from semi-honest OT to semi-honest MPC to malicious MPC.
+
+We can devise protocols that offer \emph{information theoretic} security, which offers semi-honest/malicious MPC for any function with $t < \frac{n}{2}$ (more than half honest parties), \emph{even} if adversaries have unbounded computational capabilities.
+
+There's the BGW protocol that allows for information theoretic MPC for any function. It follows similarly from the GMW protocol with an additional invariant: the value $v^w$ of wire $w$ is $(t+1)$-out-of-$n$ secret shared between $n$ parties. Each party $P_i$ holds a random share $v^w_i\in \FF$ such that any $(t+1)$ shares can reconstruct $v^w$, but any $t$ shares hides (information theoretically) $v^w$.
+
+% \Graphic{images/2023-04-06/bgw.png}{0.7}
+
+\subsubsection{Shamir Secret Sharing Scheme}
+Let's say we have secret $v\in \FF$, and we wish to create a $(t+1)$ secret share of $v$. To share $v$, we'll randomly sample a degree-$t$ polynomial $f : \FF\to \FF$ such that $f(0) = v$. We have polynomial
+\[f(x) = a_tx^t + a_{t-1}x^{t-1}+ \cdots + a_1x_1 + a_0\]
+and party $P_i$'s share is $v_i = f(i)$.
+
+To reconstruct $v$, given $(t+1)$ shares, we have some $(\alpha_1, v_{\alpha_1} = f(\alpha_1)), \dots, (\alpha_{t+1}, v_{\alpha_{t+1}} = f(\alpha_{t+1}))$. This gives us $t+1$ equations which allows us to solve for $f(0)$ as a system of equations. ($t+1$ points uniquely determine a $t$-degree polynomial).
+
+% \Graphic{images/2023-04-06/shamir_secret_share.png}{0.7}
+
+\emph{How might we sample $f$?} We can set $a_0 = v$, then $a_i\sampledfrom \FF$. This gives us a completely random polynomial with $f(0) = v$.
+
+\emph{If we have $t$ shares, can we gain any information about $v$?} No, because we only have $t$ constraints for $f(x)$ and the remaining value is uniform on $\FF$ since we can construct a corresponding degree-$t$ polynomial that gives that value. In other words, there is a bijection between every $t+1$ shares and degree-$t$ polynomials.
+
+\emph{How do we generate this?} Recall that in the GMW protocol, parties will share their inputs. In this protocol, you'll also share your input amongst all participants.
+
+\subsubsection{BGW Protocol}
+We can now assemble this into our protocol.
+
+Addition gates are simpler. We start with values $a, b$ and want to compute $c = a + b$. We have $f_a(\cdot)$ such that $f_a(0) = a$ with shares $a_i = f_a(i)$, and $f_b(\cdot)$ such that $f_b(0) = b$ and $b_i = f_b(i)$. To add these, note $f_c := f_a + f_b$ gives $f_c(0) = f_a(0) + f_b(0) = a + b$, and we can also add our shares $c_i := a_i + b_i = f_a(i) + f_b(i) = f_c(i)$ perfectly.
+
+% \Graphic{images/2023-04-06/bgw_add.png}{0.7}
+
+Multiplication is much more difficult. We could na\"ively try $f_c := f_a\cdot f_b$. We indeed have $f_c(0) = f_a(0)\cdot f_b(0) = a\cdot b$, with $c_i = f_c(i) = f_a(i)\cdot f_b(i) = a_i\cdot b_i$. But, $f_c$ becomes a degree-$2t$ polynomial (this violates our invariant)!
+
+However, going down this train of thought, to recover $f_c(0)$ from all $n$ shares, we can still recover the polynomial via polynomial interpolation. In fact, we'll get
+\[f_c(0) = \alpha_1\cdot c_1 + \alpha_2 \cdot c_2 + \cdots + \alpha_n \cdot c_n\]
+if we solve out the linear combination. This is huge because this is a known \emph{linear combination}! Coefficients $\alpha_1, \dots, \alpha_n$ are public and can be computed by all parties\footnote{This is by linear algebra, we have linear system
+    \begin{align*}
+        a_t\cdot 1 + a_{t-1}\cdot 1 + \cdots + a_0         & = c_1  \\
+        a_t\cdot 2^t + a_{t-1}\cdot 2^{t-1} + \cdots + a_0 & = c_2  \\
+                                                           & \vdots \\
+        a_t\cdot n^t + a_{t-1}\cdot n^{t-1} + \cdots + a_0 & = c_2  \\
+    \end{align*}
+    which gives some
+    \[A\cdot \vec{a} = \vec{c}\]
+    and so $A^{-1}\vec{c} = \vec{a}$ for $A$ a Vandermonde matrix, which allows solving for $\vec{a}$, which is $\alpha$'s in our case.
+}.
+
+Reformulating the problem, we have some party $P_1$ with $c_1$, party $P_2$ with $c_2$, \dots, and they want jointly get a linear combination of $c_1, \dots, c_n$. They can simply reshare their $c_i$'s and do addition (and multiplication by constants) as before!
+
+% \Graphic{images/2023-04-06/bgw_mult.png}{0.7}
+
+This is a pretty insane result! This means that for MPC, we can achieve information-theoretic MPC for honest majority. Unlike 2PC, we don't need to rely on cryptographic primitives and cryptographic assumptions.
+
+\subsection{Fully Homomorphic Encryption (FHE)}
+Moving on, we'll discuss homomorphic encryption further. An additively homomorphic scheme satisfies
+\[\Enc(m_1 + m_2) = \Enc(m_1) \oplus \Enc(m_2)\]
+as we saw in Exponential ElGamal or Paillier.
+
+Similarly, we can have a multiplicatively homomorphic scheme satisfying
+\[\Enc(m_1 \cdot m_2) = \Enc(m_1) \otimes \Enc(m_2)\]
+as we saw in ElGamal or RSA.
+
+Fully homomorphic encryption satisfies both.
+\begin{definition}[Homomorphic Encryption]\label{def:fhe}
+    A (public-key) homomorphic encryption scheme is some
+    \[\pi = (\mathsf{KeyGen}, \Enc, \Dec, \mathsf{Eval})\]
+    with respect to some function family $\mathcal{F}$\framedfootnote{We note that if $\mathcal{F}$ are all additive functions, then this scheme is additively homomorphic. If $\mathcal{F}$ are all multiplicative functions, then this scheme is multiplicatively homomorphic. If $\mathcal{F}$ are all boolean circuits, or addition and multiplication functions, then this scheme is fully homomorphic.} with
+    \begin{itemize}
+        \item $(pk, sk)\leftarrow \mathsf{KeyGen}(1^\lambda)$.
+        \item $ct\leftarrow \Enc_{pk}(m)\qquad m\in \{0, 1\}$.
+        \item $m\leftarrow \Dec_{sk}(ct)$.
+        \item $ct_f\leftarrow \mathsf{Eval}(f, ct_1, \dots, ct_n)$ with $f : \{0, 1\}^n\to \{0, 1\}$ in family $\mathcal{F}$.
+    \end{itemize}
+
+    \textbf{Correctness} requires that $\forall f\in \mathcal{F}$, if $ct_f \leftarrow \mathsf{Eval}(f, ct_1, \dots, ct_n)$ for $ct_i\leftarrow \Enc_{pk}(m_i)$, then $\Dec_{sk}(ct_f) = f(m_1, \dots, m_n)$. That is, that evaluating functions does indeed give the ciphertext of the function evaluated on the plaintexts.
+
+    \textbf{CPA security}, as we've seen before, requires that
+    \[(pk, \Enc_{pk}(m_0))\overset{c}{\simeq}(pk, \Enc_{pk}(m_1)).\]
+    And we require compactness (see below).
+\end{definition}
+
+If we just have correctness and CPA security, our current definition is nearly trivial. For example, if our evaluation just output the tuple $(f, ct_1, \dots, ct_n)$. To decrypt, we decrypt each $ct_i$ individually and apply $f$ on top, and this satisfies our definitions! We need to add some notion that our ciphertext must stay within some size, and that we're actually \emph{combining} our ciphertexts.
+
+The additional requirement is \ul{compactneess}, that $|ct_f| \leq \mathsf{poly}(\lambda)$, that each ciphertext is bounded by some constant that is polynomial in $\lambda$ and fixed for security parameter $\lambda$. This allows us to prevent the `loophole' of evaluations returning itself.
+
+\subsubsection{Applications}
+\begin{example}[Oursourcing Storage \& Computation]
+    Let's say a client stores some data on a server. A client has data $x$ and key $sk$. $ct\leftarrow\Enc(x)$ is sent to the server. If the client wants to run some computation on the server, the client sends $f$ and the server evaluates $ct' \leftarrow \mathsf{Eval}(f, ct)$ and sends $ct'$ to the client, which gives the client $f(x)$ without the server knowing $x$.
+    % \Graphic{images/2023-04-06/secure_computation.png}{0.7}
+\end{example}
+
+\begin{example}[Private Information Retrieval (PIR)]
+    In this application\framedfootnote{We'll implement this in the next project!}, we have some server with a database. A client wants to retrieve the $i$-th element without revealing the index $i$ to the server.
+
+    % \Graphic{images/2023-04-06/pir.png}{0.7}
+
+\end{example}
+A na\"ive solution is for the server to send the \emph{entire} database to the client and the client can just access their desired element. In fact, this is the best we can do information-theoretically.
+
+Is it possible, using FHE, to retrieve elements with communication $o(n)$ (small-$o$)?
+
+A solution to the above private information retrieval was proposed for the client to send \[\Enc(0), \dots, \Enc(0), \underbrace{\Enc(1)}_{i\text{ position}}, \Enc(0), \dots, \Enc(0)\] with $\Enc(1)$ in the $i$th location. But then this still requires the size of the database of communication.
+
+Instead, we can have the client send $\Enc(i)$ and the server does $\mathsf{Eval}(f, ct_i)\to ct_f$ with $f(i) := D[i]$. Note that $f$ will be a huge function! But our compactness guarantees that ciphertexts won't have size blowup.
+
+\begin{example}[Secure 2PC]
+    As we've seen before, Alice and Bob have some $x, y$ and want to compute $c(x,y)$ privately. Bob encrypts $y$ as $ct\leftarrow \Enc(y)$ and Alice sends $ct' \leftarrow \mathsf{Eval}(f_x, ct)$ with $f_x(y) = c(x,y)$ and sends $ct'$ back to Bob, which he can $\Dec_{sk}(ct')\to f(y)$.
+
+    % \Graphic{images/2023-04-06/pir.png}{0.7}
+\end{example}
+
+\emph{Is this secure?} This is secure against Alice, but is this secure against Bob? By definition, this is not guaranteed since you might be able to infer more information about $x$ from $f_x$. It's worth mentioning that it's not necessarily the case that FHE hides the function.
+
+\subsubsection{Constructions}
+All FHE constructions follow two steps:
+\begin{enumerate}
+    \item Somewhat Homomorphic Encryption (SWHE). We'll see versions over integers, from LWE (GSW), and from RLWE (BFV).
+    \item Then, we bootstrap our SWHE schemes to be fully homomorphic.
+\end{enumerate}
+
+\subsubsection{SWHE over Integers}\label{sec:apr06-swhe-integers}
+\textbf{Attempt 1.} This is our first attempt is a secret-key scheme:
+
+Our secret key will be odd $p$\footnote{If $p$ is even, then the encryption parity will be the same as the message parity.}.
+
+\begin{itemize}
+    \item To $\Enc(m)$ with $m\in \{0, 1\}$, we sample a random $q$ and compute $ct = p\cdot q + m$. Encryption of $0$ is a multiple of $p$.
+    \item Decryption is $ct\mod p$.
+    \item Adding and multplication are addition and multiplication in the ciphertext space respectively.
+\end{itemize}
+
+\emph{Is this CPA secure?} No! If we have a lot of encryptions of $0$s, taking the gcd of them will give us $p$ exactly.
+
+\textbf{Attempt 2.} Our next attempt is to add a small error noise.
+
+\begin{itemize}
+    \item To encrypt, instead of $ct = p\cdot q + m$, we'll do
+          \[ct = p\cdot q + m + 2e\]
+          for small even $2e$ with $e \ll p$. Encryption of $0$ is small and even modulo $p$.
+    \item Then, decryption becomes $\Dec(ct) = \left[ ct\mod p \right]\mod 2$.
+    \item Addition and multiplication work the same way.
+\end{itemize}
+
+The security of this relies on the assumed difficulty of the approximate GCD problem: that given poly-many $\{x_i = p\cdot q_i + s_i\}$, it's difficult to output $p$. For $p\sim 2^{O(\lambda^2)}$, $q_i\sim 2^{O(\lambda^5)}$, and $s_i\sim 2^{O(\lambda)}$, the best known attack requires $2^\lambda$ time.
+
+We'll continue from here next time.

@@ -1,0 +1,151 @@
+%!TEX root = ../notes.tex
+\section{April 13, 2023}
+\label{20230413}
+\subsection{Somewhat Homomorphic Encryption, \emph{continued}}
+We saw last time with the LWE (Learning With Errors) assumption and using GSW, we could construct a somewhat homomorphic encryption scheme.
+
+There's a diagram that shows the reductions between problems/assumptions:
+% \Graphic{images/2023-04-13/reductions.png}{0.7}
+
+All these problems are in the lattice domain, which is particularly interesting to us because these are post-quantum secure. There is work in the community that is trying to standardize assumptions and standardize key exchange, etc, in the lattice domain.
+
+It is much harder to pick these parameters than in the traditional group domain, since we have much less understanding on what is the best algorithm, etc. We don't have a firm grasp on the sizes of parameters and what work is required to break them.
+
+In our existing libraries, there is no lattice-based cryptography supported. In the next project, we'll use a library from Microsoft that allows for lattice-based cryptography, but this is not standardized unlike these.
+
+We finished up our SWHE scheme from LWE in \cref{sec:apr11-lwe_swhe}, you may review that there. In summary, we used a gadget matrix that made our significant multiplication error term of the form $G^{-1}(c_1)\cdot \vec{e}_2$, which allowed the multiplied error vector to be small due to the property that $G^{-1}(c_1)$ is small.
+
+We also mentioned an asymmetry in the multiplication. It matters whether you're computing $G^{-1}(c_1)\cdot c_2$ or $G^{-1}(c_2)\cdot c_1$, and error terms grow at different rates. It might be beneficial to select the one that induces least additional error.
+
+\subsubsection{Ring LWE (RLWE) Assumption}
+We also have an LWE assumption on rings\footnote{A ring is a set of elements with two operations $\cdot$ and $+$ and certain properties. You can read more \href{https://en.wikipedia.org/wiki/Ring_(mathematics)}{here}. Essentially, they are like integers, there's multiplication and addition, both have identity, and associative. Addition commutes and multiplication commutes if we are in commutative ring. There is additive inverse and we have distribution. There is no inverse for multiplication!}. We consider a polynomial ring
+\[R = \ZZ[x]/(x^m + 1)\]
+where $m = 2^k$. This is all polynomials with integer coefficients modulo $(x^m + 1)$. We might also consider
+\[R_q = \ZZ_q[x] / (x^m + 1)\]
+which are all polynomials with integer coefficients modulo $q$ and $(x^m + 1)$.
+
+We also consider a `noise' distribution $\chi$ over $R$.
+
+The assumption is that for $a\sampledfrom R_q$, $s\sampledfrom R_q$ (or $s\leftarrow \chi$), $e\leftarrow \chi$, then
+\[\left( a, [a\cdot s + e]_q \right) \overset{c}{\simeq} \left( a, b\sampledfrom R_q \right)\]
+which is to say that $a\cdot s + e$ is computationally indistinguishable from random.
+
+\subsubsection{SWHE from RLWE (BFV)}
+Our plaintext space will be $R_t = \ZZ_t[x]/(x^K + 1)$ and ciphertext space $R_q\times R_q$, with $t\ll q$. Define $\Delta := \left\lfloor \frac{q}{t}\right\rfloor$.
+
+We set up $a\sampledfrom R_q$, $s\leftarrow \chi$, $e\leftarrow \chi$ as above. We have keys
+\begin{align*}
+    pk & = \left( [-(a\cdot s + e)]_1, a \right) \\
+    sk & = s
+\end{align*}
+
+\begin{description}
+    \item[Encryption.] To encrypt $\Enc_{pk}(m)$: $m\in R_t$\footnote{This is good! We can pack multiple messages into this polynomial by taking each coefficient as segments of the message. We can pack them into coefficients:
+        \[f(x) = a_{k-1}x^{k-1} + a_{k-2}x^{k-2}+ \cdots + a_0\]
+        or can pack in other ways, such as $f(0) = m_0, f(1) = m_1, \cdots$. }. We sample $u, e_1, e_2\leftarrow \chi$. Then
+        \[c = \left( [pk_0\cdot u + e_1 + \Delta\cdot m]_q , [pk_1\cdot u + e_2]_q\right) = (c_0, c_1)\]
+    \item[Decryption.] To decrypt $\Dec_{sk}(m)$:
+        \begin{align*}
+            [c_0 + c_1\cdot s]_q & = -(\cancel{a\cdot s} + e) \cdot u + e_1 + \Delta\cdot m + (\cancel{a\cdot u} + e_2)\cdot s \\
+                                 & = -e\cdot u + ee_1 + \Delta\cdot m + e_2\cdot s                                             \\
+                                 & = [\Delta \cdot m + \text{small polynomial mod $q$}]_q
+        \end{align*}
+        Note that $e, e_1, e_2$ and $s$ are all small, so other terms become small. We see which multiple of $\left\lfloor \frac{q}{t}\right\rfloor$ this value is closest to in order to recover $m$ (do this coefficient-wise).
+
+    \item[Homomorphism.] We have homomorphisms
+        \begin{align*}
+            [c^{(1)}(s)]_q & = \Delta\cdot m_1 + e_1 \\
+            [c^{(2)}(s)]_q & = \Delta\cdot m_2 + e_2
+        \end{align*}
+    \item[Additive Homomorphism.] Just adding,
+        \[[c^{(1)}(s) + c^{(2)}(s)]_q = [\Delta\cdot (m_1 + m_2)n + e_1 + e_2]_q\]
+    \item[Multiplicative Homomorphism?] Let's just try (na\"ively) to multiply (we multiply outside the mod $q$ ring)
+        \begin{align*}
+            c^{(1)}(s) \cdot c^{(2)}(s)
+             & = (\Delta\cdot m_1 + e_1 + \alpha_1\cdot q)(\Delta\cdot m_2 + e_2 + \alpha_2\cdot q)     \\
+             & = \Delta^2 m_1m_2 + \Delta m_1e_2 + \Delta m_1\alpha_2q + e_1\cdot \Delta m_2            \\
+             & \quad + e_1e_2 + e_1\alpha_2q + \alpha_1q\Delta m_2 + \alpha_1qe_2 + \alpha_1\alpha_2q^2
+        \end{align*}
+        Note the term we want has a coefficient of $\Delta^2$, but that is the only $m_1m_2$ term here, so we try to divide by $\Delta$.
+        \begin{align*}
+            c^{(1)}(s) \cdot c^{(2)}(s)\cdot \frac{1}{\Delta}
+             & = \Delta m_1m_2 + \text{small} + \frac{\alpha_1\alpha_2q^2}{\Delta}
+        \end{align*}
+        but we still don't have a final small term. Instead of using $\Delta$ exactly, we'll divide by $\frac{q}{t}$ exactly.
+        \begin{align*}
+            c^{(1)}(s) \cdot c^{(2)}(s)\cdot \frac{t}{q}
+             & \approx \Delta m_1m_2 + \text{small} + \underbrace{\frac{\alpha_1\alpha_2q^2}{q/t}}_{\text{small now yay}} \\
+             & = \Delta m_1m_2 + \text{small}
+        \end{align*}
+        We have one final step which is that our degrees of polynomials don't add up now.
+\end{description}
+
+
+\subsubsection{Relinearization in SWHE from RLWE}
+We have polynomial
+\begin{align*}
+    [c(s)]_q  & = c_0 + c_1\cdot s + c_2\cdot s^2 = \Delta \cdot m + e \\
+    \intertext{and we want to get rid of the $s^2$ term, yielding}
+    [c'(s)]_q & = c_0' + c_1'\cdot s + = \Delta \cdot m + e
+\end{align*}
+The intuition of what we will do is to provide an encrypted version of $s^2$ and we can remove it homomorphically. This is called a \ul{relinearization key}.
+
+The relinearization key will be
+\[\mathsf{rlk} = \left( [-(a\cdot s + e + s^2)]_q, a \right)\]
+and so $[\mathsf{rlk}(s)]_q = -s^2 + \text{small}$. This leaves us with
+\[c(s) + c_2 \cdot \mathsf{rlk}(s) = c_0 + c_1\cdot s + c_2\cdot s^2 + c_2\cdot (-s^2 + \text{small})\]
+but there is a small issue, because $c_2$ might not be small!
+
+What we do instead is to consider a bit decomposition of $c_2$, and to provide multiple relinearization keys, one for each bit of $c_2$.
+\[\mathsf{rlk}_i = ([-(a\cdot s + e + s^i\cdot s)]_q, a)\]
+and $\mathsf{rlk}(s) = -2^i\cdot s + \text{small}$. Then,
+\[c(s) + \sum^{|c_2|}_{i=1}\mathsf{rlk}_i(s)\cdot c_2[i]\]
+gives us $c_0 + c_1\cdot s + \text{small}$.
+
+It's cheaper to do addition because the error grows linearly, instead of multiplication which grows exponentially. Decomposing $s$ into its binary representation makes it an addition of small multiplications.
+
+Multiplication, in summary, will require a relinearization step to make our ciphertext linear again.
+
+\subsection{Private Information Retrieval (PIR)}
+\subsubsection{Introduction}
+The server holds the database $D$ and the client wants to retrieve $D[i]$. A na\"ive solution would be for the server to send the entire database to the client, but this requires communication complexity $O(n)$.
+
+% \Graphic{images/2023-04-13/pir.png}{0.7}
+
+We want sublinear communication complexity: $o(n)$.
+
+We briefly mentioned that if we have FHE that supports any function, the client can easily encrypt index $i$ to send to the server, the server can homomorphically evaluate the `lookup' function that will compute $D[i]$. To do that, our fully homomorphic encryption is very expensive, so we'll use somewhat homomorphic encryption (using limited number of operations).
+
+\subsubsection{Construction using BFV}
+The client will have some encryptions of $0$s and an encryption of $1$ in the $i$-th position. That is, $ct_i \leftarrow \Enc(1)$ and $ct_j \leftarrow \Enc(0)$ for $j\neq i$. All this gets transfered to the server.
+
+The server computes
+\[ct'\leftarrow \sum^n_{i=1}D[i]\cdot ct_i\]
+and sends $ct'$ back. In essence, the $ct_i$ is an indicator for the index. However, this is still $O(n)$ communication.
+
+% \Graphic{images/2023-04-13/linear_query.png}{0.7}
+
+Let's try that again. If the database is stored as a 2D-matrix. Say the client wants to query $D[x,y]$. The client will send $ct_i^{(1)}\leftarrow \Enc(0)$ if $i\neq x$, or $ct_x^{(1)}\leftarrow \Enc(1)$. Similarly for the $y$ coordinate.
+
+Then, the server will compute
+\[ct'\leftarrow \sum^{\sqrt{n}}_{i,j=1}D[i,j]\cdot ct_i^{(1)}\cdot ct_j^{(2)}\]
+and sends $ct'$ back.
+
+$D[x,y] = \Dec(ct')$. This achieves query in $O(\sqrt{n})$ communication complexity, with 1 homomorphic multiplication and 1 homomorphic scalar multiplication.
+
+% \Graphic{images/2023-04-13/square_query.png}{0.7}
+
+Consider extending this to dimension $d$. The number of homomorphic multiplications (per entry) will be $d-1$ (with $1$ homomorphic scalar multiplication), and the number of homomorphic additions will be $n$. The communication complexity will be $O(d\cdot \sqrt[d]{n})$.
+
+There is a tradeoff between computation and computation---we can save on communication with a larger $d$ but will require more computation. For higher dimensions, we'll need to choose larger noise space and ciphertext space. We should find the `sweet spot' between computation and communication.
+
+This is a construction using BFV, but you can encrypt more than a bit and pack more messages.
+
+\subsubsection{Construction using GSW}
+In this construction, we'll pick dimension $\log(n)$. If a client wants to query $D[i]$, we'll write $i$ as its binary representation $i = \overline{b_1b_2\cdots b_l}$.
+
+The server will also take $i$ as a binary decomposition for all $i$, then compute
+\[ct'_i \leftarrow D[i]\cdot \prod^l_{t=1}\Enc(b_t\overset{?}{=} b_t')\]
+and $ct' \leftarrow \sum^n_{i=1}ct_i'$. In essence, we're computing indicators on each bit and taking the product.
+
+What remains is to compute $\Enc(b_t\overset{?}{=}b_t')$ using the properties of GSW. Intuitively, we can keep one ciphertext with large noise growing linearly, and another ciphertext with small noise that can grow slightly faster\footnote{See explanation of this here \cref{sec:apr11-lwe_swhe}.} We'll continue from here next time.

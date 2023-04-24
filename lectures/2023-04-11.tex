@@ -1,0 +1,229 @@
+%!TEX root = ../notes.tex
+\section{April 11, 2023}
+\label{20230411}
+\subsection{Fully Homomorphic Encryptions, \emph{continued}}
+To recap, a \ul{fully homomorphic encryption} is a public or secret key encryption scheme that allows for \emph{homomorphic evaluations} which takes a function and ciphertexts and outputs an encryption of the function applied on the plaintexts. Security follows from CPA security as before, and we have an additional property that the ciphertexts are \emph{compact}, that is, a fixed polynomial size with parameter $\lambda$. For the full definition, see \cref{def:fhe}.
+
+If our chosen family $\mathcal{F}$ are all polynomial-sized boolean circuits, then our protocol is fully homomorphic. Otherwise, the protocol is somewhat homomorphic.
+
+All constructions start with somewhat homomorphic encryption schemes (SWHE), and we can bootstrap these into fully homomorphic encryption schemes. We'll see three constructions. We start with what we ended with last time.
+
+\subsubsection{SWHE over Integers, \emph{continued}}
+In \cref{sec:apr06-swhe-integers}, we saw a failing first attempt at SWHE over integers that encodes $m$ as a multiple of an odd number $p$ plus $m$. This failed because we can take gcd of many encryptions of $0$ to recover our odd number $p$.
+
+Instead, we'll say that encryptions of $0$ are \emph{small and even} modulo $p$. An encryption of $m$ would be
+\[ct = p\cdot q + m + 2e\]
+for odd secret $p$ and randomly sampled $e\ll p$ noise. Decryption is $\left[ ct\mod p \right]\mod 2$. Addition and multiplication are just addition and multiplication of ciphertexts.
+
+This is computationally hard to crack, from the approximate GCD problem: that given polynomial-many $\left\{ x_1 = p\cdot q_i + si \right\}$ with $s_i \ll p$, it's computationally hard to compute $p$.
+
+For $p\sim 2^{O(\lambda^2)}$, $q_i\sim 2^{O(\lambda^5)}$, and $s_i\sim 2^{O(\lambda)}$, the best known attack requires $2^\lambda$ time.
+
+We can also construct a public key version of this, where the secret key is still our odd $p$ but the public key are a set of encryptions of $0$, $\{x_i = p\cdot q_i + 2e_i\}$.
+
+Since our scheme is homomorphic over addition, we can take a random subset sum of $\{x_i\}$ and add $m$ and $2e$:
+\begin{itemize}
+    \item To encrypt, we'll do
+          \[ct = (\text{subset sum of $\{x_i\}$}) + m + 2e\]
+          for small even $2e$ with $e \ll p$. Encryption of $0$ is small and even modulo $p$.
+    \item Then, decryption becomes $\Dec(ct) = \left[ ct\mod p \right]\mod 2$.
+    \item Addition and multiplication work the same way.
+\end{itemize}
+
+\emph{What could go wrong?} Note that this is still only a \emph{somewhat} homomorphic encryption scheme. Are there limits to how much we can add or multiply? Specifically, could the noise grow to an extent that interferes with our encryption?
+\begin{enumerate}
+    \item If we add ciphertexts, our noise grows linearly:
+          \begin{align*}
+              ct_1        & = p\cdot q_1 + m_1 + 2e_1                         \\
+              ct_2        & = p\cdot q_2 + m_2 + 2e_2                         \\
+              ct_1 + ct_2 & = p\cdot (q_1 + q_2) + (m_1 + m_2) + 2(e_1 + e_2)
+          \end{align*}
+    \item If we multiply ciphertexts, our noise grows exponentially:
+          \[ct_1 \cdot ct_2 = p\cdot (\cdots) + (m_1 \cdot m_2) + m_1\cdot 2e_2 + 2e_1m_2 + 4e_1e_2\]
+\end{enumerate}
+Addition is cheaper, but multiplication has our noise grow much much faster. In our parameters, we can support roughly $O(\lambda)$ multiplications, but addition is almost for free (we can do exponentially many additions).
+
+This is why this is \emph{somewhat} homomorphic encryption---if the noise exceeds $p$, then it might affect the plaintext.
+
+This analysis works similarly for public-key encryption\footnote{In fact, we took a very generic way of converting the secret-key scheme into a public-key scheme. We can always take subset sums of encryptions of $0$ and add it to our message.}.
+
+Note that this protocol is quite expensive---$p$ and $q$ will tend to get quite large. We'll pivot into lattice-based cryptography which will solve some of these issues.
+
+\subsubsection{Learning With Errors (LWE) Assumption}
+We'll introduce a new assumption, and which is assumed to be post-quantum secure. There is no known quantum algorithm to solve this in polynomial time.
+
+We have security parameter $n$, and $q\sim 2^{n^\epsilon}$ for constant $\epsilon$. $m = \Theta(n\log q)$. We have some distribution $\chi$ which is a distribution over $\ZZ_q$ concentrated on ``small integers''. For example, this can be Gaussian.
+
+% \Graphic{images/2023-04-11/gaussian.png}{0.7}
+
+We require that
+\[\Pr[|e| > \alpha\cdot q \mid e\leftarrow \chi]\leq \negligible(n)\]
+with $\alpha \ll 1$. That is, the probability that our error deviates significantly from $0$ is negligible.
+
+The assumption states the following: sampling a random matrix $A\sampledfrom \ZZ_q^{m\times n}$ and randomly sample a vector $s\sampledfrom \ZZ_q^n$ with error $e\sampledfrom \chi^m$. We have \[b:=A\times s + e\]
+% \Graphic{images/2023-04-11/lwe.png}{0.7}
+
+The computational assumption is that
+\[(A, b = As+e)\overset{c}{\simeq} (A, b'\sampledfrom \ZZ_q^m)\]
+that is, $b$, which is $As$ with some error term, appears uniforms over $\ZZ_q^m$. Then, $A$ and $b$ look as if they are random.
+
+There is a classic reduction that allows us to reduce the worst-case shortest vector problem\footnote{Really quickly, a lattice is a linear combination of a basis. If basis $\mathcal{B} = \left\{ \vec{b}_1, \vec{b}_2, \dots, \vec{b}_n \right\}$ lienarly independent, then we have lattice \[L(\mathcal{B}) := \left\{ \sum^n_{i=1} \alpha_i\vec{b}_i\mid \alpha_i\in \ZZ \right\}.\]
+The shortest vector problem would be to find the vector with the shortest length in a lattice. This is a problem that is post-quantum and known to have a larger than polynomial solution.} in lattices to the average-case of LWE\footnote{In crypto, we want average case hardness. In computability, we discuss worst-case hardness. This is a wonderful reduction, becuase if we can solve LWE in the average-case, we will be able to solve shortest vector in the worst-case. This is a good security guarantee, since the shortest vector problem is canonically `hard'. }.
+
+\begin{remark*}
+    There's an interesting problem with LWE---we were originally going to solve shortest vector problem using a quantum algorithm that could solve LWE. If we could solve LWE, we could solve shortest vector problem with quantum algorithms. Eventually, cryptographers settled on LWE being hard, and used LWE to construct encryption schemes.
+\end{remark*}
+
+\subsubsection{Regev Encryption from LWE, \emph{first attempt}}
+Here's how we'll use LWE to make an encryption scheme. We have public key $(A, b)$ and secret key $s$, and
+\[A\cdot s + e = b\]
+% \Graphic{images/2023-04-11/regev_keys.png}{0.7}
+\begin{itemize}
+    \item To encrypt $\Enc_{pk}(\mu)$ with $\mu\in \left\{ 0,1 \right\}$, we'll sample random subset of rows $S\subseteq [m]$ and have
+          \[c = \left( \sum_{i\in S}A_i, \left( \sum_{i\in S}b_i \right) + \mu\cdot \left\lfloor \frac{q}{2}\right\rfloor \right)\]
+          where $A_i$ is the $i$-th row of $A$ and $b_i$ is the $i$-th row of $b$.
+
+          Our ciphertext will be $c=(c_1, c_2)$ where $c_1$ is $n$ in length and $c_2$ is a value.
+    \item To decrypt $\Dec_{sk}(c)$, we'll take $c_2 - \langle c_1, s\rangle$ (the inner product) which gives
+          \begin{align*}
+              c_2 - \langle c_1, s\rangle \
+               & = c_2 - \left( \sum_{i\in S}b_i - \sum_{i\in S}e_i \right)                                                                                             \\
+               & = \left( \left( \sum_{i\in S}b_i \right) + \mu\cdot \left\lfloor \frac{q}{2}\right\rfloor \right) - \left( \sum_{i\in S}b_i - \sum_{i\in S}e_i \right) \\
+               & = \mu\cdot \left\lfloor \frac{q}{2}\right\rfloor + \sum_{i\in S}e_i
+          \end{align*}
+          and we'll be able to tell based on whether it lies nearer to $0$ or $q$ given that the error term is small, and this gives us the $\mu$ bit.
+\end{itemize}
+
+We can rewrite this problem as
+\[\underbrace{\left[ A\mid b \right]}_{B}\cdot \underbrace{\begin{bmatrix}
+            S \\
+            - \\
+            1
+        \end{bmatrix}}_{t} = e\]
+% \Graphic{images/2023-04-11/rewritten_matrix.png}{0.7}
+where the public key is $B_{m\times n}$, secret key is $t_{n\times 1}$ and $B\cdot t$ is small.
+\begin{itemize}
+    \item To encrypt $\Enc_{pk}(\mu)$ with $\mu\in \left\{ 0,1 \right\}$, we'll sample random $r\sampledfrom \{0, 1\}^m$ and compute
+          \[c = r\cdot B + \left( 0, \dots, 0, \mu\cdot \left\lfloor \frac{q}{2}\right\rfloor \right)\]
+    \item To decrypt $\Dec_{sk}(c)$, we'll take
+          \[\langle c, t\rangle = \mu\cdot \left\lfloor \frac{q}{2}\right\rfloor + \text{small error}\]
+\end{itemize}
+
+Let's look at our homomorphisms. Let
+\begin{align*}
+    c_1 = \Enc(\mu_1)\qquad \langle c_1, t\rangle = \text{small} + \mu_1 \cdot \left\lfloor \frac{q}{2}\right\rfloor \\
+    c_2 = \Enc(\mu_2)\qquad \langle c_2, t\rangle = \text{small} + \mu_2 \cdot \left\lfloor \frac{q}{2}\right\rfloor
+\end{align*}
+We have additive homomorphism. Let $c = c_1 + c_2$, then
+\[\langle c, t\rangle = \text{small} + (\mu_1 + \mu_2)\cdot \left\lfloor \frac{q}{2}\right\rfloor\]
+Note we took $\frac{q}{2}$ because we're in $\ZZ_2$ so adding $1 + 1$ will wrap around $q$.
+
+What about multiplicative homomorphism? It's not even clear how we might even combine two ciphertexts which are vectors.
+
+\subsubsection{Multiplying Ciphertexts (GSW)}
+Our first idea is multiply matrices. Our secret key is still $sk = t_{n\times 1}$.
+
+\begin{itemize}
+    \item To encrypt $\Enc_{sk}(\mu)$ with $\mu\in \left\{ 0,1 \right\}$. We sample $c_0\in \ZZ_q^{m\times n}$\footnote{We are able to sample such a small matrix.} such that $c_0\cdot \vec{t}$ is small.
+          % \Graphic{images/2023-04-11/gsw_encrypt.png}{0.7}
+          \[c = c_0 + \mu\cdot I\]
+    \item To decrypt $\Dec_{sk}(c)$, we have
+          \[c\cdot \vec{t} = (c_0 + \mu\cdot I)\cdot \vec{t} = \vec{e} + \mu\cdot \vec{t}\]
+          so we can still figure out whether $\mu$ is closer to $\vec{t}$ or $\vec{0}$.
+\end{itemize}
+
+Let's look at this the corresponding homomorphisms here. On the left side, we'll remove errors so it is simpler to understand. On the right side, we'll add the errors back in.
+
+\begin{minipage}{0.5\textwidth}
+    Homomorphisms:
+    \begin{align*}
+        c_1\cdot \vec{t} & = \mu_1\cdot \vec{t} \\
+        c_2\cdot \vec{t} & = \mu_2\cdot \vec{t}
+    \end{align*}
+    Addition:
+    \[c = c_1 + c_2\]
+    \[c\cdot \vec{t} = (c_1 + c_2)\cdot\vec{t} = (\mu_1 + \mu_2)\cdot \vec{t}\]
+    Multiplication:
+    \begin{align*}
+        c              & = c_1\cdot c_2                  \\
+        c\cdot \vec{t} & = (c_1\cdot c_2)\cdot \vec{t}   \\
+                       & = c_1\cdot (c_2\cdot \vec{t})   \\
+                       & = c_1\cdot \mu_2\cdot \vec{t}   \\
+                       & = \mu_2\cdot (c_2\cdot \vec{t}) \\
+                       & = \mu_2\cdot \mu_1\cdot \vec{t} \\
+    \end{align*}
+\end{minipage}%
+\begin{minipage}{0.5\textwidth}
+    Homomorphisms:
+    \begin{align*}
+        c_1\cdot \vec{t} & = \mu_1\cdot \vec{t} + \vec{e}_1 \\
+        c_2\cdot \vec{t} & = \mu_2\cdot \vec{t} + \vec{e}_2
+    \end{align*}
+    Addition:
+    \[c = c_1 + c_2\]
+    \[c\cdot \vec{t} = (c_1 + c_2)\cdot\vec{t} = (\mu_1 + \mu_2)\cdot \vec{t} + (\vec{e}_1 + \vec{e}_2)\]
+    Multiplication:
+    \begin{align*}
+        c              & = c_1\cdot c_2                                                                      \\
+        c\cdot \vec{t} & = (c_1\cdot c_2)\cdot \vec{t}                                                       \\
+                       & = c_1\cdot (c_2\cdot \vec{t})                                                       \\
+                       & = c_1\cdot (\mu_2\cdot \vec{t} + \vec{e}_2)                                         \\
+                       & = \mu_2\cdot (c_2\cdot \vec{t}) + c_1\cdot \vec{e}_2                                \\
+                       & = \mu_2\cdot (\mu_1\cdot \vec{t} + \vec{e}_1) + c_1\cdot \vec{e}_2                  \\
+                       & = \mu_2\cdot \mu_2\cdot \vec{t} + \mu_2\cdot \vec{e}_1 + \boxed{c_2\cdot \vec{e}_2}
+    \end{align*}
+\end{minipage}
+
+Looking at it more closely, we see that if $c\cdot \vec{t} = \mu\cdot \vec{t}$, then $\mu,\vec{t}$ are eigenvalues and eigenvectors for matric $c$, and they are `approximate' eigenvalues and eigenvectors in the case with errors.
+
+The error terms are fine, except for $c_2\cdot \vec{e}_2$ which is large. This protocol doesn't quite work. We're getting quite close, we just need to make $c_1\cdot \vec{e}_2$ small enough.
+
+\subsubsection{Flattering Gadget}
+We define a gadget matrix $G\in \ZZ_q^{m\times n}$.
+% \Graphic{images/2023-04-11/gadget.png}{0.7}
+with inverse transform
+\[G^{-1} : \ZZ_q^{m\times n}\to \ZZ_q^{m\times m}\]
+such that $\forall C\in \ZZ_q^{m\times n}$, $G^{-1}(C)$ is small and $G^{-1}(C)\cdot G = C$.
+% \Graphic{images/2023-04-11/gadget_visual.png}{0.7}
+
+Here's an example of such a matrix. The columns of $G$ are powers of $2$ except $0$s\footnote{This is a bit convoluted, but $G^{-1}(C)$ is a bit decomposition of $C$ (expands in length by some factor), and $G$ is a `recomposition' matrix which converts the bits into numbers again.}, and $G^{-1}(C)$ is the bit decomposition of elements of $C$.
+% \Graphic{images/2023-04-11/gadget_example.png}{0.7}
+
+We have the nice guarantee that $G^{-1}(C)$ is small. $m$ is exactly $n\cdot \log q$, since we need to split each element into $\log q$ bits.
+
+\subsubsection{Multiplying Ciphertexts (GSW), \emph{finally}}\label{sec:apr11-lwe_swhe}
+We are finally ready for our LWE SWHE scheme, after a good amount of motivation\dots
+
+\begin{description}
+    \item[Encryption.] To encrypt $\Enc_{sk}(\mu)$ for $\mu\in \{0, 1\}$, we can sample $c_0\in \ZZ_q^{n\times n}$ such that $c_0\cdot\vec{t}$ is small.
+        % \Graphic{images/2023-04-11/final_encryption.png}{0.7}
+        \[c = c_0 + \mu\times G\]
+        where $G$ is the public gadget matrix.
+    \item[Decryption.] To decrypt $\Dec_{sk}(c)$, we have
+        \begin{align*}
+            c\cdot\vec{t} & = (c_0 + \mu\cdot G)\cdot \vec{t} \\
+                          & = \vec{e} + \mu(G\cdot \vec{t})
+        \end{align*}
+        and we can see if this is nearer to $G\cdot \vec{t}$ or $\vec{0}$.
+    \item[Homomorphism.] We have homomorphism
+        \begin{align*}
+            c_1\cdot \vec{t} & = \mu_1 \cdot (G\cdot \vec{t}) + \vec{e}_1 \\
+            c_2\cdot \vec{t} & = \mu_2 \cdot (G\cdot \vec{t}) + \vec{e}_2
+        \end{align*}
+    \item[Additive Homomorphism.] As before, if $c = c_1 + c_2$, then we have
+        \[c\cdot \vec{t} = (\mu_1 + \mu_2)\cdot (g\cdot \vec{t}) + (\vec{e}_1 + \vec{e}_2)\]
+    \item[Multiplicative Homomorphism.] Define $c = G^{-1}(c_1)\cdot c_2$. Then
+        \begin{align*}
+            c\cdot \vec{t} & = G^{-1}(c_1)\cdot c_2 \cdot \vec{t}                                                             \\
+                           & = G^{-1}(C_1)\cdot (\mu_2\cdot (G\cdot \vec{t}) + \vec{e}_2)                                     \\
+                           & = \mu_2\cdot G^{-1}(c_1)\cdot G\cdot \vec{t} + G^{-1}(c_1)\cdot \vec{e}_2                        \\
+                           & = \mu_2\cdot c_1\cdot \vec{t} + G^{-1}(c_1)\cdot \vec{e}_1                                       \\
+                           & = \mu_2\cdot \left( \mu_1\cdot (G\cdot \vec{t}) + \vec{e}_1 \right) + G^{-1}(c_1)\cdot \vec{e}_2 \\
+                           & = \mu_1\cdot \mu_2\cdot (G\cdot \vec{t}) + \mu_2\cdot \vec{e}_1 + G^{-1}(c_1)\cdot\vec{e}_2
+        \end{align*}
+        and notice how our $c_1\cdot \vec{e}_2$ from before wonderfully becomes $G^{-1}(c_1)\cdot \vec{e}_2$.
+\end{description}
+
+Notice that there is some asymmetry since $\vec{e}_1$ grows by $\mu_2$ and $\vec{e}_2$ grows with $G^{-1}(c_1)$, so it can grow linearly in the smaller ciphertext, etc.
+
+\emph{How homomorphic is it? How many multiplications can you do?} The number of multiplications we can do is roughly $\log_m(q)$.

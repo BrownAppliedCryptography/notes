@@ -83,7 +83,7 @@ If the input space is a relatively small space, we can do a dictionary attack (f
 
 \emph{Can we even achieve 2PC/MPC with just a single round of communication (as we have done here, sending hashes one way)?} Taking a step back, we receive a message from Alice and can derive the solution regardless of \emph{any} $y$ we have. This allows us to just test multiple inputs on the function received and we'll receive that output, so we can derive $x$ from that input.
 
-\subsubsection{DDH-Based PSI}
+\subsubsection{DDH-Based PSI}\label{sec:apr04-psi-ddh}
 We start with a cyclic group $\GG$ of order $q$ with generator $g$, where DDH holds. We also have a hash function $H: \left\{ 0, 1 \right\}^{*}\to \GG$ (modeled as a random oracle).
 
 % \Graphic{images/2023-04-04/ddh_psi.png}{0.7}
