@@ -1,6 +1,6 @@
 %!TEX root = ../notes.tex
-\section{February 2, 2023}
-\label{20230202}
+\section{January 31, 2024}
+\label{20240131}
 \subsection{RSA Encryption, \emph{continued}}
 \recall that the RSA encryption algorithm contains 3 components:
 \begin{description}
@@ -23,6 +23,10 @@ How do we resolve these issues to ensure the $\Gen$ step is efficient (polynomia
     \item We can repeatedly square (using fast power algorithm).
 \end{enumerate}
 
+\begin{ques*}
+    What happens if we can factor?
+\end{ques*}
+    
 A note that we have correctness with this scheme: $(m^e)^d= m^{ed} = m\mod N$.
 
 \begin{ques*}
