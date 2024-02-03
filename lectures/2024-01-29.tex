@@ -1,12 +1,30 @@
 %!TEX root = ../notes.tex
 \section{January 29, 2024}
 \label{20240129}
-\subsection{Logistics}
-There's an EdStem post asking about topics you're interested, feel free to keep on posting!
 
-We acknowledge the synchronization issues with Panopto. For now, if you want to watch the lecture recordings, you can use the Zoom link linked from the course home page. We can manually sync up EdStem but Panopto cannot be synced up, unfortunately.
+\subsection{Q \& A (continued)}
 
-\subsection{Encryption Schemes}
+Before we move on to content, we received a few more questions!
+
+\begin{itemize}
+    \item \emph{Is a crypto background necessary?}
+    
+    Nope! No background is required. The \emph{purpose} of this course is to teach you crypto!
+
+    \item \emph{Readings before/after lecture?}
+    
+    It is not expected to go over the readings before lecture. The expectation is that these readings would help you learn more stuff after lecture if needed.
+
+    \item \emph{Another course with conflicting time schedule?}
+    
+    Although lectures are recorded, we highly recommend participation and attending class in-person! As such, we don't recommend taking another course with a conflicting time schedule. However, if this is your last semester or you have an extenuating circumstance, Peihan will consider approving your ASK request. Moreover, the course will most likely be offered next Spring!
+
+    \item \emph{Call me Peihan!}
+    
+    Peihan would highly prefer you call her ``Peihan,'' not professor!
+\end{itemize}
+
+\subsection{Encryption Scheme Basics}
 This lecture we'll cover encryption schemes. We briefly mentioned what encryption schemes were last class, we'll dive into the technical content: how we construct them, assumptions, RSA, ElGamal, etc.
 
 Fundamentally, an encryption scheme protects message secrecy. If Alice wants to communicate to Bob, Alice will encrypt a message (plaintext) using some key which gives her a ciphertext. Sending the ciphertext through Bob using a public channel, Bob can use the key to decrypt the ciphertext and recover the message. An eavesdropper in the middle will have no idea what message has been transmitted.
@@ -32,7 +50,9 @@ A stronger version of private-key encryption is called public-key encryption. Al
         \item[Encryption.] Encrypts message $m$ with key $k$, $c\leftarrow \mathsf{Enc}(k, m)$, which we sometimes write as $\Enc_k(m)$.
         \item[Decryption.] Decrypts using key $k$ to retrieve message $m$, $m := \Dec(k, c)$, or written as $\Dec_k(c)$.
     \end{description}
-    Note the notation $\leftarrow$ and $:=$ is different. In the case of generation and encryption, the produced key $k$ or $c$ follows a \emph{distribution} (is randomly sampled), but we had better want decryption to be deterministic in producing the message.
+    Note the notation $\leftarrow$ and $:=$ is different. In the case of generation and encryption, the produced key $k$ or $c$ follows a \emph{distribution} (is randomly sampled), while we had better want decryption to be deterministic in producing the message. 
+    
+    In other words, we use $\leftarrow$ when the algorithm might involve randomenss and $:=$ when the algorithm is deterministic.
 \end{definition}
 
 \begin{definition}[Public-Key Encryption]
@@ -43,8 +63,13 @@ A stronger version of private-key encryption is called public-key encryption. Al
         \item[Encryption.] Use the public key to encrypt, $c\leftarrow \mathsf{Enc}(pk, m)$ or $\Enc_{pk}(m)$.
         \item[Decryption.] Use the secret key to decrypt, $m:=\Dec(pk, c)$ or $\Dec_{sk}(c)$.
     \end{description}
-
 \end{definition}
+
+\begin{remark}
+    Note that all these algorithms are \ul{public knowledge}. This is known as Kirchoff's principle.
+
+    Intuitively, one key reason is because if the security of our scheme relies on hiding the \emph{algorithm}, then if it is leaked we need to construct an entirely new algorithm. However, if the security of our scheme relies on, for example, a secret key, then we simply need to generate a new key.
+\end{remark}
 
 \begin{ques*}
     If we can construct public-key encryption, why do we even bother with secret-key encryption? We could just use the $(pk, sk)$ pair for our secret key, and this does the same thing.
@@ -52,7 +77,7 @@ A stronger version of private-key encryption is called public-key encryption. Al
 
 \begin{enumerate}
     \item First of all, public-key encryption is almost always \emph{more expensive}. Symmetric-key encryption schemes give us efficiency.
-    \item Public-key encryption relies on much stronger computational assumptions.
+    \item Public-key encryption relies on much stronger computational assumptions, whereas symmetric key encryption are still post-quantum secure.
 \end{enumerate}
 
 \subsubsection{Symmetric-Key Encryption Schemes}
@@ -113,7 +138,7 @@ This is why this is an \emph{one-time} pad. This is a bit of an issue, to send a
 
 In fact, this is \emph{the best} that we can do.
 
-\begin{theorem}
+\begin{theorem}[Shannon's Theorem]
     \emph{Informally,} for perfect (information-theoretic\framedfootnote{That the distributions of ciphertexts are identical, that $\Enc_k(m_0)\equiv \Enc_k(m_1)$.}) security, the key space must be at least as large as the message space.
     \[|\mathcal{K}|\geq |\mathcal{M}|\]
     where $\mathcal{K}$ is the key space and $\mathcal{M}$ is the message space.
@@ -159,7 +184,7 @@ Even further, we pick some problems not in $\mathsf{NP}$-complete, not in $\math
 
 Going back to our definition of computational security \cref{def:computational-security},
 \begin{definition*}[Computational Security]
-    We say that the adversary is computationally bounded (is only a \emph{polynomial-time algorithm}), that $\forall \text{probabilic poly-time algorithm }\mathcal{A}$,
+    Let the adversary be computationally bounded (i.e. only a \emph{polynomial-time algorithm}). Then $\forall\ \text{probabilistic poly-time algorithm }\mathcal{A}$,
     \[\Enc_k(m_0)\overset{c}{\simeq}\Enc_k(m_1)\]
     Where $\overset{c}{\simeq}$ is ``computationally indistinguishable''.
 \end{definition*}
@@ -176,6 +201,17 @@ Theoretically, for $\lambda$ a security parameter and an adversary running in ti
 \[\negligible(\lambda) \ll \frac{1}{\lambda^c}\qquad \forall\text{ constant }c.\]
 
 In practice, we set $\lambda = 128$. This means that the best algorithm to break the scheme (e.g. find the secret key) takes time $\sim 2^\lambda$. Currently, this is longer than the age of the universe.
+
+\begin{remark}
+    \emph{Just how big is $2^{128}$?} Well, see how long $2^{128}$ CPU cycles will take.
+
+    Let's assume the CPU spec is 3.8 GHz i.e. $3 \cdot 10^9$ cycles per second. Moreover, note that $2^{128} \sim 10^{38}$ CPU cycles.
+    
+    Then doing the math \dots 
+    $$10^{38} \text{ CPU cycles} \cdot \frac{1s}{10^9 \text{ CPU cycles}} \cdot \frac{1 \text{ year}}{31,536,000s} \sim 10^{22} \text{ years}$$
+
+    Now let's be generous and say the age of the universe is $10^{11}$ years \dots then we see that it would still take $10^{11}$ times the current age of the universe!
+\end{remark}
 
 \begin{example}
     \textbf{If the best algorithm is a brute-force search for $k$, what should our key length be?}
