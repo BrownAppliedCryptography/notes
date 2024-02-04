@@ -1,6 +1,34 @@
 %!TEX root = ../notes.tex
 \section{January 31, 2024}
 \label{20240131}
+
+\subsection{Basic Number Theory, \emph{continued}}
+
+We recall a couple more definitions.
+
+\begin{definition}
+    We first define the multiplicative group of integers modulo n as
+    $$\ZZ_N^* = \{a\in [1, N-1]\mid \gcd(a, N) = 1\}$$
+\end{definition}
+
+\begin{definition}
+    We define the Euler's totient function as
+    $$\phi(N) = |\ZZ_N^*|$$
+\end{definition}
+
+\begin{example}
+    If $N = p \cdot q$ where $p, q$ are prime, then $\phi(N) = (p-1)(q-1)$.
+\end{example}
+
+\begin{theorem}[Euler's Theorem]
+    $\forall a, N$ where $\gcd(a, N) = 1$, we have that $a^{\phi(N)} \equiv 1 \mod N$.
+\end{theorem}
+
+\begin{corollary}
+    If $$d \equiv e^{-1} \mod \phi(N)$$, then $$\forall a \in \ZZ_N^*, (a^d)^e \equiv a \mod N$$.
+\end{corollary}
+
+
 \subsection{RSA Encryption, \emph{continued}}
 \recall that the RSA encryption algorithm contains 3 components:
 \begin{description}
@@ -24,13 +52,13 @@ How do we resolve these issues to ensure the $\Gen$ step is efficient (polynomia
 \end{enumerate}
 
 \begin{ques*}
-    What happens if we can factor?
+    What happens if we can factor $N$?
 \end{ques*}
-    
-A note that we have correctness with this scheme: $(m^e)^d= m^{ed} = m\mod N$.
 
+Then we can find $p$ and $q$ and calculate $\phi(N) = (p-1)(q-1)$, and then we can compute $d = e^{-1}\mod{\phi(N)}$. Thus, RSA relies crucially on the factoring problem being hard.
+    
 \begin{ques*}
-    Still, are there any security issues?
+    The above scheme is known as ``plain'' RSA. Are there any security issues?
 \end{ques*}
 \begin{itemize}
     \item It relies on factoring being difficult (this is the computational assumption). Post-quantum, Shor's Algorithm will break RSA.
@@ -47,27 +75,13 @@ A note that we have correctness with this scheme: $(m^e)^d= m^{ed} = m\mod N$.
     In practice, how can RSA be useful with these limitations?
 \end{ques*}
 
-As long as we pick the plaintext which is randomly sampled, security for RSA holds.
+As long as we pick the plaintext which is randomly sampled, security for RSA holds. There is also a more involved way of using RSA that is CPA-secure, but we will not go in detail of it.
 
 \begin{remark*}
-    In practice, we usually set length of $p$ and $q$ to be $1024$ bits, and the key length is $2048$ bits. This is because of better algorithms for finding big primes.
+    In practice, we usually set length of $p$ and $q$ to be $1024$ bits, and the key length is $2048$ bits.
+
+    Moreover, note that although exponentiation can be done in polynomial time, it's still a very expensive operation. This is why we use RSA and public key encryption is, in general, more expensive.
 \end{remark*}
-
-\begin{ques*}
-    Asked on \href{https://edstem.org/us/courses/33693/discussion/2483699}{Ed}: What happens if $p\mid m$ (or $q\mid m$)?
-\end{ques*}
-
-Correctness still holds\footnote{Can do out, or by using Chinese Remainder Theorem to see that it preserves the qualities we need mod $p$ and mod $q$. }.
-
-However, security will be broken. If $p\mid (m^2\mod N)$, then $gcd(c, N) = p$ will factor $N$.
-
-However, this is \emph{very} unlikely! Sampling $m\sampledfrom [1, N-1]$, then
-\[\Pr[p\mid m] \equiv \frac{q}{N} = \frac{1}{p} = \frac{1}{2^{\theta(\lambda)}}=\negligible(\lambda)\]
-
-When sending $k$ messages,
-\[\Pr[p\mid m\text{ for any }m] \leq \frac{k}{p} \equiv \frac{\mathsf{poly}(\lambda)}{2^{\theta(\lambda)}}\]
-
-which is still negligible. Put simply, Alice has just as much chance to break RSA by randomly factoring as she is to send a message that is a multiple of $p$ or $q$.
 
 \subsection{Intro to Group Theory}
 \begin{definition}[Group]
