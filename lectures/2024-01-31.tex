@@ -234,17 +234,3 @@ A digital signature scheme consists of $\Pi = (\Gen, \mathsf{Sign}, \mathsf{Veri
     \item[Authentication.] $\sigma \leftarrow \mathsf{Sign}_{sk}(m)$.
     \item[Verification] $0/1 := \mathsf{Verify}_{vk}(m, \sigma)$.
 \end{description}
-
-\subsubsection{Chosen-Message Attack}
-Similar to chosen-plaintext attack from encryption, we have chosen-message attack security. An adversary chooses a number of messages to generate signatures or tags for. After that, the adversary will try to generate another valid pair of message and tag. We want to make sure that generating a new pair of message and tag is hard.
-
-\begin{center}
-    \includegraphics[width=0.8\textwidth]{images/2023-02-02/cma.png}
-\end{center}
-
-\subsubsection{Constructions}
-Very briefly, we discuss constructions for MAC and digital signatures.
-
-Using block ciphers, we have CBC-MAC. Using a hash function, we have HMAC.
-
-For digital signatures, we have RSA which relies on the RSA assumption, or DSA which relies on discrete-log algorithms. There are also lattice signature schemes for post-quantum digital signatures.
