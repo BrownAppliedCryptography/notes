@@ -33,4 +33,5 @@
 *.tdo
 .DS_Store
 *.synctex(busy)
+*.pdf
 PDF
