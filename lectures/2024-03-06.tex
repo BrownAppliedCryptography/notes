@@ -1,0 +1,162 @@
+%!TEX root = ../notes.tex
+% Scribe: Sudatta Hor
+\section{March 6, 2024}
+\label{20240306}
+
+This lecture we will continue our discussion on zero-knowledge proofs for OR statements, discuss RSA blind signature, and put it all together for anonymous online voting. Then we will discuss prime-order groups and more example of sigma protocols.
+
+\subsubsection{Example: Diffie-Hellman Tuple}
+
+We give a brief recap of Diffie-Hellman tuple.
+
+\textbf{Input:} Cyclic group $G$ of order q (prime), generator $g$, (h, u, v)
+
+\textbf{Statement:} We want to prove that (h, u, v) is a Diffie-Hellman Tuple.
+
+\textbf{Witness:} $b$ such that $u = g^b \wedge v = h^b$.
+
+\textbf{Language:} $R_L = \{ (h, u, v), b\}$
+
+\pseudocodeblock{
+    \textbf{Prover} \< \< \textbf{Verifier} \\
+    r \sample \ZZ_q \< \sendmessageright*{A = g^r, B = h^r} \< \\
+    \< \sendmessageleft*{\sigma} \< \sigma \sample \ZZ_q\\
+    \< \sendmessageright*{s = \sigma \cdot b + r ( \mod q )} \< \text{Verify:} \\
+    \< \< g^s = u^\sigma \cdot A\\
+    \< \< h^s = v^\sigma \cdot B
+}
+
+We showed completeness, proof of knowledge, and zero-knowledge in previous lectures.
+
+\subsubsection{Fiat-Shamir Heuristic}
+
+We give a brief recap on Fiat-Shamir. Non-interactive zero-knowledge proof in a random oracle model. 
+
+\pseudocodeblock{
+    \textbf{Prover} \< \< \textbf{Verifier} \\
+    \text{Input:} (X, W) \< \< \text{Input:} X\\
+    \< \sendmessageright*{m_1} \< \\
+    \< \sendmessageleft*{\sigma := H(x || m_1)} \> \\
+    \< \sendmessageright*{m_2} \> \text{Verify}\\
+}
+
+\subsubsection{Anonymous Online Voting}
+
+Here is a recap of the voting framework.
+
+\Graphic{images/2023-03-09/framework.png}{0.8}
+We have some servers:
+\begin{description}
+    \item[Registrar.] For a voter to be able to vote, they register with the Registrar to obtain a certificate to vote. They get a certificate for their verification key.
+    \item[Arbiters.] The arbiters will generate the threshold encryption keys. There will be $t$ arbiters and each will have their $(pk_i, sk_i)$. They all reveal $pk_i$ to the public, so that everyone can compute the full public key $pk$.
+    \item[Voter.] The voter, using the public key, will encrypt $v_i \in\{0, 1\}$. The voter will sign this vote using their signing key. They will send this vote to the Tallyer.
+    \item[Tallyer.] The tallyer will check that the signature is valid. Then, they will strip the signature and output $\Enc_{pk}(v_1), \dots, \Enc_{pk}(v_i), \dots, \Enc_{pk}(v_n)$.
+\end{description}
+
+\subsubsection{Correctness of Encryption}
+We want voters to prove that their encryption is either of $0$ or $1$. We're in group $\GG$ with order $q$ and generator $g$. We have public key $pk\in \GG$, and ciphertext $c = (c_1, c_2)$. We're trying to prove the statement ``$c$ is an encryption of $0$ $\mathsf{OR}$ $c$ is an encryption of $1$.''
+
+Our languages are then encryptions of $0$ and encryptions of $1$:
+\begin{align*}
+    R_{L_0} & = \{(\smallunderbrace{(pk, c_1, c_2)}_{x}, \smallunderbrace{r}_{\text{witness}}) : c_1 = g^r\land c_2 = pk^r\}        \\
+    R_{L_1} & = \{(\smallunderbrace{(pk, c_1, c_2)}_{x}, \smallunderbrace{r}_{\text{witness}}) : c_1 = g^r\land c_2 = pk^r\cdot g\}
+\end{align*}
+where $r$ is our private key. Using this, we can prove that $c$ is an encryption of $0$ ($c_2 = pk^r$) or $c$ is an encryption of $1$ ($c_2 = pk^r\cdot g$).
+
+In both languages, $x$ gives us a Diffie-Hellman tuple.
+
+\subsubsection{Proving OR Statement}
+
+In proving OR statements, we have a language like
+\[ R_{OR} = \{ ((x_1, x_2), w): (x_1, w) \in R_{L_1} \vee (x_2, w) \in R_{L_2} \} \]
+
+To prove $R_{OR}$, we know that both languages $R_{L_1}$ and $R_{L_2}$ works with a sigma protocol. The prover is going to send $(A_1, B_1)$ for the first language and $(A_2, B_2)$ for the second language, pretending that both are correct. The verifier sends a challenge $\sigma \gets \mathbb{Z}_q$. The prover separates $\sigma$ into $\sigma_1$ and $\sigma_2$, and computes responds $S_1, S_2$ for $\sigma_1, \sigma_2$ respectively. Then the verifier will verify that $\sigma = \sigma_1 + \sigma_2$, as well as the responses $((A_1, B_1), \sigma_1, S_1)$ and $((A_2, B_2), \sigma_2, S_2)$.
+
+\pseudocodeblock{
+    \textbf{Prover} \< \< \textbf{Verifier}\\
+    \< \sendmessageright*{(A_1, B_1), (A_2, B_2)} \< \\
+    \< \< \sigma \sample \ZZ_q \\
+    \< \sendmessageleft*{\sigma} \< \\
+    \text{Split } \sigma = \sigma_1 + \sigma_2 (\mod q)\< \< \\
+    \< \sendmessageright*{(\sigma_1, S_1), (\sigma_2, S_2)} \< \text{Verify:}\\
+    \< \< ((A_1, B_1), \sigma_1, S_1)\\
+    \< \< ((A_2, B_2), \sigma_2, S_2)\\
+    \< \< \sigma = \sigma_1 + \sigma_2 (\mod q)
+}
+
+When the Prover splits $\sigma = \sigma_1 + \sigma_2$, we can either randomly sample $\sigma_1$ and then compute $\sigma_2$ or randomly sample $\sigma_2$ and then compute $\sigma_1$. However, in either case, they follow the same distribution. Both statements can be verified, and to the verifier, either statement can be true. This is desirable since we want to hide from the verifier which is true.
+
+\textbf{Completeness:} We rely on the two separate protocols that generate $(A_1, B_1)$ and $(A_2, B_2)$ to be complete.
+
+\textbf{Honest-Verifier Zero Knowledge:} We want to show that the entire three round protocol can be simulated by the Verifier. First, sample $\sigma$, then simulate $(\sigma_1, S_1)$. Compute $(A_1, B_1)$, then $(\sigma_2, S_2)$, then $(A_2, B_2)$.
+
+\textbf{Proof of Knowledge:} We want to show that an Extractor can extract from the Prover a $w$ such that $(x_1, w) \in R_{L_1} \vee (x_2, w) \in R_{L_2}$. The extractor will rewind, sending new challenge $\sigma'$ and receiving new response $(\sigma'_1, S'_1), (\sigma'_2, S'_2)$. If $\sigma_1 \neq \sigma_1'$, then we can extract $w$ from the transcript $((A_1, B_1), \sigma_1, S_1)$ and $((A_1, B_1), \sigma_1', S_1')$. If $\sigma_2 \neq \sigma_2'$, we can do the same for the other transcript.
+
+\subsubsection{Blind Signature}
+
+In the voting framework, each voter receives a $\sigma_i$ (certificate $\text{cert}_i$) from the Registrar, which is eventually published by the Tallyer. The Registrar is able to figure out who is voting, since they know exactly which signatures have been issued to the voters. To hide this information from the Registrar, we introduce something called blind signatures. This is a new idea this semester, and is used in practice.
+
+\pseudocodeblock{
+    \textbf{Signer} \< \< \textbf{Requester}\\
+    (\vk, \sk) \gets \text{Gen}(1^\lambda) \< \< (m', r) \gets \text{Blind}(m)\\
+    \< \sendmessageleft*{m'}\< \\
+    \sigma' \gets \text{SignBlind}_\sk (m') \< \< \\
+    \< \sendmessageright*{\sigma'} \< \sigma = \text{Unblind}(\sigma', r) \\
+    \< \< \text{Vrfy}_{\vk} (m, \sigma) = 1
+}
+
+If the Signer sees $\sigma$ after this protocol, they will be unable to recognize if they signed it before.
+
+\subsubsection{RSA Blind Signature}
+
+\pseudocodeblock{
+    \textbf{Signer} \< \< \textbf{Requester}\\
+    (\vk, \sk) \gets \text{Gen}(1^\lambda) \< \< \text{Blind}(m):\\
+    \< \< r \sample \ZZ_N^*\\
+    \< \< m': = H(m) \cdot r^e \mod N\\
+    \< \sendmessageleft*{m'}\< \\
+    \text{SignBlind}_\sk (m'): \< \< \\
+    \sigma' := (m')^d \< \< \\
+    \< \sendmessageright*{\sigma'} \< \text{Unblind}(\sigma', r)\\
+    \< \< \sigma := \sigma ' \cdot r^{-1} \mod N\\
+    \< \< \text{Vrfy}_{\vk} (m, \sigma) = 1
+}
+
+Notice that 
+\begin{align*}
+    \sigma' &= (m')^d\\
+    &= (H(m)\cdot r^e)^d\\
+    &= H(m)^d \cdot r^{ed}\\
+    &= H(m)^d \cdot r \mod N
+\end{align*}
+
+Thus $\sigma := \sigma' \cdot r^{-1} = H(m)^d \mod N$.
+
+\subsubsection{Multiple Candidates}
+
+Recall earlier when we talked about homomorphic encryption, each voter has encrypts their vote $v_i \in \{0, 1\}$. This works if we have only two candidates. What if we want to have multiple candidates? Then, we need $v_i \in \{0, 1, \dots, t-1\}$. Furthermore, $\text{Enc}(\sum v_i)$ no longer gives us the majority vote.
+
+One idea is for each of the $t$ candidates, we use 0/1 voting. This gives something like an ``approval rating'' for each candidate. 
+
+\subsubsection{Prime-Order Groups}
+
+Let $G$ be a finite group of order $m$ (not necessarily prime). Recall that $\forall g \in G, \langle g \rangle := \{ g^0, g^1, \dots, g^{m-1}\}.$ This is a subgroup of $G$ of order $|\langle g\rangle |$. If $g^m = 1$, then $|\langle g \rangle |$ divides $m$.
+
+\begin{definition}
+    A prime $p$ is a safe prime if $p = 2q + 1$ and $q$ is a prime.
+\end{definition}
+
+\begin{lemma}
+    $\ZZ_p^*$ is a cyclic group of order $m = p-1 = 2q$. Consider subgroup $\langle g \rangle$ for $g \in \ZZ_p^*$. The order of $g$ must either be $2, q, 2q$.
+\end{lemma}
+ 
+\begin{example}
+    $p=7$ is a safe prime. Some subgroups $\langle g \rangle$ include
+    \begin{align*}
+        \langle 3 \rangle &= \{1, 3, 2, 6, 4, 5\} \\
+        \langle 2 \rangle &= \{ 1, 2, 4\} \\
+        \langle 6 \rangle &= \{1, 6\}
+    \end{align*}
+
+    The order of all of these subgroups is either $2, 3, 6$ which are all divisors of $m = p-1 = 6$.
+\end{example}
