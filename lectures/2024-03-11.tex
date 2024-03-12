@@ -1,0 +1,225 @@
+%!TEX root = ../notes.tex
+% Scribe: Sudatta Hor
+\section{March 11, 2024}
+\label{20240311}
+
+This lecture we cover more examples of sigma protocols, zero-knowledge proofs for All NP, and Succinct Non-Interactive Arguments (SNARGs).
+
+\subsection{More Examples of Sigma Protocols}
+
+\begin{example}[Okamoto's Protocol for Representation]
+
+This is similar to Diffie-Hellman, except there are two group elements as input $(h, u)$ instead of 3. Now we want to prove that $u = g^a h^b$.
+
+The protocol is also similar to the Diffie-Hellman example, except the Prover will sample two random integers instead of one. One corresponds to $a$, and the other corresponds to $b$.
+
+\textbf{Input:} Cyclic group $G$ of order $q$, generator $g, h, u$.
+
+\textbf{Witness:} $(a, b)$
+
+\textbf{Language:} $R_{L} = \{ ((h, u), (a, b)): u = g^a h^b\}$
+
+\pseudocodeblock{
+    \textbf{Prover} \< \< \textbf{Verifier} \\
+    r_1 \sample \ZZ_q \< \< \\
+    r_2 \sample \ZZ_q \< \sendmessageright*{A = g^{r_1}h^{r_2} \mod q} \< \\
+    \< \sendmessageleft*{\sigma}\< \sigma \sample \ZZ_q\\
+    \< \sendmessageright*{S_1 = \sigma \cdot a + r_1 \mod q\\ S_2 = \sigma \cdot b + r_2 \mod q} \< \\
+    \< \< \text{Verify:}\\
+    \< \< g^{s_1}\cdot h^{s_2} = u^\sigma \cdot A\\
+}
+
+For completeness, you can do the math and everything works out. It is saying that if both parties are honest, following the protocol, it will be verified. Proof of Knowledge was not covered in lecture, but it is similar to the examples covered in before lectures. Honest-Verifier Zero-Knowledge can be proved by considering the entire transcript, which can be simulated by a simulator without knowing the witness $(a, b)$. The intuition is the same as before. You change the order of the messages. For example, sample $\sigma, S_1, S_2$ randomly in that order, then compute $A$, and that will be the exactly the same distribution as the reward.
+
+\end{example}
+
+\begin{example}[Arbitrary Linear Equations]
+
+\textbf{Input:} Cyclic group $G$ of order $q$, generator $g, h, u, v$.
+
+\textbf{Witness:} $(a, b, c)$
+
+\textbf{Language:} $R_L = \{ ((h, u, v), (a, b, c)): u = g^a h^b\ \wedge\ h = u^a v^b g^c\}$
+
+The idea for the protocol is the same as before. We sample random $r_1, r_2, r_3$ which correspond to $a, b, c$ respectively. $A$ corresponds to $u = g^ah^b$ and $B$ corresponds to $h = u^a v^b g^c$. Note that everything in the diagram is taken modulo $q$.
+
+\pseudocodeblock{
+    \textbf{Prover} \< \< \textbf{Verifier}\\
+    r_1, r_2, r_3 \sample \ZZ_q \< \< \\ 
+    \< \sendmessageright*{A = g^{r_1}h^{r_2}\\ B = u^{r_1}v^{r_2}g^{r_3}}\\
+    \< \sendmessageleft*{\sigma} \< \sigma \sample \ZZ_q \\
+    \< \sendmessageright*{S_1 = \sigma \cdot a + r_1\\ 
+    S_2 = \sigma \cdot b + r_2\\
+    S_3 = \sigma \cdot c + r_3} \< \\
+    \< \< \text{Verify:}\\
+    \< \< g^{S_1} h^{S_2} = u^\sigma \cdot A\\
+    \< \< u^{S_1} v^{S_2} g^{S_3} = h^\sigma \cdot B\\
+}
+
+Completeness follows from assuming that the prover and verifier honestly follow the protocol, and we can confirm by following the math that it will be verified correctly. Proof of Knowledge is saying that we can extract knowledge from the prover. An Extractor will run the protocol with the Prover once, and then rewind and run the protocol again with a different challenge $\sigma '$. You can do this exercise offline. For Honest-Verifier Zero-Knowledge, the entire protocol can be simulated by a simulator without knowing the witness by changing the order of the messages. In particular, you can first sample $\sigma$ and then sample $S_1, S_2, S_3$ randomly, which can be done because these numbers are random because of $r_1, r_2, r_3$, then compute $A, B$.
+
+This example is similar to the previous example, except we have $h = u^a v^b g^c$ added to $u = g^ah^b$. In general, we can keep extending this language to an arbitrary number of equations of this form. 
+
+\end{example}
+
+\subsection{Zero-Knowledge Proof for Graph 3-Coloring (All NP)}
+
+Given a graph $G$, with vertices and edges, let the language be defined as the set of all graphs that have a 3-coloring. This is an NP language given by $L = \{ G: G \text{ has 3-coloring}\}$. The NP relation is $R_L = \{ (G, \text{3Col})\}$. 
+
+Recall that a graph has a k-coloring if it is possible to color each vertex from a set of k colors such that adjacent vertices have different colors. For example, below is a graph with a three coloring.
+
+\begin{center}
+\begin{tikzpicture}
+\SetGraphUnit{2}
+\Vertices{circle}{A,B,C,D,E}
+\Edges(B,C,D,E,A,C,E,B)
+\AddVertexColor{red}{B,D,A}
+\AddVertexColor{blue}{C}
+\AddVertexColor{green}{E}
+\end{tikzpicture}
+\end{center}
+
+Now we construct a proof without revealing the 3 coloring. Both the Prover and the Verifier can see the graph structure, but only the Prover can see the coloring. The Prover wants to prove that the graph is 3 colorable without revealing the coloring.
+
+First, the Prover will hide all of the colors in the 3 coloring. Say that the Prover covers up each vertex with a piece of paper. They can color in the coloring, but after the paper goes down, the coloring cannot be modified. There is a way to do this cryptographically, which we will discuss later.
+
+Next, the Verifier will give a random challenge, for example, choose two adjacent vertices. The Prover will reveal their colors, and show that they are different colors. Doing so will reveal the colors of some vertices, which is undesirable. Instead, we can map the original colors to a different color, so that whichever colors are revealed are random. We keep the set of colors the same. For example, we can remap the colors as follows.
+\begin{align*}
+    \text{blue} &\to \text{red}\\
+    \text{red} &\to \text{blue}\\
+    \text{green} &\to \text{red}
+\end{align*}
+
+Checking one edge is not sufficient for the Verifier to be convinced that the graph is 3-colorable. If $G \notin L$, i.e. the graph is not 3-colorable, the probability that the Prover is caught is $\Pr [P^* \text{ is caught}] \geq 1 / |E| $. This is because if the graph is not 3-colorable, then there exists at least 1 edge whose vertices have the same color. The probability of the Verifier picking this edge is $1 / |E|$. There is some probability of catching the Prover, so we can amplify this, i.e. amplifying soundness.
+
+One way to do this is for the Verifier to choose multiple edges. Then the Prover must remap the colors to avoid revealing the original coloring. The process is as follows: the Prover remaps the colors, then the Verifier chooses and edge, and the Prover reveals the colors of the vertices on that edge to show that they have distinct colors. This repeats multiple times, with the Prover remapping the colors randomly each time.
+
+The Verifier is allowed to choose the same edge in multiple iterations. If the graph is not 3-colorable, the Prover might try to cheat by setting two adjacent vertices with the same color after they have been checked. Thus, the Verifier may want to check the same edge again to ensure that the Prover does not do so.
+
+If we repeat this $n$ times, the probability that the Prover $P^*$ survives (not caught) is $$\Pr [P^* \text{ survives}] \leq (1 - 1 / |E|)^n.$$
+If we pick $n  = \lambda|E|$, then 
+\begin{align*}
+    \Pr [P^* \text{ survives}] &\leq (1 - 1 / |E|)^{\lambda |E|} \\
+    &\approx (1 / e)^\lambda.
+\end{align*}
+
+\subsection{Commitment Scheme}
+
+In the earlier 3-coloring example, the Prover places down a piece of paper on each of the vertices so that the color is hidden and cannot be modified. We discuss a cryptographic protocol that can achieve this, which is called a commitment scheme.
+
+\pseudocodeblock{
+    \textbf{Sender} \< \< \textbf{Receiver} \\
+    m \in \{0, 1\} \< \< \\[2mm][\hline]
+    \text{Commit:} \< \< \\
+    r \sample \{0, 1\}^\lambda \< \< \\
+    c : = \text{Com}(m; r) \< \sendmessageright*{c} \< \\[2mm][\hline]
+    \text{Open:} \< \< \\
+    \< \sendmessageright*{(m, r)} \< \text{Verify:} \\
+    \< \< c = \text{Com}(m; r)\\
+}
+
+There are two properties with this scheme:
+\begin{itemize}
+    \item \textbf{Hiding:} The commitment of 0 is roughly the same as the commitment of 1, i.e. $\text{Com}(0; r) \approx \text{Com}(1; s)$.
+    \item \textbf{Binding:} If one has committed to some message, then later on they can only open up to the message that they have committed. They cannot open up do something else. In other words, it is hard to find $r, s$ such that $\text{Com}(0;r) = \text{Com}(1;s)$.
+\end{itemize}
+
+\begin{example}[Hash-based commitment]
+Randomly sample $r \sample \{0, 1\}^\lambda$. Then the commitment is $\text{Com}(m;r) := H(r || m)$ for a hash $H$. The hash is modeled as a random oracle.
+
+This commitment scheme hiding because the hash function output appears random. The binding property follows from collision resistance of $H$, which means that it is hard to find two inputs that give the same output.
+
+\end{example}
+
+\begin{example}[Pedersen Commitment]
+Take a cyclic group $G$ with order $q$ and generator $g$. Let $h \sample G$ for $h = g^x$ where $x$ is hidden to the sender. $h$ can be generated by the receiver. Then randomly sample $r \sample \ZZ_q$ and the commitment is $\text{Com}(m;r) = g^m \cdot h^r.$
+
+Hiding holds because $h^r$ appears as a random group element, so $g^m \cdot h^r$ is random and can be any group element since $g$ is a generator, sort of like a one-time pad.
+
+Binding follows from the discrete log assumption. If we find two $r_0, r_1 \sample \ZZ_q$ with $\text{Com}(0;r_0) = \text{Com}(1;r_1)$, then
+
+\begin{align*}
+    g^0 \cdot h^{r_0} &= c = g^1 \cdot h^{r_1}\\
+    h ^{r_0 - r_1} &= g\\
+    h &= g^{(r_0 - r_1)^{-1}}
+\end{align*}
+
+which essentially solves the Discrete Log problem, which is assumed to be hard. Thus, it is hard to find two such $r_0, r_1$.
+
+\end{example}
+
+\subsection{Zero-Knowledge Proof for Graph 3-Coloring}
+
+Now we give a protocol for a Zero-Knowledge Proof for Graph 3-Coloring.
+
+\textbf{Input:} Graph $G = (V, E)$ with vertices $V$ and edges $E$.
+
+\textbf{Witness:} A coloring $\phi : V \to \{0, 1, 2\}$ that assigns vertices to colors 1, 2, 3.
+
+\pseudocodeblock{
+    \textbf{Prover} \< \< \textbf{Verifier}\\
+    \text{Randomly sample }\pi : \{0, 1, 2\} \to \{0, 1, 2\} \< \< \\
+    \forall v \in V, r_v \sample \{0, 1\}^\lambda, c_v : = \text{Comm}(\pi(\phi(V)); r_v) \< \< \\
+    \< \sendmessageright*{\{c_v\}_{v\in V}} \< \\
+    \< \< \text{Randomly pick an edge }(u, v) \in E\\
+    \< \sendmessageleft*{(u, v)} \< \\
+    \text{Open commitments }C_u \text{ and }C_v \< \< \\
+    \< \sendmessageright*{
+        \alpha = \pi(\phi(u)), r_u\\
+        \beta = \pi(\phi(v)), r_v
+    } \< \text{Verify:}\\
+    \< \< C_u = \text{Comm}(\alpha; r_u)\\
+    \< \< C_v = \text{Comm}(\beta; r_v)\\
+    \< \< \alpha, \beta \in \{0, 1, 2\}, \alpha \neq \beta
+}
+
+This lets us prove all \textsf{NP} languages---we can do a reduction to the 3-coloring and prove it that way. In reality, this is expensive and merely a theoretical result.
+
+\subsection{Circuit Satisfiability}
+In reality, many choose another \textsf{NP}-complete language, the circuit satisfiability problem. The language considers an arbitrary boolean circuit which consists of \textsf{AND}, \textsf{XOR} gates. The input are certain values $x$ for input values, and witnesses $w$ are the rest of the wires. The satisfiability problem is whether there exists some $w$ to make the circuit evaluate to $1$. Since the input can be any boolean circuit, this is adaptable and widely used in implementation.
+
+% \Graphic{images/2023-03-14/circuit_sat.png}{0.5}
+
+This circuit model is considered a lot.
+\begin{example}[Pre-Image of Hash Function]
+    The function is $\mathrm{C}(x,w) = H(w) - x + 1$. The circuit will output $1$ on $w$ such that $H(w) = x$. $w$ here is the pre-image of $x$.
+
+    This allows us to, say, represent SHA as a boolean circuit to prove the pre-image of a hash function.
+\end{example}
+
+The intuition of the zero-knowlege proof is similar. Let's say the prover has some input values. The prover will commit to the bit of every wire.
+
+% \Graphic{images/2023-03-14/circuit_sat.png}{0.5}
+
+For example, when a verifier asks to confirm a certain \textsf{XOR} gate, the prover will perform a \emph{small} zero-knowledge proof to prove that that gate was computed correctly. Composing commitments and using sigma protocols from before will allow us to gain the functionality we want.
+
+Let's say
+\begin{align*}
+    c_1 = \mathrm{Com}(x) \\
+    c_2 = \mathrm{Com}(y) \\
+    c_3 = \mathrm{Com}(z)
+\end{align*}
+and $x = y\oplus z$. Using a sigma-\textsf{OR} protocol, we can prove
+\[(y = 0, z = 0, x = 0)\ \mathsf{OR}\ (y = 0, z = 1, x = 1)\ \mathsf{OR}\ \cdots\]
+This allows us to do ZK-proofs for circuit satisfiability.
+
+\subsubsection{Proof Systems for Circuit Satisfiability}
+We discuss the proof systems so far for circuit satisfiability.
+
+% \Graphic{images/2023-03-14/circuit_sat_proof_systems.png}{0.5}
+
+The na\"ive proof is to reveal witness $w$. This is not zero-knowledge, but is non-interactive. Using $\Sigma$-protocols, we have zero-knowledge but not non-interaction. Using the Fiat-Shamir heuristic, we get both zero-knowledge and non-interaction.
+
+For the easiest \textsf{NP} proof, communication requires $O(|w|)$ complexity and the verifier verifies in $O(|c|)$ (linear in number of gates) complexity. For $\Sigma$-protocols, communication requires a commitment to each wire, which is $O(|c|\cdot \lambda)$ (needs a factor of $\lambda$ security parameter), and the verifier also verifies in $O(|c|\cdot \lambda)$. This is the same for NIZK.
+
+\begin{center}
+    \begin{tabular}{c|c|c|c}
+        & NP & $\Sigma$-Protocol & (Fiat-Shamir) NIZK \\
+        Zero-Knowledge & No & Yes & Yes\\
+        Non-Interactive & Yes & No & Yes\\
+        Communication & $O(|w|)$ & ? & ? \\
+        Verifier's computation & $O(|C|)$ & ? & ?\\
+    \end{tabular}
+\end{center}
+
+\emph{Can we make this proof system more succinct?} Can we have communication and verification complexity to be \emph{sublinear} in $|c|$ and $|w|$?
