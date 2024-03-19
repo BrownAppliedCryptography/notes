@@ -1,0 +1,124 @@
+%!TEX root = ../notes.tex
+% Scribe: Sudatta Hor
+\section{March 18, 2024}
+\label{20240318}
+
+Some announcements: you can submit a mid-semester feedback form and an intro video, both for extra credit.
+
+This lecture we will cover feasibility results of multi-party computation (MPC), introduce Yao's garbled circuits, and oblivious transfer.
+
+\subsection{Secure Multi-Party Computation, \emph{continued}}
+To quickly recap, a two-party computation is a computation where two parties want to jointly compute a function $f(x, y)$ on their private inputs $x, y$---but they do not reveal to each what their inputs are.
+
+In the multi-party case, there will be $n$ parties $P_1, P_2, \dots, P_n$ with inputs $x_1, x_2, \dots, x_n$ wishing to jointly compute $f(x_1, x_2, \dots, x_n)$. We generally assume there are secure point-to-point channels, but some models assume broadcast channels. A single adversary can ``corrupt'' a subset of the parties, say $t$.
+
+Here are properties we wish to attain in our protocol:
+\begin{description}
+    \item[Correctness.] The function is computed correctly.
+    \item[Privacy.] Only the output is revealed.
+    \item[Independence of Inputs.] Parties cannot choose their inputs depending on others' inputs.
+\end{description}
+Also with security guarantees:
+\begin{description}
+    \item[Security with Abort.] The adversary may ``abort'' the protocol. This prevents honest parties from receiving the output. This is the weakest model.
+    \item[Fairness.] If one party receives the output, then all parties will receive the output.
+    \item[Guaranteed Output Delivery (GOD):] Honest parties \emph{always} receive output. Even if adversarial parties leave, the honest parties will simply continue the protocol.
+\end{description}
+
+\subsection{Feasibility Results}
+In the computational security setting, if we have a fundamental building block, a semi-honest oblivious transfer (OT), we can get semi-honest MPC for any function $t<n$. At a high level, using zero-knowledge proofs to enforce correctness of the protocol, we can convert any semi-honest MPC into a malicious MPC.
+
+In terms of information-theoretic (IT) security. We can also get semi-honest and malicious MPC for any function with $t < \frac{n}{2}$. We call this an \ul{honest majority}. This is a necessary bound, we cannot do any better than this.
+
+\subsection{Oblivious Transfer}
+\begin{definition}[Oblivious Transfer]
+    An \ul{oblivious transfer} is a protocol in which a sender, with messages $m_0, m_1\in\{0, 1\}^l$ gives a choice to the receiver to receive either $m_0, m_1$.
+
+    Given a choice bit from the receiver $b\in\{0,1\}$, the receiver gets $m_b$ and the sender also gets no information about the message transferred.
+
+    % \Graphic{images/2023-03-21/ot.png}{0.6}
+
+    \pseudocodeblock{
+        \textbf{Sender} \< \< \textbf{Receiver}\\
+        \text{Input: } m_0, m_1 \in \{ 0 , 1\}^{\ell} \< \< \text{Input: } b \in \{0, 1\}\\
+        \< \sendmessageright*{ } \< \\
+        \< \sendmessageleft*{ }\< \\
+        \< \sendmessageright*{ }\< \\
+        \< \sendmessageleft*{ } \< \\
+        \text{Output: }\perp \< \< \text{Output: }m_b
+    }
+\end{definition}
+
+We'll learn about constructions of OT later, but we black-box its implementation until later.
+
+Using a semi-honest OT, we can use Yao's Garbled Circuit to construct semi-honest 2PC for any function. We can also use the GMW compiler to compile this into a semi-honest MPC for any function. We'll focus on the first approach in this lecture, but we'll learn GMW in the following lectures.
+
+\subsection{Yao's Garbled Circuit}
+
+\begin{example}[Private Dating/\textsf{AND} Gate]
+    Alice and Bob want to figure out whether they want to go on a second date. Alice has single bit $x\in\{0,1\}$, and Bob also has single bit $y\in\{0,1\}$.
+
+    They want to compute a single \textsf{AND} gate.
+
+    Alice will \emph{garble} circuit wires by generating some random $l_0, l_1$ for each wire corresponding to each bit possibility. We call these \emph{labels}.
+
+    \Graphic{images/2023-03-21/yao_private_dating.png}{0.7}
+    
+
+    For each \textsf{AND} gate\framedfootnote{We can change the values depending on the different logic gates.}, she'll generate $4$ ciphertexts,
+    \begin{align*}
+        \Enc_{\alpha_0}(\Enc_{\beta_0}(0)) \\
+        \Enc_{\alpha_0}(\Enc_{\beta_1}(0)) \\
+        \Enc_{\alpha_1}(\Enc_{\beta_0}(0)) \\
+        \Enc_{\alpha_1}(\Enc_{\beta_1}(1))
+    \end{align*}
+
+    If we have some $\alpha_a, \beta_b$, then we can decrypt $\Enc_{\alpha_a}(\Enc_{\beta_b}(\cdots))$ and all other ciphertexts will look like garbage (we gain no information). This is to say, we can only decrypt the ciphertext of the keys we know. The overarching idea is that we'll only know the right labels for our inputs.
+
+    Alice will send the circuit (the $4$ encryptions) as well as the input label for $x$, $\alpha_a$. Bob now needs to get the label correponding to his input wire, $\beta_0, \beta_1$. We can perform an oblivious transfer!
+
+    Bob has a choice bit and gets one of $\beta_0, \beta_1$ without Alice knowing his choice bit. Having attained $\beta_b$, Bob will try the encryption on all $4$ ciphertexts with $\alpha_a, \beta_b$, and sees which output is valid and returns that.
+
+    For Alice to learn this output, Bob will send the output back to Alice. In the semi-honest setting, Bob will honestly send the result back to Alice. In the malicious case, we might require Bob to provide some zero-knowledge proof in the end to prove that their plaintext result came from their circuit.
+\end{example}
+
+We'll generatlize this single-gate computation for arbitrary functions. We'll represent any arbitrary function as a boolean circuit consisting of only \textsf{AND} and \textsf{XOR} gates\footnote{Recall that any boolean circuit can be represented using only \textsf{AND} and \textsf{XOR} gates.}.
+
+\Graphic{images/2023-03-21/yao_multiple_gates.png}{0.7}
+
+Every wire gets two labels, corresponding to a $0$ bit or $1$ bit. Each label is $\sampledfrom\{0,1\}^\lambda$. For each gate, we construct a `mini' garbled table, where the encrypted message is the output $0$ or $1$ labels\footnote{\emph{How will we know which is garbage?} Na\"ively, we could just try every label. However, this is an exponential blowup for every gate we run the labels through. The solution is to attach a bitstring `tag' (could just be a string of $0$s) that indicates whether a decryption is indeed a label.}\footnote{One more subtle thing we should take care of! We show our ciphertexts in order of $00,01,10,11$. This reveals information! We should take care to shuffle the ciphertexts everywhere.}. We vary the encryptions based on the gate we're trying to implement.
+
+Using the garbled circuit, we can construct an arbitrary 2PC. We call the party who generates the circuit the `garbler', and the other party the `evaluator'.
+
+\Graphic{images/2023-03-21/yao_protocol.png}{0.8}
+
+Alice garbles the circuit, and sends it to Bob. Alice can easily send her own labels. For the labels corresponding to Bob's input, we run oblivious transfer for each input wire to get Bob's input bits without Alice knowing.
+
+In the final output, we can encrypt plaintext $0, 1$. The other way is for Alice to send the final random labels to Bob along with their corresponding bits.
+
+\subsubsection{Optimizations}
+There are some optimizations we can make:
+
+\emph{Point-and-Permute.} For each wire, we'll randomly sample signal bits $\sigma_\alpha, \sigma_\beta$, and flip it for the other input. (Note that this doesn't reveal anything about $\alpha,\beta$). In the circuit, we can indicate using the signal bit which ciphertext to decrypt.
+
+\Graphic{images/2023-03-21/point_and_permute.png}{0.7}
+
+We reduce Bob's computation complexity by at least a constant of $4$, and saves communication complexity by half (we don't need to expand our garbled circuit size anymore).
+
+\emph{Row Reduction.} In this construction, there are $4$ ciphertexts per gate. We can just hash the labels and \textsf{XOR} with the corresponding output label (this is not CPA-secure, but that is fine). From the $4$ ciphertexts, we can set $\gamma_0$ to exactly the hash $H(\alpha_0||\beta_0)$\footnote{Not really the $0,0$ labels, but they can correspond to the signal bits.}. This is compatible with point-and-permute. We hide every row, which is fine. This gives us a $\frac{3}{4}$ space decrease.
+
+\Graphic{images/2023-03-21/row_reduction.png}{0.5}
+
+\emph{Free \textsf{XOR}.} Sample a global $\Delta\sampledfrom\{0,1\}^\lambda$. Every pair of labels differ by $\Delta$. That is,
+\begin{align*}
+    \alpha_1 & :=\alpha_0\oplus \Delta \\
+    \beta_1  & :=\beta_0\oplus \Delta  \\
+    \gamma_1 & :=\gamma_0\oplus \Delta
+\end{align*}
+and $\gamma_0 = \alpha_0\oplus \beta_0$. To compute the output label, you just perform the \textsf{XOR} plainly.
+
+This is to say, \textsf{XOR} is free. We don't need to send labels and Bob doesn't need to encrypt/decrypt.
+
+\Graphic{images/2023-03-21/free_or.png}{0.5}
+
+We can also use \emph{half-gates} which give us $2\lambda$ bits per \textsf{AND} gate + free \textsf{XOR}. A recent development, \emph{slicing-and-dicing}, gives us around $\sim 1.5\lambda$ bits per \textsf{AND} gate + free \textsf{XOR}.
