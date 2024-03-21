@@ -1,0 +1,112 @@
+%!TEX root = ../notes.tex
+% Scribe: Sudatta Hor
+\section{March 20, 2024}
+\label{20240320}
+
+This lecture we discuss optimizations of garbled circuits, construction of oblivious transfer, semi-honest 2PC, and cut-and-choose for garbled circuits.
+
+\subsection{Oblivious Transfer}
+
+Recall the definition of Oblivious Transfer.
+
+\begin{definition}[Oblivious Transfer]
+    An \ul{oblivious transfer} is a protocol in which a sender, with messages $m_0, m_1\in\{0, 1\}^l$ gives a choice to the receiver to receive either $m_0, m_1$.
+
+    Given a choice bit from the receiver $b\in\{0,1\}$, the receiver gets $m_b$ and the sender also gets no information about the message transferred.
+
+    % \Graphic{images/2023-03-21/ot.png}{0.6}
+
+    \pseudocodeblock{
+        \textbf{Sender} \< \< \textbf{Receiver}\\
+        \text{Input: } m_0, m_1 \in \{ 0 , 1\}^{\ell} \< \< \text{Input: } b \in \{0, 1\}\\
+        \< \sendmessageright*{ } \< \\
+        \< \sendmessageleft*{ }\< \\
+        \< \sendmessageright*{ }\< \\
+        \< \sendmessageleft*{ } \< \\
+        \text{Output: }\perp \< \< \text{Output: }m_b
+    }
+\end{definition}
+
+\subsection{Yao's Garbled Circuit for Arbitrary function}
+
+Let's say Alice (Garbler) and Bob (Evaluator) want to jointly compute an arbitrary function, represented by a series of boolean gates. In this series of boolean gates, there are input wires, intermediate gates, and output wires. Alice has two input wires (red) and Bob has two input wires (blue). Their inputs are known to themselves and do not want to be revealed, but they want to jointly compute the output.
+
+\Graphic{images/2023-03-21/yao_multiple_gates.png}{0.7}
+
+For each wire (a-g), Alice will sample two random 128-bit strings $k_0$ and $k_1$. Alice will create a \textit{garbled table} for each gate that consists of 4 ciphertexts that corresponds to the gate logic. For example, the table at the bottom of the diagram corresponds to the AND gate where each entry is $\text{Enc}_x (\text{Enc}_y(x \text{ AND } y))$, where $x,y$ are the strings $k_0, k_1$ corresponding to each input wire.
+
+Bob will get one label per wire, so then he will be able to decrypt exactly 1 out of 4 ciphertexts in the table.
+
+This occurs for each gate. Alice will send a garbled gate (garbled table) for each gate. For the labels that belong to Alice, she will send both to Bob. Then we allow Bob to choose his input labels using oblivious transfer. This allows Bob to compute the output of a gate without Alice or Bob learning each other's input. Once an output for an intermediate gate is computed, we repeat the process to evaluate later gates.
+
+\Graphic{images/2023-03-21/yao_protocol.png}{0.8}
+
+In order to ensure that one does not learn the other's inputs, we must shuffle the garbled table. The plaintext is concatenated with a series of 0s before being encrypted.
+
+\subsubsection{Optimizations}
+There are some optimizations we can make:
+
+\emph{Point-and-Permute.} For each wire, we'll randomly sample signal bits $\sigma_\alpha, \sigma_\beta$, and flip it for the other input. (Note that this doesn't reveal anything about $\alpha,\beta$). In the circuit, we can indicate using the signal bit which ciphertext to decrypt.
+
+\Graphic{images/2023-03-21/point_and_permute.png}{0.7}
+
+We reduce Bob's computation complexity by at least a constant of $4$, and saves communication complexity by half (we don't need to expand our garbled circuit size anymore).
+
+\emph{Free \textsf{XOR}.} Sample a global $\Delta\sampledfrom\{0,1\}^\lambda$. Every pair of labels differ by $\Delta$. That is,
+\begin{align*}
+    \alpha_1 & :=\alpha_0\oplus \Delta \\
+    \beta_1  & :=\beta_0\oplus \Delta  \\
+    \gamma_1 & :=\gamma_0\oplus \Delta
+\end{align*}
+and $\gamma_0 = \alpha_0\oplus \beta_0$. To compute the output label, you just perform the \textsf{XOR} plainly.
+
+This is to say, \textsf{XOR} is free. We don't need to send labels and Bob doesn't need to encrypt/decrypt.
+
+\Graphic{images/2023-03-21/free_or.png}{0.5}
+
+We can also use \emph{half-gates} which give us $2\lambda$ bits per \textsf{AND} gate + free \textsf{XOR}. A recent development, \emph{slicing-and-dicing}, gives us around $\sim 1.5\lambda$ bits per \textsf{AND} gate + free \textsf{XOR}.
+
+\subsection{Oblivious Transfer}
+We saw last time how to construct Yao's garbled circuit using oblivious transfer, but we black boxed the implementation of OT.
+
+We'll go over the implementation of semi-honest OT here. It will follow similarly to the Diffie-Hellman key exchange.
+
+\Graphic{images/2023-03-23/ot.png}{0.7}
+
+The sender will send $A = g^a$. The receiver will mask $A^c$ with $c\in \{0,1\}$ and $b\sampledfrom \ZZ_q$. $a,b$ here are like Diffie-Hellman privates.
+
+Then, the sender will compute $k_0 := H(B^a), k_1 := H\left( \left( \frac{B}{A} \right)^a \right)$. This means that $k_c$ will be exactly $g^{ab} = A^b$ (whether $c = 0$ or $c = 1$). Then, $k_0$ and $k_1$ will be used to encrypt $m_0, m_1$ respectively.
+
+Since only one will be the shared Diffie-Hellman key (and the other will require knowledge of $a$), the receiver will only be able to reveal one such message.
+
+Doing out the algebra, we can conclude that the receiver can access the key.
+
+\Graphic{images/2023-03-23/ot_steps.png}{0.8}
+
+\emph{Is this secure against a semi-honest receiver?} If the key is $c = 0$, then the other key will be $g^{ab-a^2}$. $g^{a^2}$ is difficult to compute, since the receiver only has $A = g^a$ and will need secret $a$ to compute $g^{a^2}$.\footnote{Formally, this security is guaranteed by the CDH assumption, that if we have $g^{\alpha}, g^{\beta}$, it's computationally hard to determine $g^{\alpha\beta}$. If an adversary can derive $g^{\alpha^2}$ from $g^{\alpha}$, they can also derive $g^{\alpha\beta}$. We can get $g^{\alpha^2}, g^{\beta^2}$, then we can get $g^{(\alpha+\beta)^2}=g^{\alpha^2 + 2\alpha\beta + \beta^2}$ and taking inverses we can peel off the $\alpha^2,\beta^2$ exponents to get $g^{\alpha\beta}$.} If $c = 1$, then the other key will be $g^{a^2 + ab}$ which is hard again. So, for the receiver, it is computationally secure.
+
+\emph{Is this secure against a semi-honest sender?} $g^b$ is a random mask on $A^c$, so the sender will not be able to distinguish between this.
+
+\subsubsection{OT Extension}
+We used public-key operations to achieve our OT. Is it possible to construct OT only using symmetric-key primitives? Unlikely\dots
+
+There are impossibility results that show that if we assume $\mathsf{P}\neq \mathsf{NP}$, it's not possible to construct an OT using symmetric-key primitives.
+
+This makes OTs very difficult---since it takes an entire protocol (including expensive exponentiations) to transfer one bit. There has been current research in \emph{extending} OT so we can use more bits.
+
+An OT extension can extend $O(\lambda)$ OTs (with $O(\lambda)$ public-key operations) into a $\mathrm{poly}(\lambda)$ bit OTs.
+
+\Graphic{images/2023-03-23/ot_extension.png}{0.7}
+
+\subsection{Putting it Together: Semi-Honest 2PC}\label{sec:mar23-semihonest-2pc-together}
+
+We can now construct our 2PC protocol. Alice, the garbler, will create the circuit with garbled inputs and wires (shuffling order of ciphertexts). Alice sends this circuit to Bob, and Bob will use OTs with his input bits to get the wire labels that he should use. Then, Bob runs these labels on the garbled circuit.
+
+\Graphic{images/2023-03-23/2pc_protocol.png}{0.8}
+
+In the semi-honest case, Alice will generate this circuit correctly and Bob will follow the protocol correctly. \emph{What could go wrong against malicious adversaries?}
+\begin{itemize}
+    \item Alice could garble an incorrect gate, or give an entirely incorrect circuit.
+    \item Alice could refuse to send the result (translate output label to bits) back to Bob, or send an incorrect result to Bob. If the outputs are not garbled, then Bob could similarly refuse to send this back to Alice.
+    \item Alice and Bob could both cheat about their inputs.
+\end{itemize}
