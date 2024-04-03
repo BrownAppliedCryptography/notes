@@ -1,0 +1,155 @@
+%!TEX root = ../notes.tex
+% Scribe: Sudatta Hor
+\section{April 1, 2024}
+\label{20240401}
+
+Thank you to everyone who filled out the feedback form! We will briefly go over the feedback and then continue cut-and-choose for garbled circuits and start GMW.
+
+\subsection{Mid-Semester Feedback}
+
+We collected 101 out of 125 student feedback.
+
+\begin{itemize}
+    \item Class attendance is good. A majority of students are attending classes. Those who do not attend class watch the recordings, which is perfectly fine.
+    \item Lecture pace. Most students find that the pace is fine. We will keep the same pace, but slow down around challenging/technical topics.
+    \item Class participation (Q \& A) / Group discussion / Quizzes. We encourage more questions in class, since other students also appreciate those questions. Some students suggest group discussion or quizzes, but we don't want to put pressure on students during lecture.
+    \item Diagrams / Reviews / Explanations / Notes / Recordings. Students found the recordings helpful.
+    \item Recordings. Panopto recordings are now available! They have better audio quality compared to the Zoom recordings, but they do not have a good audio recording for the audience. The Zoom transcript will be enabled to assist when the audio is not clear.
+    \item Examples / Definitions. It may be better to incorporate examples first, and then definitions. This is a good suggestion, and we'll try to incorporate this moving forward.
+    \item Docker / Stencil Code / Notation / Local tests / Gradescope. In practice, programming in this field requires using some crypto library (e.g. CryptoPP, Microsoft SEAL). Sometimes in industry, using these libraries can give a lot of issues. The Docker environment helps to remove many systems level issues. Sometimes you will need to figure out how to use libraries that are not well documented, and working with the stencil code in our projects is hopefully good practice for this. The notation indeed can be confusing between the handout and the stencil code, and we will try to fix some of these moving forward.
+    \item Theory / Applications. Some students asked for more applications and less theory. We want to emphasize that the theory is there, and the applications exist because of the theory. There is a balance between the two.
+    \item Potential future topics. Cryptanalysis, elliptic-curve cryptography, blockchain and cryptocurrencies, anonymous credential, key transparency, post-quantum cryptography, app attestation, Peihan's research / career in cryptography.
+\end{itemize}
+
+\subsection{Multi-Party Computation - Big Picture}
+
+There are two different levels of MPC: either semi-honest or malicious. Semi-honest means that the adversary follows the protocol, but tries to extract more information. Malicious means that the adversary deviates from the protocol to extract information.
+
+If we have an oblivious transfer (OT) that is secure against semi-honest adversaries, we can use it with Yao's garbled circuit to achieve semi-honest 2-party computation for any function. Then, with the cut-and-choose with commitments, we can achieve malicious 2-party computation. We will discuss this next.
+
+\begin{align*}
+    \text{Semi-honest OT}\ & \underset{\text{Yao's Garbled Circuits}}{\implies}\ \text{Semi-honest 2PC for any function} \\
+    & \underset{\text{Cut-and-choose with commitments}}{\implies}\ \text{Malicious 2PC for any function}
+\end{align*}
+
+In the last part of this lecture, we will discuss how to use semi-honest OT with GMW to achieve semi-honest multi-party computation, which can be extended to malicious MPC.
+
+\begin{align*}
+    \text{Semi-honest OT} \ & \underset{\text{GMW}}{\implies} \text{Semi-honest MPC for any function}\\
+    & \underset{\text{GMW Compiler with ZKP}}{\implies} \text{Malicious MPC for any function}
+\end{align*}
+
+Recall the definition of Oblivious Transfer.
+
+\begin{definition}[Oblivious Transfer]
+    An \ul{oblivious transfer} is a protocol in which a sender, with messages $m_0, m_1\in\{0, 1\}^l$ gives a choice to the receiver to receive either $m_0, m_1$.
+
+    Given a choice bit from the receiver $b\in\{0,1\}$, the receiver gets $m_b$ and the sender also gets no information about the message transferred.
+
+    % \Graphic{images/2023-03-21/ot.png}{0.6}
+
+    \pseudocodeblock{
+        \textbf{Sender} \< \< \textbf{Receiver}\\
+        \text{Input: } m_0, m_1 \in \{ 0 , 1\}^{\ell} \< \< \text{Input: } b \in \{0, 1\}\\
+        \< \sendmessageright*{ } \< \\
+        \< \sendmessageleft*{ }\< \\
+        \< \sendmessageright*{ }\< \\
+        \< \sendmessageleft*{ } \< \\
+        \text{Output: }\perp \< \< \text{Output: }m_b
+    }
+\end{definition}
+
+\subsection{Putting it Together: Semi-Honest 2PC}\label{sec:mar23-semihonest-2pc-together}
+
+Recall our 2PC protocol. Alice, the garbler, will garble each gate by creating a table of ciphertexts corresponding to each combination of input wires. Alice sends each garbled gate to Bob, and Bob will use OTs with his input bits to get the wire labels that he should use. Then, Bob runs these labels on the garbled circuit.
+
+\Graphic{images/2023-03-23/2pc_protocol.png}{0.8}
+
+In the semi-honest case, Alice will generate this circuit correctly and Bob will follow the protocol correctly. Recall what could go wrong against malicious adversaries. Notice that there is not much that Bob can do, but there is a lot that Alice can do.
+\begin{itemize}
+    \item Alice could garble an incorrect gate, or give an entirely incorrect circuit.
+    \item Alice could refuse to send the result (translate output label to bits) back to Bob, or send an incorrect result to Bob. If the outputs are not garbled, then Bob could similarly refuse to send this back to Alice.
+    \item Alice and Bob could both cheat about their inputs.
+\end{itemize}
+
+\subsection{Cut-and-Choose for Garbled Circuits}
+
+As an initial approach, Alice will garble $\lambda$ circuits, and send those to Bob. Bob will randomly pick all but one for Alice to reveal, and will evaluate on the last garbled circuit.
+
+\pseudocodeblock{
+    \textbf{Alice (Garbler)} \< \< \textbf{Bob (Evaluator)}\\
+    \text{Prepare } \lambda \text{ many garbled circuits} \< \< \\
+    \< \sendmessageright*{\lambda \text{ Garbled Circuits}} \< \\
+    \< \sendmessageleft*{\text{Randomly pick }1 \text{ of them}}\< \\
+    \< \sendmessageright*{\text{Reveal labels for the GC}}\< \\
+    \< \< \text{Verify correctness} \\
+    \< \textit{Do 2PC with the remaining GCs} \< \\
+    \< \< \text{Take the majority result}
+}
+
+
+If Alice generates 1 bad garbled circuit, then the probability that Alice is caught is $\frac{\lambda - 1}{\lambda} = 1 - \frac{1}{\lambda}$. Which is a small probability, but it's not overwhelming.
+
+Instead, Alice will generate $2\lambda$ garbled circuits, and Bob will pick $\lambda$ circuits. Alice will reveal the selected $\lambda$ circuits, and Bob will evaluate on the remaining $\lambda$ and take a majority.
+
+\pseudocodeblock{
+    \textbf{Alice (Garbler)} \< \< \textbf{Bob (Evaluator)}\\
+    \text{Prepare } 2 \lambda \text{ many garbled circuits} \< \< \\
+    \< \sendmessageright*{2\lambda \text{ Garbled Circuits}} \< \\
+    \< \sendmessageleft*{\text{Randomly pick }\lambda \text{ of them}}\< \\
+    \< \sendmessageright*{\text{Reveal labels for the } \lambda \text{ GCs}}\< \\
+    \< \< \text{Verify correctness} \\
+    \< \textit{Do 2PC with the remaining GCs} \< \\
+    \< \< \text{Take the majority result}
+}
+
+What is the probability that Alice gets caught given that Alice generated $\leq \frac{\lambda}{2}$ garbled circuits incorrectly\footnote{If she generated less than this, then the majority will be correct anyways.}? The probability that Alice passed is
+\[\Pr\left[ \text{Alice Passed} \right] = \frac{2\lambda - \frac{\lambda}{2}}{2\lambda}\cdot \frac{2\lambda - \frac{\lambda}{2} - 1}{2\lambda - 1} \cdots \cdot \frac{\frac{\lambda}{2} + 1}{\lambda + 1} \leq \left( \frac{3}{4} \right)^\lambda\]
+which is negligible. Then, Alice will fail with high probability.
+
+Note that Bob must always take the majority even if he notices that there is some inconsistency between the garbled circuits. With overwhelming probability, the majority must be correct. There is an attack called ``selective abort'', where whether we abort or not depends on the input. Depending on Bob's input, there may or may not be inconsistency. Thus, if Bob aborts when seeing inconsistency, this reveals to Alice some information about what inputs Bob has. Whether Bob aborts or not depends on his input.
+
+\subsection{GMW} \label{sec:mar23-gmw}
+
+There is another method of multi-party computation that does not used garbled circuits called the Goldreich-Micali-Wigderson (GMW) protocol.
+
+Throughout the protocol, we keep the invariant that for each wire $w$, if the value of the wire is $v^w \in\{0, 1\}$, then the parties hold an \ul{additive secret share} of $v^w$. Each party $P_i$ holds a random share $v_i^w\in\{0,1\}$ such that
+\[\bigoplus_{i=1}^n v_i^w = v^w\]
+and we keep this invariant throughout the entire circuit. \footnote{Recall that $\oplus$ means addition modulo 2. You can check that this also gives the XOR operation.}
+
+We need to be able to preserve this invariant throughout \textsf{AND} and \textsf{XOR} gates. The \textsf{XOR} case is easy, since \textsf{XOR} is completely commutative and associative, so each party can locally \textsf{XOR} their shares $c_i := a_i\oplus b_i$ for $c := a\oplus b$.
+
+We'll wave our hands over the \textsf{AND} case, but we can do this. We'll proceede gate-by-gate for everyone to compute the result. Each party will publish their local shares, and everyone will \textsf{XOR} the result together to get the final result.
+
+\subsubsection{AND Gates}
+We now finish addressing the \textsf{AND} gates. We have $\bigoplus^n_{i=1}a_i = a$ and $\bigoplus^n_{i=1}b_i = b$.
+
+We want a set of $\left\{ c_i \right\}$ s.t. $\bigoplus^n_{i=1}c_i = c = a \cdot b$ (multiplication of bits is \textsf{AND}). But
+\begin{align*}
+    a\cdot b
+     & = \left( \sum^n_{i=1}a_i \right)\cdot \left( \sum^n_{i=1}b_i \right)\pmod{2}                \\
+     & = \left( \sum^n_{i=1}a_i\cdot b_i \right)\cdot \left( \sum_{i\neq j}a_i b_i \right)\pmod{2}
+\end{align*}
+The first sum is easy and computed locally, but the second sum requires parties to communicate. We do something called \ul{resharing}.
+
+\textbf{Goal:} Between $P_i, P_j$, we want random $r_i, r_j\in\{0, 1\}$ such that $r_i + r_j = a_i \cdot b_j \pmod{2}$.
+
+$P_i$ will randomly sample $r_i\sampledfrom \left\{ 0, 1 \right\}$. We can use OT to allow $P_j$ to learn $r_j$ such that $r_i + r_j = a_i\cdot b_j\pmod{2}$ without revealing $a_i$ or $r_i$.
+
+$P_i$ will be the sender, $P_j$ is the receiver. $P_j$'s choice bit is $b_j$. Then the messages will be
+\begin{align*}
+    m_0 & = (a_i\cdot 0) - r_i \\
+    m_1 & = (a_i\cdot 1) - r_i
+\end{align*}
+such that $r_i, r_j$ are two shares of $a_i\cdot b_j$.
+
+\pseudocodeblock{
+    \textbf{Party i} \< \< \textbf{Party j}\\
+    \text{Input: } a_i \in \{ 0 , 1\} \< \< \text{Input: } b_j \in \{0, 1\} \\
+    r_i \sample \{0, 1\} \< \< \\
+    \text{Prepare both possibilities for }r_j \< \< \\
+    \< \sendmessageleft*{} \< \\
+    \< \sendmessageright*{\text{Use OT with choice bit }b_j} \< \\
+    \< \< \text{Receive } r_j\\
+    \text{Output: }r_i \in \{0, 1\}\< \< \text{Output: }r_j \in \{0, 1\}
+}
