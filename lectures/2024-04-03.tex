@@ -1,0 +1,162 @@
+%!TEX root = ../notes.tex
+% Scribe: Sudatta Hor
+\section{April 3, 2024}
+\label{20240403}
+
+This lecture we will finish our discussion on the GMW protocol. We recap the semi-honest protocol and see how we can construct a malicious secure protocol. In practice, we may want to consider the exact function the we are computing in MPC to enable more efficient protocols. We will discuss an example of this known as Private Set Intersection.
+
+\subsection{GMW}
+
+Recall the Goldreich-Micali-Wigderson (GMW) protocol for multi-party computation.
+
+Throughout the protocol, for each wire $w$, if the value of the wire is $v^w \in\{0, 1\}$, then the parties hold an \ul{additive secret share} of $v^w$. Each party $P_i$ holds a random share $v_i^w\in\{0,1\}$ such that
+\[\bigoplus_{i=1}^n v_i^w = v^w\]
+and we keep this invariant throughout the entire circuit. \footnote{Recall that $\oplus$ means addition modulo 2. You can check that this also gives the XOR operation.}
+
+We need to be able to preserve this invariant throughout \textsf{AND} and \textsf{XOR} gates. The \textsf{XOR} case is easy, since \textsf{XOR} is completely commutative and associative, so each party can locally \textsf{XOR} their shares $c_i := a_i\oplus b_i$ for $c := a\oplus b$.
+
+We'll wave our hands over the \textsf{AND} case, but we can do this. We'll proceed gate-by-gate for everyone to compute the result. Each party will publish their local shares, and everyone will \textsf{XOR} the result together to get the final result.
+
+\begin{remark}
+    \textbf{(Frequently asked)} Why do we only consider AND and XOR gates? This is because every other gate (NOT, OR, NAND) can be constructed using only AND and XOR gates. Gates like this are considered \textbf{complete}.
+\end{remark}
+
+\subsubsection{AND Gates}
+We now finish addressing the \textsf{AND} gates. We have $\bigoplus^n_{i=1}a_i = a$ and $\bigoplus^n_{i=1}b_i = b$.
+
+We want a set of $\left\{ c_i \right\}$ s.t. $\bigoplus^n_{i=1}c_i = c = a \cdot b$ (multiplication of bits is \textsf{AND}). But
+\begin{align*}
+    a\cdot b
+     & = \left( \sum^n_{i=1}a_i \right)\cdot \left( \sum^n_{i=1}b_i \right)\pmod{2}                \\
+     & = \left( \sum^n_{i=1}a_i\cdot b_i \right)\cdot \left( \sum_{i\neq j}a_i b_i \right)\pmod{2}
+\end{align*}
+The first sum is easy and computed locally, but the second sum requires parties to communicate. We do something called \ul{resharing}.
+
+\textbf{Goal:} Between $P_i, P_j$, we want random $r_i, r_j\in\{0, 1\}$ such that $r_i + r_j = a_i \cdot b_j \pmod{2}$.
+
+$P_i$ will randomly sample $r_i\sampledfrom \left\{ 0, 1 \right\}$. We can use OT to allow $P_j$ to learn $r_j$ such that $r_i + r_j = a_i\cdot b_j\pmod{2}$ without revealing $a_i$ or $r_i$.
+
+$P_i$ will be the sender, $P_j$ is the receiver. $P_j$'s choice bit is $b_j$. Then the messages will be
+\begin{align*}
+    m_0 & = (a_i\cdot 0) - r_i = r_i \mod 2\\
+    m_1 & = (a_i\cdot 1) - r_i = a_i + r_i \mod 2
+\end{align*}
+such that $r_i, r_j$ are two shares of $a_i\cdot b_j$.
+
+\pseudocodeblock{
+    \textbf{Party i} \< \< \textbf{Party j}\\
+    \text{Input: } a_i \in \{ 0 , 1\} \< \< \text{Input: } b_j \in \{0, 1\} \\
+    r_i \sample \{0, 1\} \< \< \\
+    \text{Prepare both possibilities for }r_j \< \< \\
+    \< \sendmessageleft*{} \< \\
+    \< \sendmessageright*{\text{Use OT with choice bit }b_j} \< \\
+    \< \< \text{Receive } r_j\\
+    \text{Output: }r_i \in \{0, 1\}\< \< \text{Output: }r_j \in \{0, 1\}
+}
+
+\subsubsection{Complexities}
+Computational complexity is $O(\#\mathsf{AND}\cdot n)$ for each party, since each XOR gate takes constant number of operations and each AND gates requires a constant number of operations for each other party.
+
+For communication complexity, each party needs to communicate to every other party for every \textsf{AND} gate. For each XOR gate, we do not need to communicate. So the communication complexity is $O(n \cdot \#\mathsf{AND})$ per party.
+
+The round complexity is the depth of the AND gates in circuit. Each party needs to communicate to every other party for each AND gate, but some of these AND gates can be done in parallel (if they do not depend on each other). Thus, the round complexity is $O(\text{depth of AND gates})$.
+
+\begin{center}
+\begin{tabular}{c|c} 
+Computational Complexity & $O(\#\mathsf{AND}\cdot n)$ per party\\
+Communication Complexity & $O(n^2\cdot \#\mathsf{AND})$\\
+Round Complexity & $O(\text{depth of AND gates})$
+\end{tabular}
+\end{center}
+
+\subsubsection{Malicious adversaries}
+
+So far, the GMW protocol is secure against semi-honest adversaries, who follows the protocol. What could go wrong against malicious adversaries?
+
+\begin{itemize}
+    \item Adversaries can share their wrong shares, and do not give the correct output. Essentially, they lie about their input. In MPC, there is no way to prevent this, since each party has the power to choose their input. In general, we do not worry about this at the input level.
+    \item In the reshare, adversaries can give an incorrect $a_i$.
+\end{itemize}
+
+Next, we will use ZKP to prevent malicious behavior. The high-level idea is the following: given a semi-honest protocol, the protocol is deterministic after fixing the inputs and the randomness.
+
+\begin{itemize}
+    \item[Step 1.] Each party $P_i$ commits to its input $x_i$ and randomness $r_i$ to be used in the semi-honest protocol
+    \item[Step 2.] Run semi-honest protocol. Along with every message, prove in zero-knowledge that the message is computed correctly based on the input, randomness, and transcript so far.
+\end{itemize}
+
+Recall that once a party commits a value, they cannot change that value. Thus, this procedure ensures that no party changes their inputs during the protocol.
+
+\subsection{Yao's Garbled Circuits Vs. GMW}
+
+We have two protocols for MPC: Yao's garbled circuits and GMW.
+
+\begin{center}
+\begin{tabular}{c|c}
+    \textbf{Yao's Garbled Circuits} & \textbf{GMW} \\
+    \hline \\
+    2-party computation & $n$-party computation \\
+    Round complexity $O(1)$ & Round complexity $O(\text{depth of AND gates})$  \\
+    Computation/communication & roughly same \\
+    Malicious security uses cut-and-choose, more efficient & Malicious security uses ZKP, not efficient\\
+    Only boolean circuits & Can be extended to arithmetic circuits
+\end{tabular}
+\end{center}
+
+In theory, zero-knowledge proofs can be done for any NP language, because any such language can be reduced into a 3-coloring problem. However, such a reduction is not easy, so in practice, zero-knowledge proofs are expensive for general problems. It is polynomial time, but not efficient.
+
+In general, neither of these are efficient enough. We need to consider the specific function that we are computing to construct a protocol that is more efficient. Next, we will consider an example of such a protocol.
+
+\subsection{Private Set Intersection (PSI)}
+
+Alice and Bob want to compute the intersection of their sets $X = \{x_1, x_2, \dots, x_n\}$ and $Y = \{y_1, y_2, \cdots, y_n\}$ without revealing the elements in their set.
+
+\begin{itemize}
+    \item PSI: $f(X, Y) = X\cap Y$.
+    \item PSI-Cardinality: $f(X, Y) = |X\cap Y|$ which counts the number of items in the intersection without revealing the items.
+\end{itemize}
+
+\textbf{Applications:}
+\begin{itemize}
+    \item \textbf{Password Breach Alert} (Chrome, Edge, Firefox, iOS Keychain, ...). There is a set of all compromised passwords, and a set of user's passwords, and we want to see if there is intersection without revealing the passwords.
+    \item \textbf{Ads Conversion Measurement} (Google). Alice is an ad platform and Bob is an advertiser who has the information of users that have a made a purchase with him. The intersection is the ad conversion, those users who have seen the ads and made a purchase, which gives an idea of the effectiveness of the ad.
+    \item \textbf{Privacy-Preserving Inventory Matching} (J.P. Morgan). There is a set of stocks we can sell, and a set of stocks that a buyer wants to buy. We want to which stocks we can sell to the buyer.
+    \item \textbf{Private Database Joins.} For example, two companies may want to find out how many users they have in common.
+\end{itemize}
+
+\subsubsection{Na\"ive Solution}
+Here's a na\"ive solution: Alice and Bob hash all their inputs, exchange hash values, and see which ones they have in common. You can learn the intersection, but could you learn \emph{more} than that?
+
+\pseudocodeblock{
+    \textbf{Alice} \< \< \textbf{Bob}\\
+    \text{Input: } X = \{x_1, \dots, x_n\} \< \< \text{Input: }Y = \{y_1, \dots, y_n\}\\
+    \< \sendmessageright*{H(x_1), \dots, H(x_n)} \< \\
+    \< \< \text{Compute intersection between} \\
+    \< \< H(x_1), \dots, H(x_n) \text{ and}\\
+    \< \< H(y_1), \dots, H(y_n)
+}
+
+If the input space is a relatively small space, we can do a dictionary attack (for example, with names). This is not even semi-honest secure.
+
+\emph{Can we even achieve 2PC/MPC with just a single round of communication (as we have done here, sending hashes one way)?} Taking a step back, we receive a message from Alice and can derive the solution regardless of \emph{any} $y$ we have. This allows us to just test multiple inputs on the function received and we'll receive that output, so we can derive $x$ from that input. Thus, no, we cannot achieve 2PC/MPC with just a single round.
+
+\subsubsection{DDH-Based PSI}\label{sec:apr04-psi-ddh}
+We start with a cyclic group $\GG$ of order $q$ with generator $g$, where DDH holds. We also have a hash function $H: \left\{ 0, 1 \right\}^{*}\to \GG$ (modeled as a random oracle).
+
+\pseudocodeblock{
+    \textbf{Alice:} \< \< \textbf{Bob:}\\
+    \text{Input: } X = \{x_1, \dots, x_n\} \< \< \text{Input: }Y = \{y_1, \dots, y_n\} \\
+    a \sample \ZZ_q \< \< b \sample \ZZ_q \\
+    \< \sendmessageleft*{H(Y)^b := \{H(y_1)^b, \dots, H(y_n)^b\}} \< \\
+    \< \sendmessageright*{H(X)^a, H(Y)^{a\cdot b}} \< \\
+    \< \< \text{Compute the intersection}\\
+    \< \< H(X)^{a\cdot b} \cap H(Y)^{a \cdot b}\\
+}
+
+Bob and Alice generate private exponents $k_B\sampledfrom \ZZ_q, k_A\sampledfrom \ZZ_q$ respectively. Bob will send
+\[H(Y)^{k_B} := \left\{ H(y_1)^{k_B}, \cdots, H(y_n)^{k_B} \right\}\]
+Alice does the same for $X$, $H(X)^{k_A}$, and sends $H(Y)^{k_A\cdots k_B}$. Bob then raises $H(X)^{k_A}$ to $k_B$ and compares. In the semi-honest case, for Bob to perform the same dictionary attack, Bob will need to break DDH in order to raise arbitrary elements $y'$ to $k_A\cdot k_B$.
+
+We can modify this to count cardinality by randomly shuffling the returned $H(Y)^{k_A\cdot k_B}$ such that Bob cannot relate the re-encrypted hashes to the previous order.
+
+% \Graphic{images/2023-04-04/ddh_psi-ca.png}{0.7}
