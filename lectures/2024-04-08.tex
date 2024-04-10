@@ -1,0 +1,227 @@
+%!TEX root = ../notes.tex
+% Scribe: Sudatta Hor
+\section{April 8, 2024}
+\label{20240408}
+
+In this lecture, we give a brief introduction to Fully Homomorphic Encryption. Then we give a concrete construction of Somewhat Homomorphic Encryption over Integers. We want to use more solid assumptions, so we introduce a new assumption called Learning with Errors, which is a post-quantum assumption, i.e. it is secure against known quantum attacks.
+
+\subsection{Fully Homomorphic Encryption (FHE)}
+
+So far, our encryption schemes primarily follow an ``all-or-nothing'' idea, where if we have the secret key we can decrypt, otherwise we cannot decrypt.
+
+In Homomorphic schemes, we want to have the additional property that an encryption of an input $x$ can be evaluated with a function $f$ to get an encryption of the output $f(x)$ without having to decrypt first.
+
+\begin{center}
+\begin{bbrenv}{fhe-box-diagram}
+\begin{bbrbox}[name=Eval, namepos=center]
+\end{bbrbox}
+\bbrmsgto{side=Enc($x$)}
+\bbrmsgto{side=$f$}
+\bbrqryto{side=Enc($f(x)$)}
+\end{bbrenv}
+\end{center}
+
+An additively homomorphic scheme means we can combine $\Enc(m_1)$ and $\Enc(m_2)$ to get
+\[\Enc(m_1 + m_2)\]
+as we saw in Exponential ElGamal or Paillier.
+
+Similarly, we can have a multiplicatively homomorphic scheme which means we can combine $\Enc(m_1)$ and $\Enc(m_2)$ to get
+\[\Enc(m_1 \cdot m_2)\]
+as we saw in ElGamal or RSA.
+
+Fully homomorphic encryption means we can get both $\Enc(m_1 \cdot m_2)$ and $\Enc(m_1 + m_2)$.
+
+\subsection{Applications}
+\begin{example}[Oursourcing Storage \& Computation]
+    Let's say a client stores some data on a server. A client has data $x$ and key $sk$. $ct\leftarrow\Enc(x)$ is sent to the server. If the client wants to run some computation on the server, the client sends $f$ and the server evaluates $ct' \leftarrow \mathsf{Eval}(f, ct)$ and sends $ct'$ to the client, which gives the client $f(x)$ without the server knowing $x$.
+    
+    \pseudocodeblock{
+        \textbf{Server} \< \< \textbf{Client}\\
+        \< \< \text{Data } x\\
+        \< \< \text{Key sk} \\
+        \< \< \text{ct} \gets \text{Enc}(x)\\
+        \< \sendmessageleft*{\text{ct}, f} \< \\
+        \text{ct}' \gets \text{Eval}(f, \text{ct}) \< \< \\
+        \< \sendmessageright*{\text{ct}'} \< \\
+        \< \< f(x) \gets \text{Dec}_{\text{sk}}(\text{ct}')
+    }
+\end{example}
+
+\begin{example}[Privacy-Preserving Query]
+    The client wants to make a query to the server, e.g. Google search or GPT-4. However, the client does not want to reveal what their query is. Thus, the client encrypts their query and the server homomorphically processes the query and sends back the evaluated ciphertext ct$'$, so that the client gets the query result and teh server does not know the query.
+
+    \pseudocodeblock{
+        \textbf{Server} \< \< \textbf{Client}\\
+        \< \< \text{Query } x\\
+        \< \< \text{Key sk} \\
+        \< \< \text{ct} \gets \text{Enc}(x)\\
+        \< \sendmessageleft*{\text{ct}} \< \\
+        \text{ct}' \gets \text{Eval}(f, \text{ct}) \< \< \\
+        f \text{ can be Search, ML, GPT, etc.}\< \< \\
+        \< \sendmessageright*{\text{ct}'} \< \\
+        \< \< f(x) \gets \text{Dec}_{\text{sk}}(\text{ct}')
+    }
+\end{example}
+
+\begin{example}[Private Information Retrieval (PIR)]
+    In this application (We'll implement this in the next project!), we have some server with a database. A client wants to retrieve the $i$-th element without revealing the index $i$ to the server.
+
+    \pseudocodeblock{
+        \textbf{Server} \< \< \textbf{Client}\\
+        \text{Database }D \< \< \text{Want: }D[i] \text{ while hiding }i \text{ from the server}\\
+        \< \< \text{Query: } i\\
+        \< \< \text{Key: sk}\\
+        \< \sendmessageleft*{\text{ct}} \< \text{ct} \gets \Enc(i)\\
+        \text{ct}' \gets \text{Eval}(f, \text{ct}) \< \< \\
+        \text{where }f(i) = D[i] \< \< \\
+        \< \sendmessageright*{\text{ct}'} \< \\
+        \< \<  D[i] \gets \Dec_{\text{sk}}(\text{ct}')\\
+    }
+
+    Note two differences from 1-out-of-$n$ OT.
+    \begin{itemize}
+        \item \textbf{Security:} In 1-out-of-$n$ OT, the server does not want to reveal any information about their database other than the 1 out of $n$ chosen entry. However, in PIR, we do not enforce such security. In PIR, we allow that the client may learn something else about the database from the ciphertext ct$'$ other than the desired result $f(x)$.
+        \item \textbf{Efficiency:} In 1-out-of-$n$ OT, the server will generate $n$ ciphertexts and send them to the client. However, in PIR, we want to be more succinct and only send one ciphertext.
+    \end{itemize}
+
+    A na\"ive solution is for the server to send the \emph{entire} database to the client and the client can just access their desired element. In fact, this is the best we can do information-theoretically.
+
+\end{example}
+
+\begin{example}[Secure 2PC]
+    As we've seen before, Alice and Bob have some $x, y$ and want to compute $c(x,y)$ privately. Bob encrypts $y$ as $ct\leftarrow \Enc(y)$ and Alice sends $ct' \leftarrow \mathsf{Eval}(f_x, ct)$ with $f_x(y) = c(x,y)$ and sends $ct'$ back to Bob, which he can $\Dec_{sk}(ct')\to f(y)$.
+
+    \pseudocodeblock{
+        \textbf{Alice} \< \< \textbf{Bob}\\
+        \text{Input: } x\< \< \text{Input: }y\\
+        \< \< \text{Key sk}\\
+        \< \< \text{ct} \gets \Enc(y)\\
+        \< \sendmessageleft*{\text{ct}}\< \\
+        \text{ct}'\gets \text{Eval}(f, \text{ct}) \< \< \\
+        \text{where }f(y) = C(x, y) \< \< \\
+        \< \sendmessageright*{\text{ct}'} \< \\
+        \< \< C(x,y) \gets \Dec_\text{sk}(\text{ct}')\\
+    }
+    \emph{Is this secure?} This is secure against Alice, since she only sees a ciphertext which is guarded by the guarantees of the encryption. Is this secure against Bob? This is not guaranteed. Bob might be able to infer more information about $f$ from ct$'$. It's not necessarily the case that FHE hides the function.
+\end{example}
+
+\subsection{FHE Definition}
+
+\begin{definition}[Homomorphic Encryption]\label{def:fhe}
+    A (public-key) homomorphic encryption scheme is some
+    \[\pi = (\mathsf{KeyGen}, \Enc, \Dec, \mathsf{Eval})\]
+    with respect to some function family $\mathcal{F}$ with
+    \begin{itemize}
+        \item $(pk, sk)\leftarrow \mathsf{KeyGen}(1^\lambda)$.
+        \item $ct\leftarrow \Enc_{pk}(m)\qquad m\in \{0, 1\}$.
+        \item $m\leftarrow \Dec_{sk}(ct)$.
+        \item $ct_f\leftarrow \mathsf{Eval}(f, ct_1, \dots, ct_n)$ with $f : \{0, 1\}^n\to \{0, 1\}$ in family $\mathcal{F}$.
+    \end{itemize}
+
+    \textbf{Correctness} requires that $\forall f\in \mathcal{F}$, if $ct_f \leftarrow \mathsf{Eval}(f, ct_1, \dots, ct_n)$ for $ct_i\leftarrow \Enc_{pk}(m_i)$, then $\Dec_{sk}(ct_f) = f(m_1, \dots, m_n)$. That is, that evaluating functions does indeed give the ciphertext of the function evaluated on the plaintexts.
+
+    \textbf{CPA security}, as we've seen before, requires that
+    \[(pk, \Enc_{pk}(m_0))\overset{c}{\simeq}(pk, \Enc_{pk}(m_1)).\]
+    
+    \textbf{Compactness}, that $|ct_f| \leq \mathsf{poly}(\lambda)$, that each ciphertext is bounded by some constant that is polynomial in $\lambda$ and fixed for security parameter $\lambda$. This allows us to prevent the `loophole' of evaluations returning itself.
+\end{definition}
+
+\textit{Why do we need compactness?} If we just have correctness and CPA security, our current definition is nearly trivial. For example, if our evaluation just output the tuple $(f, ct_1, \dots, ct_n)$. To decrypt, we decrypt each $ct_i$ individually and apply $f$ on top, and this satisfies our definitions! We need to add some notion that our ciphertext must stay within some size, and that we're actually \emph{combining} our ciphertexts.
+
+If the family of functions $\mathcal{F}$ contains all polynomial sized Boolean circuits, we say that the scheme is \textbf{fully} homomorphic.
+
+\subsubsection{Constructions}
+All FHE constructions follow two steps:
+\begin{enumerate}
+    \item Somewhat Homomorphic Encryption (SWHE). We'll see versions over integers, from LWE (GSW), and from RLWE (BFV).
+    \item Then, we bootstrap our SWHE schemes to be fully homomorphic.
+\end{enumerate}
+
+\subsubsection{SWHE over Integers}\label{sec:apr06-swhe-integers}
+\textbf{Attempt 1.} This is our first attempt is a secret-key scheme:
+
+Our secret key will be odd $p$.
+
+\begin{remark}
+    \textit{Why must $p$ be odd?} If $p$ is even, then the ciphertext $p\cdot q + m$ has the same parity as $m$. The message is not secure because we can find it just by checking even/odd. If $p$ is odd, then $p\cdot q$ can be either even or odd, so the parity of the ciphertext is not solely determined by parity of $m$.
+\end{remark}
+
+\begin{itemize}
+    \item To $\Enc(m)$ with $m\in \{0, 1\}$, we sample a random $q$ and compute $ct = p\cdot q + m$. Encryption of $0$ is a multiple of $p$.
+    \item Decryption is $ct\mod p$.
+    \item Add: $\text{ct} \gets \text{ct}_1 + \text{ct}_2$.
+    \item Multiply: $\text{ct} \gets \text{ct}_1 \cdot \text{ct}_2 $.
+\end{itemize}
+
+\emph{Is this CPA secure?} No! If we have a lot of encryptions of $0$s, taking the gcd of them will give us $p$ exactly.
+
+\textbf{Attempt 2.} Our next attempt is to add a small error noise.
+
+\begin{itemize}
+    \item To encrypt, instead of $ct = p\cdot q + m$, we'll do
+          \[ct = p\cdot q + m + 2e\]
+          for small even $2e$ with $e \ll p$. Encryption of $0$ is small and even modulo $p$.
+    \item Then, decryption becomes $\Dec(ct) = \left[ ct\mod p \right]\mod 2$.
+    \item Addition and multiplication work the same way. Check that the decryption gives the correct result by modding p then modding 2. If
+    \begin{align*}
+        \text{ct}_1 &= p \cdot q_1 + m_1 + 2e_1 \\
+        \text{ct}_2 &= p \cdot q_2 + m_2 + 2e_2 \\
+    \end{align*}
+    then
+    \begin{align*}
+        \text{ct}_1 + \text{ct}_2 &= p(q_1 + q_2) + (m_1 + m_2) + (2e_1 + 2e_2)\\
+        \text{ct}_1 \cdot \text{ct}_2 &= pq_1(pq_2 + m_2 + 2e_2) + m_1 \cdot pq_2 + m_1 \cdot m_2\\
+        & \quad + m_1 \cdot 2e_2 + 2e_1(pq_2 + m_2 + 2e_2)\\
+    \end{align*}
+\end{itemize}
+
+
+
+\textbf{Attempt 3.} We can also construct a public key version of this, where the secret key is still our odd $p$ but the public key are a set of encryptions of $0$, $\{x_i = p\cdot q_i + 2e_i\}$.
+
+Since our scheme is homomorphic over addition, we can take a random subset sum of $\{x_i\}$ and add $m$ and $2e$:
+\begin{itemize}
+    \item To encrypt, we'll do
+          \[ct = (\text{subset sum of $\{x_i\}$}) + m + 2e\]
+          for small even $2e$ with $e \ll p$. Encryption of $0$ is small and even modulo $p$.
+    \item Then, decryption becomes $\Dec(ct) = \left[ ct\mod p \right]\mod 2$.
+    \item Addition and multiplication work the same way.
+\end{itemize}
+
+\emph{What could go wrong?} Note that this is still only a \emph{somewhat} homomorphic encryption scheme. Are there limits to how much we can add or multiply? Specifically, could the noise grow to an extent that interferes with our encryption?
+\begin{enumerate}
+    \item If we add ciphertexts, our noise grows linearly:
+          \begin{align*}
+              ct_1        & = p\cdot q_1 + m_1 + 2e_1                         \\
+              ct_2        & = p\cdot q_2 + m_2 + 2e_2                         \\
+              ct_1 + ct_2 & = p\cdot (q_1 + q_2) + (m_1 + m_2) + 2(e_1 + e_2)
+          \end{align*}
+    \item If we multiply ciphertexts, our noise grows exponentially:
+          \[ct_1 \cdot ct_2 = p\cdot (\cdots) + (m_1 \cdot m_2) + m_1\cdot 2e_2 + 2e_1m_2 + 4e_1e_2\]
+\end{enumerate}
+Addition is cheaper, but multiplication has our noise grow much much faster. In our parameters, we can support roughly $O(\lambda)$ multiplications, but addition is almost for free (we can do exponentially many additions).
+
+This is why this is \emph{somewhat} homomorphic encryption---if the noise exceeds $p$, then it might affect the plaintext.
+
+This analysis works similarly for public-key encryption\footnote{In fact, we took a very generic way of converting the secret-key scheme into a public-key scheme. We can always take subset sums of encryptions of $0$ and add it to our message.}.
+
+Note that this protocol is quite expensive---$p$ and $q$ will tend to get quite large. We'll pivot into lattice-based cryptography which will solve some of these issues.
+
+\subsection{Learning With Errors (LWE) Assumption}
+We'll introduce a new assumption, and which is assumed to be post-quantum secure. There is no known quantum algorithm to solve this in polynomial time.
+
+We have security parameter $n$, and $q\sim 2^{n^\epsilon}$ for constant $\epsilon$. $m = \Theta(n\log q)$. We have some distribution $\chi$ which is a distribution over $\ZZ_q$ concentrated on ``small integers''. For example, this can be Gaussian.
+
+% \Graphic{images/2023-04-11/gaussian.png}{0.7}
+
+We require that for $e\sample \chi$, 
+\[\Pr[|e| < \alpha\cdot q ]\simeq 1\]
+with $\alpha \ll 1$. That is, the probability that our error deviates significantly from $0$ is negligible.
+
+The assumption states the following: sampling a random matrix $A\sampledfrom \ZZ_q^{m\times n}$ and randomly sample a vector $s\sampledfrom \ZZ_q^n$ with error $e\sampledfrom \chi^m$. We have \[b:=A\times s + e\]
+% \Graphic{images/2023-04-11/lwe.png}{0.7}
+
+The computational assumption is that
+\[(A, b)\overset{c}{\simeq} (A, b')\]
+for $b'\sampledfrom \ZZ_q^m$. That is, $(A, b)$ is indistinguishable from a truly random $(A, b')$.
+
