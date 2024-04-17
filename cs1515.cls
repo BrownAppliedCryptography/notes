@@ -425,6 +425,10 @@
 }
 
 \newcommand{\PPT}{\mathrm{PPT}}
+\newcommand{\ct}{\mathrm{ct}}
+\newcommand{\pk}{\mathrm{pk}}
+\newcommand{\sk}{\mathrm{sk}}
+\newcommand{\vk}{\mathrm{vk}}
 
 \makeatletter
 \def\smallunderbrace#1{\mathop{\vtop{\m@th\ialign{##\crcr

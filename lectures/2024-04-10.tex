@@ -99,7 +99,8 @@ We can do this encryption for an arbitrary number of encryptions by letting $a$ 
 \end{align*}
 
 \textbf{Public-Key Version:} This symmetric-key encryption scheme can be easily turned into a public-key encryption scheme. Use the scheme to encrypt 0 for an arbitrary number of times $\lambda$, then let the public key be collection of these encryptions.
-\[ \text{\pk} = (\underbrace{\Enc_\text{sk} (0) \dots \Enc_\text{sk} (0)}_{\lambda})\]
+
+$$\pk = (\underbrace{\Enc_{\sk}(0) \dots \Enc_{\sk}(0)}_{\lambda})$$
 
 If you take the sum of all lambda encryptions, we still get an encryption of 0 by additive homomorphism. To encrypt a message $\mu$, take a random subset-sum of pk (i.e. take a random subset of pk, then take its sum), then add $\mu \cdot \lfloor q/ 2 \rfloor $.
 

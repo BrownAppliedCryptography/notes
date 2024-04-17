@@ -1,0 +1,86 @@
+%% Creator: Inkscape 1.3.1 (9b9bdc1480, 2023-11-25, custom), www.inkscape.org
+%% PDF/EPS/PS + LaTeX output extension by Johan Engelen, 2010
+%% Accompanies image file '2024-04-15-level-fhe.pdf' (pdf, eps, ps)
+%%
+%% To include the image in your LaTeX document, write
+%%   \input{<filename>.pdf_tex}
+%%  instead of
+%%   \includegraphics{<filename>.pdf}
+%% To scale the image, write
+%%   \def\svgwidth{<desired width>}
+%%   \input{<filename>.pdf_tex}
+%%  instead of
+%%   \includegraphics[width=<desired width>]{<filename>.pdf}
+%%
+%% Images with a different path to the parent latex file can
+%% be accessed with the `import' package (which may need to be
+%% installed) using
+%%   \usepackage{import}
+%% in the preamble, and then including the image with
+%%   \import{<path to file>}{<filename>.pdf_tex}
+%% Alternatively, one can specify
+%%   \graphicspath{{<path to file>/}}
+%% 
+%% For more information, please see info/svg-inkscape on CTAN:
+%%   http://tug.ctan.org/tex-archive/info/svg-inkscape
+%%
+\begingroup%
+  \makeatletter%
+  \providecommand\color[2][]{%
+    \errmessage{(Inkscape) Color is used for the text in Inkscape, but the package 'color.sty' is not loaded}%
+    \renewcommand\color[2][]{}%
+  }%
+  \providecommand\transparent[1]{%
+    \errmessage{(Inkscape) Transparency is used (non-zero) for the text in Inkscape, but the package 'transparent.sty' is not loaded}%
+    \renewcommand\transparent[1]{}%
+  }%
+  \providecommand\rotatebox[2]{#2}%
+  \newcommand*\fsize{\dimexpr\f@size pt\relax}%
+  \newcommand*\lineheight[1]{\fontsize{\fsize}{#1\fsize}\selectfont}%
+  \ifx\svgwidth\undefined%
+    \setlength{\unitlength}{598.86145885bp}%
+    \ifx\svgscale\undefined%
+      \relax%
+    \else%
+      \setlength{\unitlength}{\unitlength * \real{\svgscale}}%
+    \fi%
+  \else%
+    \setlength{\unitlength}{\svgwidth}%
+  \fi%
+  \global\let\svgwidth\undefined%
+  \global\let\svgscale\undefined%
+  \makeatother%
+  \begin{picture}(1,1.01953875)%
+    \lineheight{1}%
+    \setlength\tabcolsep{0pt}%
+    \put(0,0){\includegraphics[width=\unitlength,page=1]{2024-04-15-level-fhe.pdf}}%
+    \put(0.23192602,0.71609209){\color[rgb]{0.10196078,0.10196078,0.10196078}\makebox(0,0)[lt]{\lineheight{1.25}\smash{\begin{tabular}[t]{l}$y$\end{tabular}}}}%
+    \put(0.2262274,0.97702679){\color[rgb]{0.10196078,0.10196078,0.10196078}\makebox(0,0)[lt]{\lineheight{1.25}\smash{\begin{tabular}[t]{l}$x$\end{tabular}}}}%
+    \put(0.00913627,0.97769455){\color[rgb]{0.10196078,0.10196078,0.10196078}\makebox(0,0)[lt]{\lineheight{1.25}\smash{\begin{tabular}[t]{l}$\{ \ct_i \}_{i=1}^n$\end{tabular}}}}%
+    \put(0.12495588,0.71630125){\color[rgb]{0.10196078,0.10196078,0.10196078}\makebox(0,0)[lt]{\lineheight{1.25}\smash{\begin{tabular}[t]{l}$\ct_f$\end{tabular}}}}%
+    \put(0.29488027,0.94476528){\color[rgb]{0.10196078,0.10196078,0.10196078}\makebox(0,0)[lt]{\lineheight{1.25}\smash{\begin{tabular}[t]{l}$\pk_1$\\\end{tabular}}}}%
+    \put(0.29488023,0.68077431){\color[rgb]{0.10196078,0.10196078,0.10196078}\makebox(0,0)[lt]{\lineheight{1.25}\smash{\begin{tabular}[t]{l}$\pk_1$\end{tabular}}}}%
+    \put(0,0){\includegraphics[width=\unitlength,page=2]{2024-04-15-level-fhe.pdf}}%
+    \put(0.23192602,0.41552174){\color[rgb]{0.10196078,0.10196078,0.10196078}\makebox(0,0)[lt]{\lineheight{1.25}\smash{\begin{tabular}[t]{l}$y$\end{tabular}}}}%
+    \put(0.29488027,0.38020396){\color[rgb]{0.10196078,0.10196078,0.10196078}\makebox(0,0)[lt]{\lineheight{1.25}\smash{\begin{tabular}[t]{l}$\pk_1$\end{tabular}}}}%
+    \put(0,0){\includegraphics[width=\unitlength,page=3]{2024-04-15-level-fhe.pdf}}%
+    \put(0.37002285,0.34263267){\color[rgb]{0.10196078,0.10196078,0.10196078}\makebox(0,0)[lt]{\lineheight{1.25}\smash{\begin{tabular}[t]{l}$\pk_2$\end{tabular}}}}%
+    \put(-0.00030081,0.42415879){\color[rgb]{0.10196078,0.10196078,0.10196078}\makebox(0,0)[lt]{\lineheight{1.25}\smash{\begin{tabular}[t]{l}$\{\ct_i^{(2)}\}_{i=1}^n$\end{tabular}}}}%
+    \put(0.60346003,0.68700169){\color[rgb]{0,0,0}\makebox(0,0)[lt]{\lineheight{1.25}\smash{\begin{tabular}[t]{l}$\sk_1$\\\end{tabular}}}}%
+    \put(0,0){\includegraphics[width=\unitlength,page=4]{2024-04-15-level-fhe.pdf}}%
+    \put(0.59900875,0.4138383){\color[rgb]{0.10196078,0.10196078,0.10196078}\makebox(0,0)[lt]{\lineheight{1.25}\smash{\begin{tabular}[t]{l}$\sk_1$\end{tabular}}}}%
+    \put(0.66828631,0.38020389){\color[rgb]{0.10196078,0.10196078,0.10196078}\makebox(0,0)[lt]{\lineheight{1.25}\smash{\begin{tabular}[t]{l}$\pk_2$\end{tabular}}}}%
+    \put(0,0){\includegraphics[width=\unitlength,page=5]{2024-04-15-level-fhe.pdf}}%
+    \put(0.41978247,0.03980872){\color[rgb]{0.10196078,0.10196078,0.10196078}\makebox(0,0)[lt]{\lineheight{1.25}\smash{\begin{tabular}[t]{l}$y$\end{tabular}}}}%
+    \put(0.48273666,0.00449102){\color[rgb]{0.10196078,0.10196078,0.10196078}\makebox(0,0)[lt]{\lineheight{1.25}\smash{\begin{tabular}[t]{l}$\pk_2$\end{tabular}}}}%
+    \put(0,0){\includegraphics[width=\unitlength,page=6]{2024-04-15-level-fhe.pdf}}%
+    \put(0.2955017,0.83717037){\color[rgb]{0,0,0}\makebox(0,0)[lt]{\lineheight{1.25}\smash{\begin{tabular}[t]{l}$f$\end{tabular}}}}%
+    \put(0.65888894,0.56530241){\color[rgb]{0,0,0}\makebox(0,0)[lt]{\lineheight{1.25}\smash{\begin{tabular}[t]{l}$\mathrm{Enc}_{\pk_2}$\end{tabular}}}}%
+    \put(0.47271768,0.15477619){\color[rgb]{0,0,0}\makebox(0,0)[lt]{\lineheight{1.25}\smash{\begin{tabular}[t]{l}$f' = \Dec(\sk_1, \ct_f)$\end{tabular}}}}%
+    \put(0.7357167,0.41777525){\color[rgb]{0,0,0}\makebox(0,0)[lt]{\lineheight{1.25}\smash{\begin{tabular}[t]{l}$\{\tilde{\ct}_i^{(2)}\}_{i=1}^n$\end{tabular}}}}%
+    \put(0.28486117,0.04206231){\color[rgb]{0,0,0}\makebox(0,0)[lt]{\lineheight{1.25}\smash{\begin{tabular}[t]{l}$\ct_{f'}$\end{tabular}}}}%
+    \put(0,0){\includegraphics[width=\unitlength,page=7]{2024-04-15-level-fhe.pdf}}%
+    \put(0.28680195,0.56657251){\color[rgb]{0,0,0}\makebox(0,0)[lt]{\lineheight{1.25}\smash{\begin{tabular}[t]{l}$\mathrm{Enc}_{\pk_2}$\end{tabular}}}}%
+    \put(0,0){\includegraphics[width=\unitlength,page=8]{2024-04-15-level-fhe.pdf}}%
+  \end{picture}%
+\endgroup%
