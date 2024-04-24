@@ -1,0 +1,197 @@
+%!TEX root = ../notes.tex
+% Scribe: Sudatta Hor
+\section{April 17, 2024}
+\label{20240417}
+
+This lecture, we will talk about secure hardware and give a brief introduction to blockchain.
+
+\subsection{Outsourcing Computation by FHE}
+
+Recall that by using FHE, we can outsource computation for a server to do while preserving the privacy of the inputs.
+
+\pseudocodeblock{
+    \textbf{Server} \< \< \textbf{Client} \\
+    \< \< \text{Data }x \text{, Key } \sk \\
+    \< \< \ct \gets \Enc(x)\\
+    \< \sendmessageleft*{\ct, f} \< \\
+    \text{Public Evaluation} \< \< \\
+    \ct' \gets \Eval(f, \ct) \< \< \\
+    \< \sendmessageright*{\ct'} \< \\
+    \< \< f(x) \gets \Dec_{\sk}(\ct')\\
+}
+
+Usually, this procedure is very expensive for the server to compute. Instead of using this, there is an alternate solution using \textit{secure hardware}.
+
+\subsection{Outsourcing Computation by Secure Hardware}
+
+Imagine that the server, instead of having all of the computations being public, has an encrypted form of the memory and the CPU. Whatever happens on the server side in the hardware (memory and CPU) is hidden to the server. The hardware is like a secure enclave. This is known as \textit{secure hardware}.
+
+If the client and the secure hardware can agree on a secret key $\sk$ that is hidden from the server, then the server uses the secure hardware to do computation without learning the input. This is much faster than homomorphic encryption.
+
+\pseudocodeblock{
+    \textbf{Server} \< \< \textbf{Client} \\
+    \< \< \text{Data }x \text{, Key } \sk \\
+    \< \< \ct \gets \Enc(x)\\
+    \text{Input }(\ct, f) \< \sendmessageleft*{\ct, f}\< \\
+    % begin secure hardware box
+    \fbox{\begin{subprocedure}\procedure{Secure Hardware}{
+        x \gets \Dec_{\sk}(\ct)\\
+        y:= f(x)\\
+        \pcreturn \ct' \gets \Enc_{\sk}(y)\\
+    }\end{subprocedure}} \< \< \\
+    % end secure hardware box
+    \text{Get }\ct' \< \sendmessageright*{\ct'} \< y \gets \Dec_{\sk}(\ct')\\
+}
+
+\subsection{Intel Software Guard Extension (SGX)}
+
+How does the client and the secure hardware agree on the secret key? They must do a key exchange with each other. This is exactly what happens in Intel SGX, also known as ``secure enclave''.
+
+\pseudocodeblock{
+    \textbf{Server} \< \< \textbf{Client} \\
+    \< \sendmessagerightleft*{\text{DH Key Exchange}} \< \\
+    % begin secure hardware box
+    \fbox{\begin{subprocedure}\procedure{Enclave}{
+        b \gets \ZZ_q\\
+        \pcreturn g^b\\
+        k := \text{HKDF}(g^{ab})\\
+    }\end{subprocedure}} \< \sendmessageleft*{g^a} \< a \sample \ZZ_q \\
+    \< \sendmessageright*{g^b} \< k: = \text{HKDF}(g^{ab})\\
+    % end secure hardware box
+    \text{Input }(\ct, f) \< \sendmessageleft*{\ct, f}\< \\
+    % begin secure hardware box
+    \fbox{\begin{subprocedure}\procedure{Enclave}{
+        x \gets \Dec_{\sk}(\ct)\\
+        y:= f(x)\\
+        \pcreturn \ct' \gets \Enc_{\sk}(y)\\
+    }\end{subprocedure}} \< \< \\
+    % end secure hardware box
+    \text{Get }\ct' \< \sendmessageright*{\ct'} \< y \gets \Dec_{\sk}(\ct')\\
+}
+
+Here, the client does a DH key exchange with the secure enclave by sending $g^a$ to the server, which passes it onto the enclave. Then the enclave returns $g^b$, which the server passes onto the client. However, the is susceptible to a man-in-the-middle attack, where the server is the man-in-the-middle and can send their own $g^{b'}$ to the client instead of $g^b$. To remedy this, we need to use digital signatures so that the enclave can prove to the client that they are certified by Intel.
+
+Every time when you want to compute some function, you need to generate a new certificate. The enclave must run a ``provisioning'' procedure with Intel to receive a new certificate (Intel can charge you here!) and the client must run some ``attestation'' procedure (Intel can charge you here!). It does not have to be as complicated as this, but it is so because there is a business model.
+
+The certificate is also generated on the the function $f$, so that the client ensures that the enclave is computing the correct function.
+
+\textbf{Constraints and Attacks:}
+
+\begin{enumerate}
+    \item Need to trust hardware and Intel to do things correctly.
+    \item Limited memory size: 128 MB
+    \item Replay attacks: although everything is secure against the server, the server can keep a snapshot of everything and replay things on a future input.
+    \item Side-channel attacks: it leaks the memory access pattern. When the CPU in the enclave will utilize different blocks of memory, and the server can see the pattern in which the CPU accesses different memory locations. For example, the server might notice that the CPU accesses the same memory location multiple times, which can reveal something about the computation. A fix involves something called ``Oblivous RAM (ORAM)'', which requires $\Theta (\log N)$ memory overhead.
+\end{enumerate}
+
+\subsection{Hardware Secure Module (HSM)}
+
+In Intel SGX, you can do arbitrary computations. However, HSM can only do restricted computations, for example, encryption/decryption. Alice can have an HSM that encrypts a message and she sends the encryption to Bob who has an HSM to decrypt the message. Another example is an HSM that takes in a ciphertext, decrypts it, then re-encrypts it with a new secret key.
+
+This is used in places like Visa and a lot of bank systems. This is because they do not want to store the key anywhere, so that the user can only interact with the HSM like a black box without seeing the key.
+
+\textit{How does an encrypt/decrypt HSM pai agree on a key?} The encrypt HSM (Alice) randomly samples $k_1, k_2, k_3$ such that $k_1 \oplus k_2 \oplus k_3 = k$. Then the 3 of them will be mailed to the decrypt HSM (Bob) using 3 different carriers, and the decrypt HSM will reconstruct the key $k$ on its own.
+
+\subsection{Blockchain}
+
+Next, we will talk about Blockchain. First, let's talk about how transactions happens in real life. If Alice wants to buy coffee at Starbucks, she will send \$3 to Starbucks and receive her coffee. Then Alice will make a transaction saying something like ``Alice $\to$ Starbucks \$3'', which is sent to Bank of America. Then Bank of America will verify to things and approve it.
+
+\begin{enumerate}
+    \item The transaction is initiated by sender (verify identity).
+    \item There is enough balance in the sender's account.
+\end{enumerate}
+
+There is a trusted third party (Bank of America) that maintains a \textit{private} ledger that contains all of the transactions.
+
+\begin{center}
+\fbox{
+    \parbox{0.3\textwidth}{
+    \centering
+    \fbox{``Alice $\to$ Starbucks \$3''}
+
+    \vspace*{2mm}
+
+    \fbox{``Starbucks $\to$ Bob \$3''}
+
+    \vspace*{2mm}
+
+    $\vdots$
+
+    \vspace*{2mm}
+    }
+}
+\end{center}
+
+Blockchain aims to have a \textit{public} ledger that everyone can view and verify. This is a chain of blocks that are maintained by ``miners'' in a distributed way.
+
+\begin{center}
+    \scriptsize
+    \def\svgwidth{\linewidth}
+    \input{images/2024/.xdp-2024-04-17-blockchain.pdf_tex-COvXWq}
+\end{center}
+
+\begin{itemize}
+    \item[Step 1.] Charlie wants to make a transaction Charlie $\to$ Starbucks $\bitcoin$3. He broadcasts it to the entire network.
+    \item[Step 2.] All miners collect all transactions in the network.
+    \begin{itemize}
+        \item Verify validity: 1. that the transaction is initiated by the sender and 2. that there is enough balance in the sender's account.
+        \item Agree on the next block.
+    \end{itemize}
+    \item[Step 3.] Repeat.
+\end{itemize}
+
+Each block generates some cryptocurrency, which goes to the miner who owns that block. Let's say Alice owns one block that generates one Bitcoin $\bitcoin$3, then Alice gets that one Bitcoin.
+
+\begin{remark}
+    The original inventor of Bitcoin had all of the blocks and generate a lot of Bitcoin initially, even when there were no transactions. They likely made a billion dollars and there identity is still unknown.
+\end{remark}
+
+\textbf{How do we ensure that the transaction is initiated by the sender?} This can be done using digital signatures. Each party generates a verification/signing key pair. When Bob sends Charlie 5 Bitcoin, he prepares a messages $m_1$ with his verification key, Charlie's verification key, and the amount of Bitcoin that he sends. Bob signs $m$ and creates a certificate $\sigma$. Thus, it is important for each party to hold onto their secret key, or else they will lose their assets.
+
+\textbf{How do we agree on the ledger?} Let's say Charlie wants to make two transactions. Transaction 1, where Charlie sends Starbucks $\bitcoin$3, and transaction 2, where Charlie sends Alice $\bitcoin$4. Let's say that Charlie only has $\bitcoin$5 in his account. Then each transaction is valid by themselves, but together they are not. What we do is have multiple miners, and each of them propose a different block. We want all miners to agree on the same block, and that this new block is valid.
+
+\begin{center}
+    \small
+    \def\svgwidth{\linewidth}
+    \input{images/2024/.xdp-2024-04-17-blockchain-consensus.pdf_tex-f8BXvt}
+\end{center}
+
+It is possible for some miners to be malicious. They might lie about their vote or give inconsistent votes. This can be formalized as a \textbf{Byzantine Agreement} problem, which is well studied in distributed systems. We can use the \textbf{Byzantine Fault Tolerance (BFT) Protocol}, which guarantees that it is possible to reach consensus if $n \geq 3t + 1$ where $n$ is the total number of parties and $t$ is the number of malicious parties. In other words, we agree on a valid block if less than a third of the parties are malicious.
+
+However, the problem with this system is that it is ``permissionless''. Thus anyone can become a miner. In particular, there might be an individual who makes a large number of fake accounts so that they make more than a third of the total number of parties. This is known as the ``sybil attack''. The idea to solve this uses Proof of Work (PoW).
+
+\subsection{Proof of Work (PoW)}
+
+Instead of assuming an honest majority of \textit{human beings}, we assume an honest majority of \textit{computational power}. This technique is called Proof of Work. For any miner with a block, they must add something called a ``nonce'' to the block and compute the hash of it (e.g. SHA256). The probability that the first 30 bits of the output is all 0 is $1/2^{30}$. The miner will try a different nonce each time until the first 30 bits are all zero, thus they will try $2^{30}$ times in expectation.
+
+Using this, the consensus protocol is as follows. Whoever first finds a block that hashes to a values with at least 30 leading 0's, then their block becomes the next block.
+
+\begin{remark}
+    Here, 30 is just an arbitrary number used just as an example. In practice, a different number may be used.
+\end{remark}
+
+There might be a problem with this consensus protocol in which two miners might find the block at the same time, and for example the network delay may be the reason why one finds their block first. If this happens, miner 1 will share their block with half the miners and miner 2 will share their block with the other half. Each half will continue trying to find the next block. If the two miners once again find the next block at the same time, we must repeat this procedure. Otherwise, one miner will find the next block before the others, i.e. find a chain that is longest. We adopt this chain. This is called the ``Longest Chain Rule''. Assuming honest majority of computation power, the longest chain is always valid.
+
+This completes our overview of how Blockchain works. Some final notes:
+
+\begin{itemize}
+    \item Efficient verification of sufficient balance: Merkle Tree.
+    \item Settlement of a transaction: We need to ensure that a transaction is included in a block which is $\geq 6$ blocks deep ($\sim$ 1 hr), since by the Longest Chain Rule, there may be a longer chain in which the transaction does not exist.
+    \item Dynamically adjust the number of leading 0's so that each block takes $\sim$ 10 min to mine. Last 1 hr: \begin{enumerate}
+        \item > 6 blocks, increase \# leading 0's
+        \item < 6 blocks, decrease \# leading 0's
+    \end{enumerate}
+    \item Miner's motivation:\begin{enumerate}
+        \item Each miner gains a transaction fee
+        \item A new coin generated in each block goes to the miner. However, it has been shown that the number of Bitcoin mined will eventually run out. It used to be that each block mined a lot of Bitcoin, but now not so much, and there is a schedule on how much Bitcoin there is left to mine. There are some potential economic issues when all Bitcoins have been mined.
+    \end{enumerate}
+    \item Extensions \begin{enumerate}
+        \item  PoW wastes a lot of power, so Proof of Stake (PoS) is proposed. Here, a miner is sampled proportional to the amount of money they have.
+        \item Anonymous transactions (zk-SNARGs). Instead of putting everything public on the chain, you post something that allows you to verify validity in zero-knowledge.
+        \item Smart contracts. A client puts a deposit into a distributed third party (miners), and the miners will ensure that the contractor completes the work and give them the payment.
+        \item Public Bulletin Board. You can think of the blockchain as a public bulletin board that is not maintained by any central authority, but is handled in a distributed way.
+    \end{enumerate}
+\end{itemize}
+
+
+

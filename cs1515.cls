@@ -414,6 +414,7 @@
 \DeclareMathOperator{\Mac}{\mathsf{Mac}}
 \DeclareMathOperator{\Verify}{\mathsf{Verify}}
 \DeclareMathOperator{\negligible}{\mathsf{negligible}}
+\DeclareMathOperator{\Eval}{\mathsf{Eval}}
 \newcommand{\eqline}{\noalign{\smallskip} \hline \noalign{\smallskip}}
 
 \DeclareMathOperator{\csimeq}{\overset{c}{\simeq}}
@@ -436,3 +437,12 @@
    \noalign{\kern3\p@\nointerlineskip}%
    \tiny\upbracefill\crcr\noalign{\kern3\p@}}}}\limits}
 \makeatother
+
+\def\bitcoin{\leavevmode
+  {\setbox0=\hbox{\textsf{B}}%
+    \dimen0\ht0 \advance\dimen0 0.2ex
+    \ooalign{\hfil \box0\hfil\cr
+      \hfil\vrule height \dimen0 depth.2ex\hfil\cr
+    }%
+  }%
+}
