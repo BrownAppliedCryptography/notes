@@ -1,0 +1,221 @@
+%!TEX root = ../notes.tex
+% Scribe: Sudatta Hor
+\section{April 22, 2024}
+\label{20240422}
+
+In this lecture we will cover differential privacy and elliptic curve cryptography.
+
+\subsection{Differential Privacy}
+
+Let's say that we have a database of sensitive data that we want to make public to others without compromising individual's privacy. For example, there might be a database of medical information that we want to share for medical studies.
+
+\begin{center}
+    \begin{tabular}{|c|c|c|c|c|c|c|}
+        \hline
+        Name & Age & Gender & Race & Weight & ZIP & Disease\\ \hline
+        Alice & & & & & &\\ \hline
+        Bob & & & & & &\\ \hline
+        Charlie & & & & & &\\ \hline
+        David & & & & & &\\ \hline
+        Emily & & & & & &\\ \hline
+        Fiona & & & & & &\\ \hline
+    \end{tabular}
+\end{center}
+
+One attempt to simply anonymize the data by deleting personally identifiable information (PII) such as the name, date of birth, etc. This might still reveal information about the individual. For example, if you see ``Asian female, age 30, living in Providence'' you might guess it might be Peihan! Although the privacy guarantees may be weak, this is what is being used by HIPAA.
+
+Another attempt is to only answer \textit{aggregate statistics queries}, for example only answering ``How many people in Providence have this disease?''. Hopefully, this reveals less information about the individual.
+
+Our goal is that the output shouldn't enable one to learn anything about an individual. This can be trivially achieved, for example if the output was 0 regardless of the data. Then the output does not reveal any private information of the data, but also does not provide much use. Hence, there is a tradeoff between privacy and utility.
+
+Instead, our goal is that the output shouldn't enable one to learn \textit{much more} about an individual \textit{compared to} one with an output computed without the individual.
+
+\begin{definition}
+    For a database $D \in \mathcal{X}^n$, let $M$ be a \textit{randomized mechanism} that takes in $D$ and outputs a randomized output $M(D)$.
+    $$D  \to \fbox{M} \to M(D)$$
+
+    \textbf{$\epsilon$-Differential Privacy for M} states that for all neighboring datasets $D_1$ and $D_2$ (neighboring means that they differ in exactly one row), and for all $T \subseteq \text{range}(M)$, we have
+    $$\Pr [M(D_1) \in T] \leq e^{\epsilon} \cdot \Pr[M(D_2) \in T].$$
+\end{definition}
+
+Intuitively, this states that two neighboring datasets have outputs that have similar probability distributions. If you apply $M$ on $D_1$, it will give you the red distribution, and if you apply $M$ on $D_2$, it will give you the blue distribution. Under the interval $T$, the two distributions are close.
+
+\begin{center}
+    \def\svgwidth{0.5\linewidth}
+    \input{images/2024/.xdp-2024-04-22-diff-priv-pmf.pdf_tex-VFK3Hm}
+\end{center}
+
+This property can be relaxed with the following definition.
+
+\begin{definition}
+    \textbf{$\epsilon, \delta$-Differential Privacy for M} states that for all neighboring datasets $D_1$ and $D_2$, and for all $T \subseteq \text{range}(M)$, we have
+    $$\Pr [M(D_1) \in T] \leq e^{\epsilon} \cdot \Pr[M(D_2) \in T] {\color{red} + \delta}.$$
+
+    If $\epsilon$ or $\delta$ are large, then this is bad for privacy since the two distributions are allowed to differ more.
+\end{definition}
+
+An example of a randomized mechanism that is differentially private is called \textit{randomized response}.
+
+\subsubsection{Randomized Response}
+
+Let's say that we want to find the percentage of individuals that satisfy a predicate P. For example, the predicate could be ``is a MATH-CS concentrator''. Then the randomized response algorithm does the following.
+
+\pseudocodeblock{
+    \text{For each row }x_i:\\
+    \quad 1.\ b \sample \{0, 1\}\\
+    \quad 2.\ \text{If } b=0, \text{ then }y_i := P(x_i).\\
+    \quad \quad \text{Otherwise, }y_i \sample \{0, 1\}\\
+    M(D) := (y_1, \dots, y_n)
+}
+
+For example, if we want to find how many students are MATH-CS concentrators, for each student, we will decide to accurately report whether they are a concentrator if $b=0$. Otherwise, if $b=1$, we will just report a random value. Thus, half of the output is the actual response while the other half is just random.
+
+\textbf{Thm:} Randomized response is $\ln 3$-differential private.
+
+\textit{How to estimate the query output $\alpha$?} Let's say that $\alpha$ is the true percentage that satisfies $P$, and that we observe $k$ many 1's in the output. Then $k$ should be approximately
+$$k \sim \frac{n}{2}\cdot\frac{1}{2} + \frac{n}{2}\cdot \alpha$$
+since roughly half of individuals give random results and half of individuals give true results. Using this, we can approximate $\alpha$ from $k$.
+
+\textit{How to make the mechanism more private?} If we want more privacy, we can adjust the distribution that $b$ is sampled from. We can adjust $b$ to be sampled as $0$ less often, thus the probability that individuals are revealing their true response is lower. Observe that if $b=0$ with probability 1, then we have a completely accurate output at the loss of privacy. If $b=0$ with low probability, then the accuracy of our output is low, but we gain privacy.
+
+\subsubsection{Laplace Mechanism}
+
+The Laplace mechanism is another mechanism that is popular in practice. This can compute an arbitrary real-valued function. This utilizes a notion called \textit{sensitivity} of a function.
+
+\begin{definition}
+    The \textbf{sensitivity} $\Delta f$ of a function $f: \mathcal{X}^n \to \mathbb{R}$ is defined as
+    $$\Delta f := \max_{D_1 \sim D_2}|f(D_1) - f(D_2)|.$$
+
+    $D_1\sim D_2$ means that $D_1$ and $D_2$ are neighbors.
+\end{definition}
+
+The Laplace mechanism is very simple. It justs computes $f$ and adds some noise onto it. For this reason, it is one of the most employed mechanism in practice.
+
+\begin{definition}
+    The \textbf{Laplace mechanism} is defined to be
+    $$M(D) = f(D) + \text{Lap}(\Delta f / \epsilon)$$
+\end{definition}
+
+Here, Lap$(b)$ gives the Laplace distribution whose probability density function (PDF) is given by 
+$$\text{PDF}(x) := \frac{1}{2b} \cdot \exp\left(-\frac{|x|}{b}\right).$$
+For $x \sim \text{Lap}(b)$, we have that $\Pr [|x| \geq bt] \leq \exp (-t)$.
+
+Below is a plot of PDF for different values of $b$.
+
+\begin{center}
+    \def\svgwidth{0.5\linewidth}
+    \input{images/2024/.xdp-2024-04-22-laplace-pdf.pdf_tex-ei4hPu}
+\end{center}
+
+\textit{Is a bigger $b$ better for privacy, or worse?} A higher $b$ gives better privacy. Intuitively, the PDF becomes wider, so the $\text{Lap}(\Delta f / \epsilon)$ term becomes more random.
+
+\begin{theorem}[Post-processing]
+    If $M: X^n \to Y$ is $(\epsilon, \delta)$-differentially private, and $f:Y\to Z$ is an arbitrary randomized function, then $f\circ M : X^n \to Z$ is also $(\epsilon, \delta)$-differentially private.
+\end{theorem}
+
+\begin{theorem}[Group privacy]
+    If $M: X^n \to Y$ is $(\epsilon, 0)$-differentially private, then $M$ is $(k\cdot \epsilon, 0)$-differentially private for groups of size $k$.
+
+    In the standard definition of differential privacy, we consider two databases that differ by at most one row. However, in some cases, we may want to have a group of databases. Intuitively, you apply $M$ k times between each database, and each time you will lose $\epsilon$ privacy. In total, you lose $k \cdot \epsilon$ privacy.
+\end{theorem}
+
+\begin{theorem}[Composition]
+    If $M_i: X^n \to Y$ is $(\epsilon_i, \delta_i)$-differentially private for $i = 1, \dots, k,$ then
+    $$M(D) := (M_1(D), \dots, M_k(D))$$
+    is $(\sum \epsilon_i, \sum \delta_i)$-differentially private.
+\end{theorem}
+
+\subsection{Elliptic Curve Cryptography}
+
+So far, we have primarily been working with cyclic group $G$ of order $q$ with generator $g$ where DLOG/CDH/DDH holds. How large is $q$?
+\begin{itemize}
+    \item For integer groups, $q \sim 2048$ bits.
+    \item For elliptic curve groups, $q \sim 256$ bits.
+\end{itemize}
+Thus, elliptic curve groups are more space-efficient for cryptography! The known attacks for elliptic curve groups scale on the order of $\sqrt{q}$, which allows us to have a smaller $q$ parameter to ensure security.
+
+\begin{definition}
+    An \textbf{elliptic curve} is the set of solutions $(x,y)$ to the equation
+    $$y^2 = x^3 + ax + b$$
+    where $4a^3 + 27b^2 \neq 0$. The last condition is there so that we get the elliptic curve shape.
+\end{definition}
+
+\begin{example}
+    The elliptic curve to $y^2 = x^3 - x + 9$ is has a plot that looks something like the following. The solutions $(0, \pm 3), (1, \pm 3), (-1, \pm 3)$ are indicated with dots.
+
+    \begin{center}
+    \footnotesize
+    \def\svgwidth{0.35\linewidth}
+    \input{images/2024/.xdp-2024-04-22-elliptic-curve.pdf_tex-giJsNo}
+    \end{center}
+\end{example}
+
+\textit{How to find rational points $(x,y) \in \mathbb{Q}^2$ on the curve?} There are two ways, the chord method and the tangent method.
+\begin{enumerate}
+    \item \textbf{Chord method:} Given a point P and a point Q on the curve, it defines a line $PQ$. This line must intersect the curve in a third point, R. For the curve in the previous example, if $P=(-1, -3)$ and $Q=(1, 3)$, then this defines a line $y=3x$. Plugging this into the equation for the curve gives us
+    $$(3x)^2 = x^3 - x + 9.$$
+    This is a cubic equation, so there must be 3 roots and thus 3 intersections. We know that the product of the roots must be negative the constant term, so $a_1 a_2 a_3 = -9$. We know two of the roots $a_1 = 1$ and $a_2 = -1$, so we have that $a_3 = 9$, which gives us the third point $R = (9, 27)$.
+
+    We define this operation by $P \boxplus Q = R$. Notice that if $P, Q$ are rational points, then $R$ is rational because all of our steps to find $R$ is just multiplying, dividing, adding, and subtracting with rational numbers.
+
+    \begin{center}
+        \def\svgwidth{0.35\linewidth}
+        \input{images/2024/.xdp-2024-04-22-elliptic-curve-chord.pdf_tex-JXGUox}
+    \end{center}
+
+
+    \pagebreak
+    \item \textbf{Tangent method:} Imagine if the cubic equation had a double root. This corresponds to a point $P$ being the tangent point to the line. In this case, we apply the operation onto itself $P \boxplus P = S$.
+
+    \begin{center}
+        \def\svgwidth{0.35\linewidth}
+        \input{images/2024/.xdp-2024-04-22-elliptic-curve-tangent.pdf_tex-B29VSo}
+    \end{center}
+\end{enumerate}
+
+Geometrically, one can be convinced that $(P \boxplus Q) \boxplus X = P \boxplus (Q\boxplus X)$ and that $P \boxplus Q = Q \boxplus P$. This gives hope that we can construct a group out of this, which is very handy for cryptography!
+
+\begin{definition}
+    For prime $p >3$, let $\mathbb{F}_p$ be a finite field, i.e. all of the integers $\{0, 1, \dots, p-1\}$ with addition and multiplication. Let $a, b \in \mathbb{F}_p$ such that $4a^3 + 27b^2 \neq 0$.
+    
+    An \textbf{elliptic curve $E$ defined over $\mathbb{F}_p$}, denoted $E / \mathbb{F}_p$, is the set of all points $(x,y)$ such that
+    \begin{itemize}
+        \item $x,y \in \mathbb{F}_p$ and
+        \item $y^2 = x^3 + ax +b$
+    \end{itemize}
+
+    Additionally, we include an abstract element $\mathcal{O}$ that is thought of as the ``point at infinity''.
+\end{definition}
+
+\begin{example}
+    $y^2 = x^3 + 1$ over $\mathbb{F}_{11}$ consists of the points
+    $$E / \mathbb{F}_{11} = \{\mathcal{O}, (-1, 0), (0, \pm 1), (2, \pm 3), (5, \pm 4), (7, \pm 5), (9, \pm 2)\}$$
+\end{example}
+
+Elliptic curves over finite fields is the same definition as elliptic curves before except we restrict our attention to $\mathbb{F}_p$.
+
+\begin{proposition}
+    Elliptic curves over finite fields with the $\boxplus$ operation form a group.
+    \begin{enumerate}
+        \item \textbf{Closure:} $\forall g, h \in G, g\boxplus h \in G$. This is true because $g,h$ defines a line, and we can figure out the equation for this line over the finite field because finite fields support division. After we find the line, we can plug it into the curve equation to get a cubic equation. We have two roots, and we know the product of all of the roots is negative the constant term in the cubic equation. Since finite fields support division, we can recover the third root.
+        \item \textbf{Existence of identity:} $\exists e \in G $ such that $\forall g\in G, e \boxplus g = g \boxplus e = g$. We let $e = \mathcal{O}$ be the identity. 
+        \item \textbf{Existence of inverse:} $\forall g \in G, \exists h \in G, $ such that $g \boxplus h = h \boxplus g = e$. If $g = (x,y)$, then the inverse $h = (x, -y)$. You can see that drawing a line between $g,h$ gives us the point at infinity, so $g \boxplus h = \mathcal{O}$.
+        \item \textbf{Associativity:} $\forall g_1, g_2, g_3 \in G, (g_1 \boxplus g_2) \boxplus g_3 = g_1 \boxplus (g_2 \boxplus g_3)$. We discussed this earlier.
+        \item \textbf{Commutativity (for abelian groups):} $\forall g,h \in G, g\boxplus h = h \boxplus g.$ We discussed this earlier.
+    \end{enumerate}
+\end{proposition}
+
+Furthermore, the \textbf{SEA algorithm} can count the number of points on $E / \mathbb{F}_p$ in polylog(p) time. Thus, figuring out the order of the group does not give us a problem.
+
+Below are some curves that are standardized and used in practice. We only talk about the first one. The others are secure to use in practice and have some tradeoffs that you are welcome to look into.
+
+\begin{itemize}
+    \item curve secp2546r1 (P256) \begin{itemize}
+        \item Prime $p = 2^{256} - 2^{224} + 2^{192} + 2^{96} -1$, hence only needs 256 bits to store!
+        \item $y^2 = x^3 -3x + b$ for some constant $b$ that is a 255-bit string.
+        \item Number of points on the curve is prime (close to p).
+        \item Standardized generator point $G$. It does not have to be this particular $G$, since every point is a generator, but it is standardized so that everyone can agree on the generator to run DH key exchange for example.
+    \end{itemize}
+    \item curve secp256k1
+    \item curve 25519
+\end{itemize}

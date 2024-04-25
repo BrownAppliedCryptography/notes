@@ -5,7 +5,7 @@
 
 This lecture we will continue our discussion on zero-knowledge proofs for OR statements, discuss RSA blind signature, and put it all together for anonymous online voting. Then we will discuss prime-order groups and more example of sigma protocols.
 
-\subsubsection{Example: Diffie-Hellman Tuple}
+\subsection{Example: Diffie-Hellman Tuple}
 
 We give a brief recap of Diffie-Hellman tuple.
 
@@ -28,7 +28,7 @@ We give a brief recap of Diffie-Hellman tuple.
 
 We showed completeness, proof of knowledge, and zero-knowledge in previous lectures.
 
-\subsubsection{Fiat-Shamir Heuristic}
+\subsection{Fiat-Shamir Heuristic}
 
 We give a brief recap on Fiat-Shamir. Non-interactive zero-knowledge proof in a random oracle model. 
 
@@ -40,7 +40,7 @@ We give a brief recap on Fiat-Shamir. Non-interactive zero-knowledge proof in a 
     \< \sendmessageright*{m_2} \> \text{Verify}\\
 }
 
-\subsubsection{Anonymous Online Voting}
+\subsection{Anonymous Online Voting}
 
 Here is a recap of the voting framework.
 
@@ -53,7 +53,7 @@ We have some servers:
     \item[Tallyer.] The tallyer will check that the signature is valid. Then, they will strip the signature and output $\Enc_{pk}(v_1), \dots, \Enc_{pk}(v_i), \dots, \Enc_{pk}(v_n)$.
 \end{description}
 
-\subsubsection{Correctness of Encryption}
+\subsection{Correctness of Encryption}
 We want voters to prove that their encryption is either of $0$ or $1$. We're in group $\GG$ with order $q$ and generator $g$. We have public key $pk\in \GG$, and ciphertext $c = (c_1, c_2)$. We're trying to prove the statement ``$c$ is an encryption of $0$ $\mathsf{OR}$ $c$ is an encryption of $1$.''
 
 Our languages are then encryptions of $0$ and encryptions of $1$:
@@ -65,7 +65,7 @@ where $r$ is our private key. Using this, we can prove that $c$ is an encryption
 
 In both languages, $x$ gives us a Diffie-Hellman tuple.
 
-\subsubsection{Proving OR Statement}
+\subsection{Proving OR Statement}
 
 In proving OR statements, we have a language like
 \[ R_{OR} = \{ ((x_1, x_2), w): (x_1, w) \in R_{L_1} \vee (x_2, w) \in R_{L_2} \} \]
@@ -92,7 +92,7 @@ When the Prover splits $\sigma = \sigma_1 + \sigma_2$, we can either randomly sa
 
 \textbf{Proof of Knowledge:} We want to show that an Extractor can extract from the Prover a $w$ such that $(x_1, w) \in R_{L_1} \vee (x_2, w) \in R_{L_2}$. The extractor will rewind, sending new challenge $\sigma'$ and receiving new response $(\sigma'_1, S'_1), (\sigma'_2, S'_2)$. If $\sigma_1 \neq \sigma_1'$, then we can extract $w$ from the transcript $((A_1, B_1), \sigma_1, S_1)$ and $((A_1, B_1), \sigma_1', S_1')$. If $\sigma_2 \neq \sigma_2'$, we can do the same for the other transcript.
 
-\subsubsection{Blind Signature}
+\subsection{Blind Signature}
 
 In the voting framework, each voter receives a $\sigma_i$ (certificate $\text{cert}_i$) from the Registrar, which is eventually published by the Tallyer. The Registrar is able to figure out who is voting, since they know exactly which signatures have been issued to the voters. To hide this information from the Registrar, we introduce something called blind signatures. This is a new idea this semester, and is used in practice.
 
@@ -107,7 +107,7 @@ In the voting framework, each voter receives a $\sigma_i$ (certificate $\text{ce
 
 If the Signer sees $\sigma$ after this protocol, they will be unable to recognize if they signed it before.
 
-\subsubsection{RSA Blind Signature}
+\subsection{RSA Blind Signature}
 
 \pseudocodeblock{
     \textbf{Signer} \< \< \textbf{Requester}\\
@@ -132,13 +132,13 @@ Notice that
 
 Thus $\sigma := \sigma' \cdot r^{-1} = H(m)^d \mod N$.
 
-\subsubsection{Multiple Candidates}
+\subsection{Multiple Candidates}
 
 Recall earlier when we talked about homomorphic encryption, each voter has encrypts their vote $v_i \in \{0, 1\}$. This works if we have only two candidates. What if we want to have multiple candidates? Then, we need $v_i \in \{0, 1, \dots, t-1\}$. Furthermore, $\text{Enc}(\sum v_i)$ no longer gives us the majority vote.
 
 One idea is for each of the $t$ candidates, we use 0/1 voting. This gives something like an ``approval rating'' for each candidate. 
 
-\subsubsection{Prime-Order Groups}
+\subsection{Prime-Order Groups}
 
 Let $G$ be a finite group of order $m$ (not necessarily prime). Recall that $\forall g \in G, \langle g \rangle := \{ g^0, g^1, \dots, g^{m-1}\}.$ This is a subgroup of $G$ of order $|\langle g\rangle |$. If $g^m = 1$, then $|\langle g \rangle |$ divides $m$.
 

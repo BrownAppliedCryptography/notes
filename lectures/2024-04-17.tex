@@ -43,7 +43,7 @@ If the client and the secure hardware can agree on a secret key $\sk$ that is hi
     \text{Get }\ct' \< \sendmessageright*{\ct'} \< y \gets \Dec_{\sk}(\ct')\\
 }
 
-\subsection{Intel Software Guard Extension (SGX)}
+\subsubsection{Intel Software Guard Extension (SGX)}
 
 How does the client and the secure hardware agree on the secret key? They must do a key exchange with each other. This is exactly what happens in Intel SGX, also known as ``secure enclave''.
 
@@ -84,7 +84,7 @@ The certificate is also generated on the the function $f$, so that the client en
     \item Side-channel attacks: it leaks the memory access pattern. When the CPU in the enclave will utilize different blocks of memory, and the server can see the pattern in which the CPU accesses different memory locations. For example, the server might notice that the CPU accesses the same memory location multiple times, which can reveal something about the computation. A fix involves something called ``Oblivous RAM (ORAM)'', which requires $\Theta (\log N)$ memory overhead.
 \end{enumerate}
 
-\subsection{Hardware Secure Module (HSM)}
+\subsubsection{Hardware Secure Module (HSM)}
 
 In Intel SGX, you can do arbitrary computations. However, HSM can only do restricted computations, for example, encryption/decryption. Alice can have an HSM that encrypts a message and she sends the encryption to Bob who has an HSM to decrypt the message. Another example is an HSM that takes in a ciphertext, decrypts it, then re-encrypts it with a new secret key.
 
