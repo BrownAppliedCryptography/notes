@@ -1,0 +1,123 @@
+%!TEX root = ../notes.tex
+% Scribe: Sudatta Hor
+\section{April 24, 2024}
+\label{20240424}
+
+In this lecture, we will cover privacy-preserving machine learning and federated learning. Some announcements: please fill out the course feedback and Critical Review! Also, a bug was found in the quantum attack on LWE mentioned last week, so LWE is post-quantum secure again.
+
+\subsection{Privacy-Preserving Machine Learning (PPML)}
+
+In PPML, there are $n$ parties labeled $x_1, \dots, x_n$. Each party has some private data. All parties want to train a machine learning model and use its inference.
+
+There are two kinds of data partitioning between parties
+\begin{itemize}
+    \item \textbf{Horizontal Data Partitioning} is where each party contains all features of a subset of examples. For example, an institution could have all of the medical information on a subset of patients.
+    \item \textbf{Vertical Data Partitioning} is where each party knows a certain feature over all examples. For example, hospitals could hold the medical data, banks hold the financial data, etc.
+\end{itemize}
+
+Currently, the state of the art solution delegates this problem between two central servers instead of using MPC across $n$ parties. One server gets a secret share $D_0$ of the data and the other server gets a secret share $D_1$ of the data so that $D_0 + D_1 = D$ recovers the total dataset. This is known as 2PC, and people have also looked into 3PC with 1 corruption, 4PC with 1 corruption, which can be more secure and efficient.
+
+\subsubsection{Linear Regression}
+
+In linear regression, given data points $(\vec{x}, y)$, our ML model is 
+$$g(\vec{x}) = \langle \vec{x}, \vec{w}\rangle$$
+where $\vec{w}$ is the coefficient vector which will be adjusted during training. For each data point $(\vec{x}_i, y_i)$, we define the loss function as 
+$$L_i(\vec{w}) := \frac{1}{2}(\langle \vec{x_i}, \vec{w}\rangle - y_i)^2.$$
+The total loss is given by $L(\vec{w}):= \frac{1}{N}\sum_{i = 1}^{N} L_i (\vec{w})$. This tells us how bad our coefficient vector $w$ is, and we want to update $w$ to minimize $L(\vec{w})$.
+
+One common method to find $w$ that minimizes the loss is known as \textbf{Stochastic Gradient Descent (SGD)}, which goes as follows. $\vec{w}$ is first initialized with an arbitrary value. Then, given a data point $(\vec{x}_i, y_i)$, update $\vec{w}$ according to the rule
+$$\vec{w} \gets \vec{w} - \eta \cdot \nabla L_i(\vec{w})$$
+where $\eta > 0$ is the \textit{learning rate} and $\nabla L_i(\vec{w})$ is the gradient.
+
+For linear regression, this update rule can be written as follows.
+$$\vec{w} \gets \vec{w} - \eta \cdot (\langle \vec{x}_i, \vec{w}\rangle - y_i)\cdot \vec{x}_i$$
+Computing $y_i^*:= \langle \vec{x}_i, \vec{w}\rangle$ is \textit{forward propagation} and computing $(\langle \vec{x}_i, \vec{w}\rangle - y_i)\cdot \vec{x}_i$ is \textit{backpropagation}.
+
+Let's say we want to use PPML for linear regression. In PPML, two parties will hold secret shares of $\vec{w}$. Both parties will initially sample $\vec{w}_0$ and $\vec{w}_1$ randomly, and $\vec{w}: = \vec{w}_0 + \vec{w}_1$. We want the two parties to run SGD with their secret shares to get a secret share of the updated $\vec{w}$. Let's look term by term.
+
+\begin{itemize}
+    \item A secret share of $\langle \vec{x}_i, \vec{w}\rangle$ can be computed by using resharing. Each party has a secret share of $\vec{x}_i$ and a secret share of $\vec{w}$.
+    \item A secret share of $\langle \vec{x}_i, \vec{w}\rangle - y_i$ can be computed locally by locally subtracting the secret share of $y_i$.
+    \item A secret share of $(\langle \vec{x}_i, \vec{w}\rangle - y_i)\cdot \vec{x}_i$ can be computed by resharing.
+    \item Finally, a secret share of $\vec{w} - \eta \cdot (\langle \vec{x}_i, \vec{w}\rangle - y_i)\cdot \vec{x}_i$ can be computed locally, since $\eta$ is public and this is only subtraction.
+\end{itemize}
+
+Thus, we can get a secret share of the updated $\vec{w}$.
+
+\subsubsection{Logistic Regression}
+
+The setup is the same as linear regression, except the ML model is now given by
+$$g(\vec{x}) = f(\langle \vec{x}, \vec{w}\rangle)$$
+where $f$ is an \textit{activation function}. In this scenario, we use the \textit{sigmoid} function given by
+$$f(u) = \frac{1}{1 + e^{-u}}.$$
+
+The loss function is now given by
+$$L_i(\vec{w}):= -y_i \cdot \log y_i^* - (1-y_i) \cdot \log(1-y_i^*)$$
+where $y_i^* := f(\langle \vec{x}_i, \vec{w}\rangle)$. The total loss $L(\vec{w})$ is defined the same, and we want to find $\vec{w}$ that minimizes it.
+
+The update rule for SGD then becomes
+$$\vec{w} \gets \vec{w} - \eta \cdot ({\color{red} f(}\langle \vec{x}_i, \vec{w}\rangle{\color{red} )} - y_i)\cdot \vec{x}_i.$$
+
+If we want to use PPML for logistic regression, both parties will initially sample $\vec{w}_0$ and $\vec{w}_1$ randomly as before, and $\vec{w}: = \vec{w}_0 + \vec{w}_1$. We want the two parties to run SGD with their secret shares to get a secret share of the updated $\vec{w}$. The update rule for SGD is nearly the same as that in linear regression, but now we have to figure out how to get a secret share for $f(\cdot)$. This function is the sigmoid function, which is complicated, involves exponentiation, and is not MPC friendly. Theoretically, one can do this by representing it as a garbled circuit, but this can be very expensive. Thus, we will approximated $f(\cdot)$ with the following piecewise polynomial.
+$$f(u) = \begin{cases}
+    0 & \text{if }u < -\frac{1}{2}\\
+    u + \frac{1}{2} & u \in [-\frac{1}{2}, \frac{1}{2}]\\
+    1 & u > \frac{1}{2}
+\end{cases}$$
+
+Let
+$$b_1 : = \begin{cases}
+    1 & \text{if }u < -\frac{1}{2}\\
+    0 & \text{otherwise}
+\end{cases}$$
+$$b_2 : = \begin{cases}
+    1 & \text{if }u > \frac{1}{2}\\
+    0 & \text{otherwise}
+\end{cases}$$
+
+Then $$f(u) = 0 \cdot b_1 + 1 \cdot b_2 + (u + \frac{1}{2})\cdot (1-b_1)(1-b_2)$$
+which is more MPC friendly because it only involves additions and multiplications, which can be done using resharing. All we need is a secret share of $b_1$ and $b_2$. This can be a little tricky, and there is not a good way to do it, so we resort to using garbled circuits. However, it is not too bad since it only involves comparison $>$ and $<$.
+
+Once we get a reshare for $f(u)$, then the rest is just arithmetic operations that we have done as in the case for linear regression.
+
+\subsubsection{Neural Networks}
+
+In neural networks, each node is a linear function fed into an activation function. Thus, one can imagine that the work that we have done for linear and logistic regression can go into neural networks. At a high level, the idea is to look at which functions go into the training the model and figure out how to make it MPC friendly.
+
+\subsection{Federated Learning}
+
+In Federated Learning, there is one central server and multiple users. The server wants to train and use an ML model using private data from the users. One application of this is Google mobile keyboard prediction.
+
+This is different than PPML, and is a little bit more tricky. We cannot use secret shares because there is only one server. Furthermore, each user has data, but they might have issues participating in the protocol due to network issues and so on.
+
+So far, we have used SGD when to look at a single data point $i$. 
+$$\vec{w} \gets \vec{w} - \eta \cdot \nabla L_i(\vec{w})$$
+
+We can look at a batch of data points, known as \textbf{batch SGD}.
+$$\vec{w} \gets \vec{w} - \frac{\eta}{B} \cdot \sum_{i = 1}^B\nabla L_i(\vec{w})$$
+
+For linear regression, the batch SGD can be written as
+$$\vec{w} \gets \vec{w} - \frac{\eta}{B} \cdot X_B^T \cdot (X_B \cdot \vec{w} - Y_B)$$
+where $X_B$ is a matrix with $B$ rows, where the $i$th row is $\vec{x}_i$, and likewise $Y_B$ is a column vector with $B$ entries, where the $i$th entry is $y_i$.
+
+In federated learning, the server has the current $\vec{w}$ and wants to update it. It will select a batch of users and jointly compute the aggregation $X_B^T \cdot (X_B \cdot \vec{w} - Y_B)$. Each user can locally compute their own term, and the server will take the sum of those. This is known as \textbf{secure aggregation}. At a high level, each user computes a secret share of their local SGD, and the server collects all of these to sum them up to get the total SGD update.
+
+This also applies to logistic regression, where the batch SGD update rule looks like the following.
+$$\vec{w} \gets \vec{w} - \frac{\eta}{B} \cdot X_B^T \cdot ({\color{red}f(}X_B \cdot \vec{w}{\color{red})} - Y_B)$$
+
+\begin{remark}
+    \textit{What are some potential issues in federated learning?}
+    
+    \begin{itemize}
+        \item A user can potentially lie about their local SGD, so it might skew the collective result. In practice, the total SGD is monitored to ensure that it is reasonable.
+        \item The aggregated result can potentially reveal private information about the user. There has been some research investigating the security of federated learning. We can try to add differential privacy to improve the security, but this is hard to do since it may not be MPC friendly.
+        
+        What people do now is to use differential privacy only when releasing the current $\vec{w}$ to the users. To compute their local SGD, the users need to know $\vec{w}$, and thus need to know the total SGD of the previous iteration.
+    \end{itemize}
+
+    There is still a lot of work needed to be done in this area!
+\end{remark}
+
+\subsection{Closing Remarks}
+
+That concludes the content for this course! Please refer to the final lecture recording for Peihan's heartwarming closing remarks. In short, thank you for taking CSCI 1515!

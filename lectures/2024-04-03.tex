@@ -28,7 +28,7 @@ We want a set of $\left\{ c_i \right\}$ s.t. $\bigoplus^n_{i=1}c_i = c = a \cdot
 \begin{align*}
     a\cdot b
      & = \left( \sum^n_{i=1}a_i \right)\cdot \left( \sum^n_{i=1}b_i \right)\pmod{2}                \\
-     & = \left( \sum^n_{i=1}a_i\cdot b_i \right)\cdot \left( \sum_{i\neq j}a_i b_i \right)\pmod{2}
+     & = \left( \sum^n_{i=1}a_i \cdot b_i \right) + \left( \sum_{i\neq j}a_i \cdot b_j \right)\pmod{2}
 \end{align*}
 The first sum is easy and computed locally, but the second sum requires parties to communicate. We do something called \ul{resharing}.
 
