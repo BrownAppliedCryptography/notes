@@ -1,9 +1,9 @@
 %!TEX root = ../notes.tex
-\section{January 24, 2024}
+\section{January 22, 2025}
 \label{20240124}
 
 \subsection{Introduction}
-The course homepage is at \url{https://cs.brown.edu/courses/csci1515/spring-2025/}, where you can find information such as the \href{https://docs.google.com/document/d/1lvXrMACua9Ma3n2nkLeiRmG-fmjDO1530h22EjkvQ-s/edit?usp=sharing}{syllabus}, projects, homeworks, calendar, lectures and more.
+The course homepage is at \url{https://cs.brown.edu/courses/csci1515/spring-2025/}, where you can find information such as the \href{https://docs.google.com/document/d/14G3OhOOvd6b84vhYAXK9slAUbNgQte-34sGe9bhMOYA/edit?usp=sharing}{syllabus}, projects, homeworks, calendar, lectures and more.
 
 The course is offered in-person in \emph{Salomon 001}, as well as synchronously over Zoom and recorded asynchronously (lectures posted online). Lecture attendance and participation is highly encouraged!
 
@@ -11,11 +11,11 @@ The course is offered in-person in \emph{Salomon 001}, as well as synchronously 
 
 \subsubsection{Staff}
 
-Our course staff have all taken or TA-ed the course before and are excited to help you learn!
-
 Peihan has been at Brown for a couple of years and this was the second time she is teaching this course. Before Brown, she was at the University of Illinois Chicago. Before that, she finished her PhD at UC Berkeley in 2019 with a focus in cryptography. Afterwards, she worked in industry for a couple of years (Visa) before deciding to come back to academia. She still collaborates with industry to see what problems need to be solved in practice.
 
 During her PhD, she started off doing more theoretical cryptography but also did internships and found applied cryptography fascinating as well. Now she works in both.
+
+Our course staff have all taken or TA-ed the course before and are excited to help you learn!
 
 \subsubsection{Course Philosophy and Logistics}
 
@@ -41,27 +41,27 @@ If, however, you are interested in the theoretical or mathematical side, you mig
 
 There is an option to capstone this course, contact Peihan about this. It would also be best to find a partner who is also capstoning this course.
 
-% TODO: update
 The following is the grading policy:
 \begin{center}
     \begin{tabular}{@{}ll@{}}
         \toprule
-        \textit{Type}      & \textit{Percentage} \\ \midrule
-        Project 0          & 4\%                 \\
-        Projects 1 \& 2    & 20\% (10\% each)    \\
-        Projects 3, 4 \& 5 & 36\% (12\% each)    \\
-        Homeworks          & 25\% (5\% each)     \\
-        Final Project      & 25\%                \\ \bottomrule
+        \textit{Type}           & \textit{Percentage} \\ \midrule
+        Introductions           & 1\%                 \\
+        Project 0               & 5\%                 \\
+        Projects 1 \& 2 \& 4    & 30\% (10\% each)    \\
+        Projects 3 \& 5         & 24\% (12\% each)    \\
+        Homeworks               & 25\% (5\% each)     \\
+        Final Project           & 15\%                \\ \bottomrule
     \end{tabular}
 \end{center}
 
-% TODO update
-You have 4 total late days for \emph{projects}, of which at most two can be used on a single project. Additionally, you have 3 total late days for \emph{homeworks}, of which at most one can be used on a single homework.
+You have 2 free late days for each one of the \emph{projects}. There are \textbf{no} late days for \emph{homeworks}, as we want to release the solution guide as soon as possible.
 
 All projects are independent, but collaboration is allowed and encouraged. However, you \emph{must write up your own code}.
 
 If you're sick, let Peihan know with a Dean's note.
 
+% Cryptography lecture begins
 \subsection{What is cryptography?}
 
 At a high level, \emph{cryptography is a set of techniques that protect sensitive or important information}.
@@ -138,7 +138,7 @@ These two guarantees are the most important guarantees! The former is called \ul
 \end{remark*}
 
 \begin{definition}[Public-key Encryption]
-    There is another primitive that is much stronger: \ul{public-key encryption}. Bob publishes both a \emph{public} key and a \emph{private} key. You can consider a lock where you don't need a key to lock it\framedfootnote{You literally click it closed}, and only Bob has the key to unlock it.
+    There is another primitive that is much stronger: \ul{public-key encryption}. Bob generate both a \emph{public} key and a \emph{private} key, and then publishes his public key. You can consider a lock where you don't need a key to lock it\framedfootnote{You literally click it closed}, and only Bob has the key to unlock it.
 
     \begin{center}
         \includegraphics[width=0.9\textwidth]{images/2023-01-26/public_key.png}
@@ -168,17 +168,17 @@ This property that we want is called \ul{message integrity}.
 
 \subsubsection{Signal and Auth}
 
-The first two projects are Signal and Auth whose aim will be to cover \ul{secure messaging} and \ul{secure authentication}.
+The first two projects are Signal and Auth, whose aim will be to cover \ul{secure messaging} and \ul{secure authentication}.
 
 \emph{Projects Overview}
 \begin{enumerate}
     \setcounter{enumi}{-1}
-    \item Warm-up, you will implement some basic cryptographic schemes.
-    \item Secure Communication: how to communicate in secret.
-    \item Secure Authentication: how to authenticate yourself.
-    \item Zero-Knowledge Proofs: we'll use ZKPs to implement a secure voting scheme.
-    \item Secure Multiparty Computation: we'll implement a way to run any function securely between two parties.
-    \item Fully Homomorphic Encryption: a form of post-quantum cryptography.
+    \item \emph{Cipher} Warm-up, you will implement some basic cryptographic schemes.
+    \item \emph{Signal} Secure Communication: how to communicate in secret.
+    \item \emph{Auth} Secure Authentication: how to authenticate yourself.
+    \item \emph{Vote} Zero-Knowledge Proofs: we'll use ZKPs to implement a secure voting scheme.
+    \item \emph{PIR} Fully Homomorphic Encryption: a form of post-quantum cryptography.
+    \item \emph{Yaos} Secure Multiparty Computation: we'll implement a way to run any function securely between two parties.
 \end{enumerate}
 
 We'll now introduce the latter three projects!
@@ -191,9 +191,10 @@ For example, Alice may want to
     \item Prove she knows the difference in taste between Coke and Pepsi without revealing how
     \item Prove that you have a bug in your code without revealing the bug
     \item She has the secret key for this ciphertext without revealing the plaintext
+    \item Prove that she owns two different colored pens to her colorblind friend Bob
 \end{itemize}
 
-How is this possible?
+How is this possible? Let's examine the first scenario \(which closely follows the Red/Green pens example from class\).
 \begin{example*}
     Alice claims to be able to differentiate between Coca-Cola and Pepsi! She wants to prove this to Bob without revealing her secrets.
 
@@ -217,6 +218,37 @@ How is this possible?
         For people who have seen this before, generally speaking, any $\textsf{NP}$ language can be proved in zero-knowledge. Alice has the \emph{witness} to the membership in $\textsf{NP}$ language.
     \end{remark*}
 \end{example*}
+
+\subsection{Fully Homomorphic Encryption}
+We'll come back to the secure messaging example.
+
+Alice wants to send Bob a message. She encrypts it somehow and sends a ciphertext $c_1 = \mathsf{Enc}(m_1)$. A nice feature for some encryption schemes is for Eve to do some computation homomorphically on the ciphertexts. Eve might possibly want to add ciphertexts (that leads to plaintext adding)
+\[c_1 = \mathsf{Enc}(m_1),\ c_2 = \mathsf{Enc}(m_2)\Rightarrow c' = \mathsf{Enc}(m_1 + m_2)\]
+or perhaps $c'' = \mathsf{Enc}(m_1\cdot m_2)$, or compute arbitrary functions. \emph{Sometimes}, this is simply adding $c_1 + c_2$, but usually not.
+
+\begin{center}
+    \includegraphics[width=0.9\textwidth]{images/2023-01-26/homomorphic_encryption.png}
+\end{center}
+
+We want to hopefully compute any function in polynomial time!
+
+\begin{example*}[Outsourced Computation]
+    Alice has some messages but doesn't have enough compute. There is a server that has \emph{a lot} of compute!
+
+    \begin{center}
+        \includegraphics[width=0.9\textwidth]{images/2023-01-26/outsourced_computation.png}
+    \end{center}
+
+    Alice encrypts her data and stores it in the server. At some point, Alice might want to compute a function on the encrypted data on the server, without the server revealing the original data. For example, she may want to search across that data without the server decrypting it (or sending her the entire encrypted DB). With homomorphic encryption, the server may be able to query and return an encrypted value to Alice without learning anything about the query itself.
+
+    This is an example of how fully homomorphic encryption can be useful.
+\end{example*}
+
+\begin{remark*}
+    This problem was not solved until 2009 (when Peihan started her undergrad). Theoretically, it doesn't even seem that possible! Being able to compute functions on ciphertexts that correspond to functions on plaintexts.
+\end{remark*}
+
+To construct fully-homomorphic encryption, we'll be using lattice-based cryptography which is a post-quantum secure!
 
 \subsection{Secure Multi-Party Computation}
 \begin{center}
@@ -277,41 +309,10 @@ We'll explore a toy example with the bit-\textsf{AND} from the dating example.
 
     They then spin the table around and reveal all the cards, learning $x\land y$.
 
-    If $x = 1$, Alice places it as $1$ on top of $0$, and if $y = 1$, Bob places it as $1$ on top of $0$ as well. Otherwise, they flip them. If $x = y = 1$, then the $0$'s will be adjacent. If $x \neq y$, the order will be $1,1,0,1,0$ (the $0$'s are not adjacent), regardless of which of Alice or Bob produced $x = 0$ (or both!).
+    If $x = 1$, Alice places it as $1$ on top of $0$ \(i.e. closer to the already filled 1 card\), and if $y = 1$, Bob places it as $1$ on top of $0$ \(i.e. closer to the already filled 1 card\) as well. Otherwise, they flip them. If $x = y = 1$, then the $0$'s will be adjacent - i.e. $1,1,1,0,0$. If $x \neq y$, the order will be $1,1,0,1,0$ (the $0$'s are not adjacent), regardless of which of Alice or Bob produced $x = 0$ (or both!).
 \end{example*}
 
 \emph{This is a toy example! It doesn't use cryptography at all! Two parties have to sit in front of a table. This is called card-based cryptography. We will be using more secure primitives.}
-
-\subsection{Fully Homomorphic Encryption}
-We'll come back to the secure messaging example.
-
-Alice wants to send Bob a message. She encrypts it somehow and sends a ciphertext $c_1 = \mathsf{Enc}(m_1)$. A nice feature for some encryption schemes is for Eve to do some computation homomorphically on the ciphertexts. Eve might possibly want to add ciphertexts (that leads to plaintext adding)
-\[c_1 = \mathsf{Enc}(m_1),\ c_2 = \mathsf{Enc}(m_2)\Rightarrow c' = \mathsf{Enc}(m_1 + m_2)\]
-or perhaps $c'' = \mathsf{Enc}(m_1\cdot m_2)$, or compute arbitrary functions. \emph{Sometimes}, this is simply adding $c_1 + c_2$, but usually not.
-
-\begin{center}
-    \includegraphics[width=0.9\textwidth]{images/2023-01-26/homomorphic_encryption.png}
-\end{center}
-
-We want to hopefully compute any function in polynomial time!
-
-\begin{example*}[Outsourced Computation]
-    Alice has some messages but doesn't have enough compute. There is a server that has \emph{a lot} of compute!
-
-    \begin{center}
-        \includegraphics[width=0.9\textwidth]{images/2023-01-26/outsourced_computation.png}
-    \end{center}
-
-    Alice encrypts her data and stores it in the server. At some point, Alice might want to compute a function on the encrypted data on the server, without the server revealing the original data.
-
-    This is an example of how fully homomorphic encryption can be useful.
-\end{example*}
-
-\begin{remark*}
-    This problem was not solved until 2009 (when Peihan started her undergrad). Theoretically, it doesn't even seem that possible! Being able to compute functions on ciphertexts that correspond to functions on plaintexts.
-\end{remark*}
-
-To construct fully-homomorphic encryption, we'll be using lattice-based cryptography which is a post-quantum secure!
 
 \subsection{Further Topics}
 We might cover some other topics:
@@ -327,17 +328,26 @@ Feel free to let us know on Ed!
 \subsection{Q \& A}
 
 \begin{itemize}
-    \item \emph{What is the difference between CSCI 1515 and CSCI 1510 or MATH 1580?}
+    \item \emph{Do I need to have a crypto background?} 
     
-    CSCI 1510 is essentially ``theoretical cryptography.'' It covers formal definitions and constructions and proofs. There is no coding, just proofs.
-
-    MATH 1580 considers crypto from the mathematical perspective. They try to understand some of the computational assumptions we assume from a mathematical standpoint. I.e. why is factoring hard to compute, and what is the best algorithm to compute it? In CS, we simply assume factoring is hard. MATH 1580 is more similar to number theory and group theory.
-
-    \item \emph{If you've taken MATH 1580 and CSCI 1515, would you still recommend taking CSCI 1510?}
-    
-    There are still more things to learn from CSCI 1510. There is still more theory and it is a much more challenging course from the theoretical perspective. There are more rigorous proofs and reductions in CSCI 1510 that we do not cover in CSCI 1515.
+    No!
 
     \item \emph{Why C++}
 
     Existing crypto libraries are mostly in C++ and most students have seen C/C++ in either cs33 or cs300. We did, however, consider implementing everything in Rust!
+
+    \item \emph{Class Participation}
+
+    Course attendance is expected for all students, since a large portion of the class structure relies on students answerin questions in class. Even if you don't actively volunteer, try to think through the answer on your own! Students may join class via Zoom if they are remote-only, traveling, or sick.
+
+    \item \emph{What is the difference between CSCI 1515 and CSCI 1510, MATH 1580, or CSCI 1410?}
+    
+    CSCI 1510 is essentially ``theoretical cryptography.'' It covers formal definitions and constructions and proofs. There is no coding, just proofs.
+
+    MATH 1580 considers crypto from the mathematical perspective. They try to understand some of the computational assumptions we assume from a mathematical standpoint. I.e. why is factoring hard to compute, and what is the best algorithm to compute it? In CS, we simply assume factoring is hard. MATH 1580 is more similar to number theory and group theory. 
+
+    CSCI 1040 is a cryptography course for students without a computer science or math background. It is self described as "crypto for poets!"
+
+    CSCI 1515, on the other hand, takes a hands on approach to cryptography. This class is suitable for both students with limited cryptography exposure more interested in cryptography from a software engineering perspective, as well as students with a cryptography theory background looking to understand what makes an implementation efficient in practice.
+
 \end{itemize}
