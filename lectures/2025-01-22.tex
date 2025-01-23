@@ -194,14 +194,14 @@ For example, Alice may want to
     \item Prove that she owns two different colored pens to her colorblind friend Bob
 \end{itemize}
 
-How is this possible? Let's examine the first scenario \(which closely follows the Red/Green pens example from class\).
+How is this possible? Let's examine this first scenario, which closely follows the red-green pens example from class \(or the red-green balls problem\).
 \begin{example*}
-    Alice claims to be able to differentiate between Coca-Cola and Pepsi! She wants to prove this to Bob without revealing her secrets.
+    Alice claims to have two different colored markers. She wants to prove this to her friend Bob, but there is an issue - Bob is colorblind!
 
-    Bob will randomly sample a bit $b\overset{\$}{\leftarrow}\{0, 1\}$, with $b=0$ being Coca-Cola and $b=1$ being Pepsi. Bob will let Alice taste this drink. Alice will give a guess $b'$ of what drink it is.
+    Bob will randomly sample a bit $b\overset{\$}{\leftarrow}\{0, 1\}$, with $b=0$ being "Stay" and $b=1$ being "Swap". Bob will then either swap the order of the markers and show them to Alice, or keep them the same. Alice will give a guess $b'$ of whether Bob swapped or not.
 
     \begin{center}
-        \includegraphics[width=0.9\textwidth]{images/2023-01-26/zk_cola.png}
+        \includegraphics[width=0.9\textwidth]{images/2025/zkp_ball.png}
     \end{center}
 
     If the statement is true, $\Pr[b' = b] = 1$ (Alice always gives the correct prediction).
@@ -299,17 +299,17 @@ In the general case, Alice and Bob have some inputs $x$ and $y$ with bounded len
 We'll explore a toy example with the bit-\textsf{AND} from the dating example.
 
 \begin{example*}[Private Dating]
-    Alice and Bob have choice bits $x\in\{0, 1\}$ and $y\in\{0, 1\}$ respectively. There is a \emph{physical} round table with $5$ identical slots, one already filled in with a $1$ facing down.
+    Alice and Bob have choice bits $x\in\{0, 1\}$ and $y\in\{0, 1\}$ respectively. There is a \emph{physical} round table with $5$ identical slots, one already filled in with a $dog$ facing down. Alice and Bob each have identical $dog, cat$ cards (each of the $dog$ and $cat$ cards are indistinguishable from cards of the same value). Note that our use of $dog, cat$ is arbitrary, and could be any other set of two elements: $0, 1$, $x, o$, etc.
 
     \begin{center}
-        \includegraphics[width=0.9\textwidth]{images/2023-01-26/private_dating.png}
+        \includegraphics[width=0.9\textwidth]{images/2025/private_dating.png}
     \end{center}
 
-    Alice and Bob each have identical $0, 1$ cards (each of the $0$ and $1$ cards are indistinguishable from cards of the same value). Alice places her cards on the 2 slots in some order, and Bob does the same.
+    Alice places her cards on the 2 slots in some order, and Bob does the same.
 
     They then spin the table around and reveal all the cards, learning $x\land y$.
 
-    If $x = 1$, Alice places it as $1$ on top of $0$ \(i.e. closer to the already filled 1 card\), and if $y = 1$, Bob places it as $1$ on top of $0$ \(i.e. closer to the already filled 1 card\) as well. Otherwise, they flip them. If $x = y = 1$, then the $0$'s will be adjacent - i.e. $1,1,1,0,0$. If $x \neq y$, the order will be $1,1,0,1,0$ (the $0$'s are not adjacent), regardless of which of Alice or Bob produced $x = 0$ (or both!).
+    If $x = 1$, Alice places it as $dog$ on top of $cat$ \(i.e. closer to the already filled dog card\), and if $y = 1$, Bob places it as $dog$ on top of $cat$ \(i.e. closer to the already filled doing card\) as well. Otherwise, they flip them. If $x = y = 1$, then the $dog$'s will be adjacent. If $x \neq y$, the order will be $dog,dog,cat,dog,cat$ (the $cat$'s are not adjacent), regardless of which of Alice or Bob produced $x = 0$ (or both!).
 \end{example*}
 
 \emph{This is a toy example! It doesn't use cryptography at all! Two parties have to sit in front of a table. This is called card-based cryptography. We will be using more secure primitives.}
