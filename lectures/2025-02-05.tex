@@ -152,9 +152,15 @@ The only thing we haven't seen thus far is a block cipher. We first start with t
 
 We saw earlier that a Pseudorandom Generator (PRG) produces a string that looks random. We also have Pseudorandom Functions (PRF), which are `random-looking' functions.
 
-\subsubsection{Pseudorandom Function (PRF)}
+\subsubsection{Pseudorandom Function (PRF), \emph{continued}}
 
-Our Pseudorandom Function $F$ is a keyed function\footnote{In deterministic polynomial-time.} $F : \{0, 1\}^\lambda\times \{0, 1\}^n\to\{0, 1\}^m$, $F$ will take key $k$ and input $x$ to produce output $y$, $F(k, x) = y$.
+A block cipher, at a very high level, is a pseudo random function.
+
+Recall last time that we talked about pseudorandom \emph{generators} (PRG), which takes a seed and expands it into a long string of pseudorandom bits. This ``random-looking'' \textbf{string} is computationally indistinguishable from a truly random string.
+
+A pseudorandom \emph{function} (PRF) is a ``random-looking'' \textbf{function} that takes a key and an input and produces an output. This function is computationally indistinguishable from a truly random function.
+
+More formally, our pseudorandom function $F$ is a keyed function\footnote{In deterministic polynomial-time.} $F : \{0, 1\}^\lambda\times \{0, 1\}^n\to\{0, 1\}^m$, $F$ will take key $k$ and input $x$ to produce output $y$, $F(k, x) = y$.
 
 Without knowing our key $k$, $F_k$ is computationally indistinguishable from some random $f\sampledfrom\{F\mid F\{0, 1\}^n\to \{0, 1\}^m\}$.
 

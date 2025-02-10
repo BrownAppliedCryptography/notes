@@ -1,0 +1,52 @@
+
+% \subsubsection{CBC-MAC}
+% We can use block ciphers to construct a MAC scheme. Splitting up our message into blocks, we feed blocks into $F_k$ and chain to next blocks. In the end, the final cipher output is our tag.
+
+% \Graphic{images/2023-02-14/cbc-mac.png}{0.5}
+
+% \emph{How do we verify?} We can just $\Mac$ the message again and check that the tag matches. If $F_k$ is invertible, we can also go the other way.
+
+% \emph{Is this CMA secure?}
+% \begin{itemize}
+%     \item
+%           Fixed-length messages of length $l\cdot n$? Yes, since we can only query for fixed-length messages, this gives us no additional information.
+%     \item
+%           Arbitrary-length messages? This is where problems arise---the adversary could first query for a message of 1 block, then 2 blocks, then 3 blocks, etc. By combining this information, they could produce new valid signatures.
+
+%           A concrete attack is an adversary querying for $\Mac(m)$ to produce $\mathsf{tag}$, then querying for $\Mac(\mathsf{tag}) = \Mac(m||0) = \mathsf{tag}'$ which allows the adversary to forge a new message.
+% \end{itemize}
+
+% \begin{remark*}
+%     Our constructions of authenticated encryption calls for an encryption scheme and MAC scheme. It's crucial that the two schemes have \emph{different keys}. Using the same key $k$ for both encryption and MAC can cuase issues (information from one could reveal something about the other).
+% \end{remark*}
+
+% We have a fix for the CMA-vulnerability in arbitrary-length messages:
+
+% \subsubsection{Encrypt-last-block CBC-MAC (ECBC-MAC)}
+% The vulnerability earlier was due to our encryption being \emph{associative}, so to speak.
+
+% We can fix this is to use a different key for the last block:
+
+% \Graphic{images/2023-02-14/ecbc-mac.png}{0.5}
+
+% We could also attach length of messages to the first block, or other techniques.
+
+% The nuance in CBC-MAC means that realistically, we almost always use HMAC.
+
+% \ques{For CBC-MAC, if we randomly sample the IV and include it in the tag, will this be CMA secure?}
+
+% No! Consider if the adversary queries for the tag of $m := m_1 || m_2 || m_3$ and receive the tag $t := (\text{IV}, \text{tag})$.
+
+% The adversary can generate a new valid tag for $m^* := m_1 \oplus \text{IV} || m_2 || m_3$ and $t^* := (0^n, \text{tag})$.
+
+% \Graphic{images/2024/2024-02-12.png}{.8}
+
+% \subsection{Putting it Together}
+
+% Looking back at \cref{sec:feb7-summary-so-far}, we've collected everything we need so far for secure communication.
+
+% For Alice and Bob to communicate, they first exchange keys using a Diffie-Hellman key exchange, then perform authenticated encryption.
+
+% \Graphic{images/2023-02-14/communicate.png}{0.7}
+
+% However, this still does not mitigate against a man-in-the-middle attack. Thus, before exchanging keys, Alice and Bob should publish verification keys (to a digital signature scheme, see \cref{sec:feb7-ds}). Using this digital signature, Alice and Bob will each sign their Diffie-Hellman public values $g^a, g^b$ using their signing key, which will be attached to the message. They can respectively verify that these values came from each other, and not some Eve in the middle.

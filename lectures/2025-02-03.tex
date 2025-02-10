@@ -180,9 +180,9 @@ Similarly, we can also MAC first, encrypt the entire ciphertext and tag concaten
 \begin{description}
     \item[$\Gen(1^\lambda)$:] $k_1:=\Gen_1(1^\lambda)$, $k_2:=\Gen_2(1^\lambda)$, output $(k_1, k_2)$.
 
-    \item[$\Enc(m)$:] To encrypt, we first encrypt ciphertext $c_1 := \Enc_1(k_1, m)$ and sign message (in plaintext) $t_2 := \Mac_2(k_2, {\color{red} m||t_2})$ and output $(c_1, t_2)$.
+    \item[$\Enc(m)$:] To encrypt, we first sign message (in plaintext) $t_2 := \Mac_2(k_2, m)$ and then encrypt ciphertext and tag $c_1 := \Enc_1(k_1, m||t_2)$ and output $c_1$.
 
-    \item[$\Dec(m)$:] We have ciphertext $c = (c_1, t_2)$. Our message is ${\color{red} m||t_2}:=\Dec_1(k_1, c_1)$, and our verification bit $b := \Verify_1(k_2, (m, t_2))$. If $b = 1$, output $m$, otherwise we output $\bot$.
+    \item[$\Dec(m)$:] We have ciphertext $c_1$. Our message is $m||t_2:=\Dec_1(k_1, c_1)$, and our verification bit $b := \Verify_1(k_2, (m, t_2))$. If $b = 1$, output $m$, otherwise we output $\bot$.
 \end{description}
 
 \begin{ques*}
