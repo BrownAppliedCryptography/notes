@@ -1,52 +1,193 @@
+%!TEX root = ../notes.tex
+\section{February 12, 2025}
+\label{20250212}
 
-% \subsubsection{CBC-MAC}
-% We can use block ciphers to construct a MAC scheme. Splitting up our message into blocks, we feed blocks into $F_k$ and chain to next blocks. In the end, the final cipher output is our tag.
+\subsubsection{CBC-MAC}
+We can use block ciphers to construct a MAC scheme. Splitting up our message into blocks, we feed blocks into $F_k$ and chain to next blocks. In the end, the final cipher output is our tag.
 
-% \Graphic{images/2023-02-14/cbc-mac.png}{0.5}
+\Graphic{images/2023-02-14/cbc-mac.png}{0.5}
 
-% \emph{How do we verify?} We can just $\Mac$ the message again and check that the tag matches. If $F_k$ is invertible, we can also go the other way.
+\emph{How do we verify?} We can just $\Mac$ the message again and check that the tag matches. If $F_k$ is invertible, we can also go the other way.
 
-% \emph{Is this CMA secure?}
-% \begin{itemize}
-%     \item
-%           Fixed-length messages of length $l\cdot n$? Yes, since we can only query for fixed-length messages, this gives us no additional information.
-%     \item
-%           Arbitrary-length messages? This is where problems arise---the adversary could first query for a message of 1 block, then 2 blocks, then 3 blocks, etc. By combining this information, they could produce new valid signatures.
+\emph{Is this CMA secure?}
+\begin{itemize}
+    \item
+          Fixed-length messages of length $l\cdot n$? Yes, since we can only query for fixed-length messages, this gives us no additional information.
+    \item
+          Arbitrary-length messages? This is where problems arise---the adversary could first query for a message of 1 block, then 2 blocks, then 3 blocks, etc. By combining this information, they could produce new valid signatures.
 
-%           A concrete attack is an adversary querying for $\Mac(m)$ to produce $\mathsf{tag}$, then querying for $\Mac(\mathsf{tag}) = \Mac(m||0) = \mathsf{tag}'$ which allows the adversary to forge a new message.
-% \end{itemize}
+          A concrete attack is an adversary querying for $\Mac(m)$ to produce $\mathsf{tag}$, then querying for $\Mac(\mathsf{tag}) = \Mac(m||0) = \mathsf{tag}'$ which allows the adversary to forge a new message.
+\end{itemize}
 
-% \begin{remark*}
-%     Our constructions of authenticated encryption calls for an encryption scheme and MAC scheme. It's crucial that the two schemes have \emph{different keys}. Using the same key $k$ for both encryption and MAC can cuase issues (information from one could reveal something about the other).
-% \end{remark*}
+\begin{remark*}
+    Our constructions of authenticated encryption calls for an encryption scheme and MAC scheme. It's crucial that the two schemes have \emph{different keys}. Using the same key $k$ for both encryption and MAC can cuase issues (information from one could reveal something about the other).
+\end{remark*}
 
-% We have a fix for the CMA-vulnerability in arbitrary-length messages:
+We have a fix for the CMA-vulnerability in arbitrary-length messages:
 
-% \subsubsection{Encrypt-last-block CBC-MAC (ECBC-MAC)}
-% The vulnerability earlier was due to our encryption being \emph{associative}, so to speak.
+\subsubsection{Encrypt-last-block CBC-MAC (ECBC-MAC)}
+The vulnerability earlier was due to our encryption being \emph{associative}, so to speak.
 
-% We can fix this is to use a different key for the last block:
+We can fix this is to use a different key for the last block:
 
-% \Graphic{images/2023-02-14/ecbc-mac.png}{0.5}
+\Graphic{images/2023-02-14/ecbc-mac.png}{0.5}
 
-% We could also attach length of messages to the first block, or other techniques.
+We could also attach length of messages to the first block, or other techniques.
 
-% The nuance in CBC-MAC means that realistically, we almost always use HMAC.
+The nuance in CBC-MAC means that realistically, we almost always use HMAC.
 
-% \ques{For CBC-MAC, if we randomly sample the IV and include it in the tag, will this be CMA secure?}
+\ques{For CBC-MAC, if we randomly sample the IV and include it in the tag, will this be CMA secure?}
 
-% No! Consider if the adversary queries for the tag of $m := m_1 || m_2 || m_3$ and receive the tag $t := (\text{IV}, \text{tag})$.
+No! Consider if the adversary queries for the tag of $m := m_1 || m_2 || m_3$ and receive the tag $t := (\text{IV}, \text{tag})$.
 
-% The adversary can generate a new valid tag for $m^* := m_1 \oplus \text{IV} || m_2 || m_3$ and $t^* := (0^n, \text{tag})$.
+The adversary can generate a new valid tag for $m^* := m_1 \oplus \text{IV} || m_2 || m_3$ and $t^* := (0^n, \text{tag})$.
 
-% \Graphic{images/2024/2024-02-12.png}{.8}
+\Graphic{images/2024/2024-02-12.png}{.8}
 
-% \subsection{Putting it Together}
+\subsection{Putting it Together}
 
-% Looking back at \cref{sec:feb7-summary-so-far}, we've collected everything we need so far for secure communication.
+Looking back at \cref{sec:feb7-summary-so-far}, we've collected everything we need so far for secure communication.
 
-% For Alice and Bob to communicate, they first exchange keys using a Diffie-Hellman key exchange, then perform authenticated encryption.
+For Alice and Bob to communicate, they first exchange keys using a Diffie-Hellman key exchange, then perform authenticated encryption.
 
-% \Graphic{images/2023-02-14/communicate.png}{0.7}
+\Graphic{images/2023-02-14/communicate.png}{0.7}
 
-% However, this still does not mitigate against a man-in-the-middle attack. Thus, before exchanging keys, Alice and Bob should publish verification keys (to a digital signature scheme, see \cref{sec:feb7-ds}). Using this digital signature, Alice and Bob will each sign their Diffie-Hellman public values $g^a, g^b$ using their signing key, which will be attached to the message. They can respectively verify that these values came from each other, and not some Eve in the middle.
+However, this still does not mitigate against a man-in-the-middle attack. Thus, before exchanging keys, Alice and Bob should publish verification keys (to a digital signature scheme, see \cref{sec:feb7-ds}). Using this digital signature, Alice and Bob will each sign their Diffie-Hellman public values $g^a, g^b$ using their signing key, which will be attached to the message. They can respectively verify that these values came from each other, and not some Eve in the middle.
+
+We will now go over the topics needed for the next project, Auth. Namely,
+\begin{itemize}
+    \item One-Sided Secure Authentication
+    \item Password-Based Authentication
+    \item Two-Factor Authentication (2FA)
+    \item Putting it All Together: Secure Authentication
+    \item Public Key Infrastructure (PKI)
+\end{itemize}
+
+Recall that we had a way for Alice and Bob to communicate securely, first exchanging a shared Diffie-Hellman key and then performing AES encryption.
+
+\Graphic{images/2023-02-16/alice_and_bob.png}{0.8}
+
+However, this is prone to a man-in-the-middle attack. One way to solve this is for parties to \emph{sign} their own Diffie-Hellman public values before sending, and then verify the other party's public value by using their public verification key.
+
+\Graphic{images/2023-02-16/signed_alice_and_bob.png}{0.8}
+
+\emph{Is this now secure against an adversary in the middle?} Yes, because the public values are guaranteed (via our digital signature scheme) by Alice and Bob's signing key. The man in the middle does not have access to the signing key, and cannot sign a phony public value.
+
+However, how do we know the verification keys really belong to who we think they belong to? This is the problem of \emph{authentication}. We are sort of in a chicken and egg problem...
+
+\subsection{One-Sided Secure Authentication}
+In some circumstances, it's more difficult for a client to communicate their verification key to a server than it is for a server to do so. A server might publish their verification key, and trust that all clients are not compromised.
+
+\Graphic{images/2023-02-16/one-sided_secure_authentication.png}{0.8}
+
+\emph{What could an adversary potentially do?} The adversary could not pretend to be the server since they have no access to the server's signing key. The adversary \emph{can} pretend to be the client and talk to the server. The adversary could forward all messages sent to the server, and can also communicate $g^b, \sigma_b$ back to the client (it's a valid signature since it has not been modified).
+
+At the end of this protocol, the client has Diffie-Hellman private $g^{ab}$ and the adversary and server will have $g^{eb}$ (where $g^e, e$ is a Diffie-Hellman keypair the adversary provided to the client). Whatever the client sends to the server cannot be decrypted by the adversary, since it is encrypted with $g^{ab}$, however, the server's communications \emph{could} be decrypted by the adversary.
+
+This can be easily circumvented by requiring the server and user complete their handshake---the server could request a hash or encryption of the shared secret, and realize that they are communicating to an adversary when this cannot be forged by the man-in-the-middle.
+
+
+\subsection{Password-Based Authentication}
+Sometimes, you also want to \emph{authenticate} with a server using a password. The na\"ive implementation is that a user with an ID sends a hash of the password $h = H(\mathrm{password})$ to the server. The server stores $(\mathrm{ID}, h)$.
+
+\Graphic{images/2023-02-16/password_authentication.png}{0.8}
+
+In this case, an adversary could launch an \emph{Online Dictionary Attack} and try a lot of passwords with the server.
+
+If the server were to be compromised, and its database compromised, the adversary can conduct an \emph{Offline Dictionary Attack} on the database. Additionally, the adversary can precompute all hashes and check against the database.
+
+\emph{How can we prevent this? }
+
+\subsubsection{Salting}
+
+\Graphic{images/2023-02-16/salting.png}{0.6}
+
+One way of ensuring that the hashing is non-deterministic is for servers to generate a $\mathrm{salt}\sampledfrom\{0, 1\}^s$ and send it to the user. The user will hash $H(\mathrm{password}||\mathrm{salt})$ and send that to the server. The server stores a database of $(\mathrm{ID}, \mathrm{salt}, \mathrm{h})$.
+
+When logging in, the user first sends their ID to the server, the server will send the salt back, the user hashes their password, and the hash is sent to the server for verification.
+
+\emph{Does this allow the user to use a weak password?} Nope! The adversary can always brute-force the password.
+
+To further solve these problems, we can use \emph{peppering}. We send the salt to the user and the user computes hash $h = H(\mathrm{password}||\mathrm{salt})$. Then, we pick a random pepper and hash $h^* = H(h||\mathrm{pepper})$ and stores $h^*$. Now, even if the server is compromised, there is no way to find the preimage of $h^*$, so adversaries knowing $h^*$ will still have to do try all $2^p$ possible peppers for each dictionary guess. We still can't log into the server since the server hashes our login hash again.
+
+Additionally, one strategy to make it \emph{even harder} for an adversary is to make hashing more difficult (time-consuming). For example, we can compose SHA256 in certain ways\footnote{The natural way is to hash multiple times, say 100. However, this is actually not more secure in the case of SHA256 but there are specific ways of composition. For example, there are application-specific integrated circuits (ASIC) that can compute hash functions very efficiently.}. There are also memory-hard hash functions, like scrypt.
+
+\emph{Even with all this, is it still safe to use a weak password?} Nope! A dictionary attack is still possible, and with weak passwords will be hard to crack.
+
+\subsubsection{Two-Factor Authentication}
+Now we'll discuss how servers implement two-factor authentication.
+
+For phone number verification, on signing up, the user sends a phone number with their password hash. The server stores their phone number. Every time, the server will generate challenge $r\sampledfrom\{0,1\}^k$
+
+For app-generated codes, the user and server will first share a seed $\mathsf{seed}$ and use a pseudorandom function $F_\mathsf{seed}(\mathsf{time})$. The server and the user can input the same time, and the outputs will be the same. Generally, the server will test the last 30/60 seconds of values.
+
+\Graphic{images/2023-02-23/2fa.png}{0.8}
+
+% \subsection{SSH}
+
+% This is \emph{exactly} how the SSH algorithm works.
+
+% \Graphic{images/2023-02-16/ssh_protocol.png}{0.8}
+
+% Let's work through the steps of GitHub's SSH setup to see how it works.
+
+% \Graphic{images/2023-02-16/ssh_instruction.png}{0.8}
+
+% The instructions are given for the EDDSA-25519 algorithm, which relies on elliptic curves.
+
+% \begin{enumerate}
+%     \item We first generate a signing keypair $(vk_A, sk_A) \leftarrow \Gen(1^\lambda)$ via
+
+%           \texttt{\$ ssh-keygen -t ed25519 -C "your\_email@example.com"}
+
+%           $vk_A$ is the \texttt{id\_ed25519.pub} (the public key) $sk_A$ is \texttt{id\_ed25519} (the private key).
+%     \item We upload our public key to our account on GitHub. This is equivalent of communicating our $vk_A$ to GitHub.
+%     \item When we're connecting via SSH to GitHub for the first time, our terminal will prompt us that this is a new server with a new verification key.
+
+%           \texttt{> The authenticity of host `github.com (IP ADDRESS)' can't be established. \\
+%               > RSA key fingerprint is SHA256:nThbg6kXUpJWGl7E1IGOCspRomTxdCARLviKw6E5SY8. \\
+%               > Are you sure you want to continue connecting (yes/no)?}
+
+%           which we can verify against GitHub's known verification keys\footnote{The security of our web upload to GitHub, or GitHub's site which publishes the verification key, relies on the security of the website, likely through TLS. But you could also imagine exchanging keys in person, etc. }. This is the equivalent of receiving a $vk_B$ from GitHub.
+% \end{enumerate}
+
+
+% \subsection{Public Key Infrastructure}
+
+% \emph{How can we know who has which public keys on the internet?} We can rely on a Public Key Infrastructure (PKI) to know each other's public keys.
+
+% If Bob purports to be \texttt{bob.com} and wants to prove that $vk_B$ belongs to him, Bob will send a certificate signing request (CSR) to a Certificate Authority (CA)\footnote{\emph{The higher beings that be}...this is companies like \emph{DigiCert}, \emph{Let's Encrypt}, etc.}.
+
+% The CA will sign the message $(\mathtt{bob.com}, vk_B)$ and send that signature $\sigma$ back to Bob. This verifies that the user of \texttt{bob.com} holds signing key $sk_B$ with public key $vk_B$.
+
+% \Graphic{images/2023-02-16/pki_cert.png}{0.8}
+
+% The standard of which is the X.509 certificate.
+
+% For example, when we try to access \texttt{facebook.com}, we can check that the certificate is valid\footnote{In browsers, this is represented by the lock symbol---clicking on that will allow you to verify that certificate.}
+
+% \Graphic{images/2023-02-16/fb_cert.png}{0.8}
+
+% This pivots on the fact that \emph{everyone} must know $vk$ of the certificate authority. We shift our trust from individual sites and users to the certificate authorities. Most devices have the $vk$s of trusted authorities built in.
+
+% \subsubsection{Certificate Chain}
+% In reality, there are several certificate authorities, and they also form \emph{chains} of certificate authorities.
+
+% \Graphic{images/2023-02-16/cert_chain.png}{0.8}
+
+% A Root CA\footnote{We mentioned earlier that CAs are built into devices. For example, \href{https://support.apple.com/en-us/HT213464}{here} is a list of all root certificates that are built-in for Apple devices. This can go wrong too! \href{https://en.wikipedia.org/wiki/Root_certificate\#Incidents_of_root_certificate_misuse}{CAs have been misused} which causes implications on the security of the internet.} with a known $(vk, sk)\Gen(1^\lambda)$ can first sign the $vk_1$ of an Intermediate CA1, producing cert $\mathsf{cert}_1 = \sigma \leftarrow \Sign_{sk}(vk_1)$.
+
+% Then, the Intermediate CA1 can sign a certificate for Intermediate CA2, but we'll have to preserve this chain. Intermediate CA1 could produce cert $\sigma_1\leftarrow\Sign_{sk_1}(vk_2)$, but how do we know that $sk_1$ is valid? So, we'll need to include $vk_1$ and $vk_1$'s signature signed by $sk$. That is,
+% \begin{align*}
+%     \mathsf{cert}_2 = & vk_1, \sigma \leftarrow \Sign_{sk}(vk_1),   \\
+%                       & vk_2, \sigma_2\leftarrow \Sign_{sk_1}(vk_2)
+% \end{align*}
+% Finally, Intermediate CA2 can sign Bob's verification key using their chain. Bob's certificate will contain
+% \begin{align*}
+%     \mathsf{cert}_B = & vk_1, \sigma \leftarrow \Sign_{sk}(vk_1),   \\
+%                       & vk_2, \sigma_2\leftarrow \Sign_{sk_1}(vk_2) \\
+%                       & vk_B, \sigma_B\leftarrow \Sign_{sk_2}(vk_B)
+% \end{align*}
+% \emph{How can an Intermediate CA restrict Bob's use of these certificates? What if Bob will then go on and start signing his own certificates for people?} We can concatenate information in each certificate that restricts its use. It could specify whether it is being issued to an \emph{end user}, or even additional information like validity time.
+
+% To protect against CAs that get compromised, certificates are short-lived and have set validity times. Additionally, certificate authorities can publish revocation lists that browsers check against when validating a certificate.
