@@ -1,0 +1,150 @@
+%!TEX root = ../notes.tex
+\section{February 26, 2025}
+\label{20250226}
+
+Today, we continue our discussion on zero-knowledge proofs. First, we will briefly give an overview on our next project involving anonymous online voting. We will revisit the example on the Diffie-Hellman Tuple, then discuss Non-Interactive Zero-Knowledge proofs. We will show how to achieve this using Fiat-Shamir Heuristic, talk about Elgalmal encryption for homomorphism and threshold decryption, and revisit how these relate to anonymous online voting.
+
+\subsection{Anonymous Online Voting}
+
+Say we have $n$ voters with votes $v_1, \dots, v_n \in \{ 0, 1\}$. Each voter encrypts their vote $\text{Enc}(v_1), \dots, \text{Enc}(v_n)$. Our goal is to compute the sum of these votes without having to decrypt each vote individually. Somehow, we must find $\text{Enc}(\sum v_i)$ then decrypt to find $\sum v_i$.
+
+In this scenario, zero-knowledge proofs can be used to ensure that each vote $v_1$ is 0 or 1 and to verify that the sum $\sum v_i$ was computed correctly.
+
+\subsection{Zero-Knowledge Proof of Knowledge}
+
+Recall the five properties.
+
+\begin{itemize}
+    \item Completeness: The prover can prove whenever $x\in R_L$.
+    \item Soundness: For any $x$ not in $R_L$, the prover can only prove $x\in R_L$ with \emph{negligible} probability.
+    \item Proof of Knowledge: If a prover $P^*$ can prove, then they must know $w$.
+    \item Honest-Verifier Zero-Knowledge (HVZK). An honest verifier doesn't learn anything about $w$.
+    \item Zero Knowledge: A malicious $V^*$ doesn't learn anything about $w$.
+\end{itemize}
+
+\subsection{Example: Diffie Hellman Tuple}
+
+We want to prove that $h = g^a, u = g^b, v = g^{ab}$ is a Diffie-Hellman Tuple in a cyclic group $\GG$ of order $q$ and generator $g$.
+
+Our witness is `private exponent' $b$. Our statement is that $\exists b\in \ZZ_q$ such that $u = g^b$ and $v = h^b$.
+
+\Graphic{images/2023-02-28/dh_tuple_proof.png}{0.7}
+
+The prover will randomly sample $r\sampledfrom \ZZ_q$ and send to the verifier $A:=g^r$ and $B:=h^r$. The verifier randomly samples \emph{challenge} $\sigma \sampledfrom \{0, 1\}$, and sends this challenge bit to the prover. The prover will respond with $s := \sigma\cdot b + r\pmod{q}$. If the challenge bit was $0$, $s = r$ and the verifier verifies $A = g^S$ and $B = h^S$. If the challenge bit was $1$, $s = b + r$ and the verifier verifies $u\cdot A = g^s$ and $v\cdot B = h^S$.
+
+\textbf{Completeness:} If this statement is true, the prover will be able to convince the verifier since they have knowledge of $b$.
+
+\textbf{Soundness:} Show that if the prover does not have $b$, the probability that they send a valid $S = \sigma b + r \mod q$ is negligible. The prover can be malicious and does not have to follow the protocol. In the first round, they do not have to send $A = g^r, B = h^r$, but they can send $A = g^{r_1}, B= h^{r_2}$.
+
+\textbf{Proof of Knowledge:} Formally, $\exists \mathrm{PPT}\ E$ (called \emph{extractor}) such that $\forall P^*$ (potentially dishonest prover), $\forall x$,
+\[\Pr[E^{P^*(\cdot)}(x) \text{ outputs }w\text{ s.t. }(x, w)\in R_L] \simeq \Pr[P^*\leftrightarrow V(x)\text{ outputs }1].\]
+This is to say, the probability that the extractor can extract a witness is computationally indistinguishable from the probability of the prover successfully proving $x\in R_L$.
+
+An extractor, interacting with a prover (not necessarily honest), should be able to \emph{extract} the witness $w$ out of its communication with the prover, with the additional power that it can rewind the prover.
+
+\Graphic{images/2023-03-02/dh_extractor.png}{0.75}
+
+The extractor can first pick $\sigma = 0$, which gives them $s$ such that $A = g^s, B = h^s$. Then, the extractor rewinds the protocol and issues challenge $\sigma' = 1$, gaining $s'$ such that $u\cdot A = g^{s'}$ and $v\cdot B = h^{s'}$.
+
+Then, $u = g^{s-s'}$ and $v = h^{s-s'}$, combining these they can extract valid $b = s-s'\pmod{q}$. If the prover can always convince the verifier, then the extractor will always be able to extract the witness $w$.
+
+\textbf{Honest-Verifier Zero-Knowledge}
+
+\[\exists\PPT\ S\text{ s.t. }\forall(x, w)\in R_L, \mathrm{View}_V(P(x, w)\leftrightarrow V(x))\simeq S(x)\]
+
+We want to ensure that the verifier does not know anything about the witness. 
+
+\subsubsection{Non-Interactive Zero-Knowledge (NIZK) Proofs}
+\Graphic{images/2023-03-07/sigma.png}{0.75}
+These all fall under a class called Sigma Protocols (they look like a capital $\Sigma$). A prover will first commit to some $A$, the verifier issues a challenge $\sigma$, then the prover will provide a proof corresponding to their $A$ and $\sigma$.
+
+What if we wanted to condense it into a protocol that was \emph{non-interactive}, and only relies on the prover sending \emph{one} round of `proof' to the verifier.
+
+\Graphic{images/2023-03-07/nizk.png}{0.75}
+
+Completeness and soundness are the same. What about our previous definition of zero-knowledge? For all verifiers, will the simulator be able to simulate the one-way transcript? This is equivalent to the simulator being able to prove the statement itself\footnote{This is generally impossible! For example, a NIZK for the DH tuple that satisfies Zero-Knowledge breaks the Decisional Diffie-Hellman assumption.
+
+    For the sake of contradiction, say we had such a simulator. To distinguish whether $(g^a, g^b, g^c)\overset{c}{\simeq}(g^a, g^b, g^{ab})$, we can feed this to the simulator to get a proof, and check with the verifier whether the proof is valid. The proof is valid if and only if it is a valid tuple. This contradicts DDH. Such a simulator had better not exist. }. Since there is only one round, the simulator `loses' its ability to rewind the prover and verifier. In the plain model, we cannot achieve a NIZK proof.
+
+To make NIZK proofs possible, there are a few models available to us.
+
+\begin{mdframed}[style=mdgreenbox]
+    \begin{description}
+        \item[Common Random String/Common Reference String (CRS):] There is a trusted third-party that both parties have access to, who generates a shared reference string.
+
+            The power that we give to the simulator is that the simulator is allowed to generate this random/reference string together with the proof. This should be indistinguishable against the real-world.
+
+            In reality, the CRS can be generated in a \emph{key ceremony} between parties such that no party can interfere with the generated key.
+
+    \end{description}
+    \Graphic{images/2023-03-07/crs.png}{0.75}
+    \emph{There are some formal proof definitions of Zero-Knowledge, etc elided here but are in the post-notes. }
+\end{mdframed}
+
+\begin{mdframed}[style=mdgreenbox]
+    \begin{description}
+        \item[Random Oracle (RO) Model:] The prover and verifier have access to a hash function and it is a random oracle (behaves as if it is a random function).
+
+            The additional power we give to the simulator is that they can control the behavior of the random oracle.
+    \end{description}
+    \Graphic{images/2023-03-07/rom.png}{0.75}
+\end{mdframed}
+
+\subsubsection{Fiat-Shamir Heuristic}\label{sec:mar7-fiat-shamir}
+We can convert any Sigma protocol into a NIZK under the random oracle model. Recall that the only thing that could have gone wrong is that $\sigma\sampledfrom D$ was not computed randomly. Instead of using a challenge from the verifier, the challenge becomes $\sigma: H(x||m_1)$, a hash of the transcript so far. Since both the prover and verifier have access to the hash function, the prover can generate a challenge for themselves. After that, the prover can generate response.
+
+A malicious verifier has no control over $\sigma$ now, so a malicious verifier cannot do anything more than seeing the proof. A malicious prover also cannot produce a valid $\sigma$ without committing to a $m_1$ first before receiving $\sigma$.
+
+We can transform any public-coin\footnote{Every message sent from the verifier is randomly sampled from a public domain distribution, as a challenge.} HVZK of arbitrary number of rounds into a NIZK using the Fiat-Shamir heuristic in the random oracle model.
+
+Every public coin challenge will become the hash of the transcript so far from a random oracle. This condenses the entire proof into a single message that can be sent to the verifier (and that a verifier at a later point in time can also verify).
+
+\begin{example}
+    The Fiat-Shamir Heuristic can also transform Schnorr's Identification Protocol into Schnorr's Signature Scheme in the RO model, such that it becomes a NIZK proof.
+
+    We have a cyclic group $\GG$ of order $g$, and generator $g$.
+
+    Public verification key $vk = g^a$, secret signing key $sk = a$.
+
+    We condense the Schnorr's Identification Protocol into a NIZK proof. To sign a message $m$:
+    \begin{enumerate}
+        \item prover samples $r \xleftarrow{\$} \ZZ_q$ and computes $A := g^r$
+        \item prover computes $\sigma := H(A||M)$
+        \item prover computes $s := \sigma * a + r \mod{q}$
+        \item prover sends $(A, s)$ to verifier
+        \item verifier checks $g^s \stackrel{?}{=} h^\sigma \cdot A$, which is true only if $h = g$
+    
+    \end{enumerate}
+\end{example}
+
+\subsection{Putting it Together: Anonymous Online Voting}
+
+\subsubsection{Homomorphic Encryption}
+Homomorphic encryption refers to encryption that allows for operations on the ciphertext corresponding to operations on the plaintext.
+
+For example, an additively homomorphic scheme has the property that
+\[\Enc(m_1) + \Enc(m_2) = \Enc(m_1 + m_2).\]
+Similarly for multiplicatively homomorphic schemes,
+\[\Enc(m_1) \cdot \Enc(m_2) = \Enc(m_1 \cdot m_2).\]
+
+\begin{example}[ElGamal Homomorphism]
+    Let's look at the ElGamal encryption scheme. We have a cyclic group $\GG$ with generator $g$, public key $pk$.
+    \begin{align*}
+        \Enc_{pk}(m_1) & =(g^{r_1}, pk^{r_1}\cdot m_1) \\
+        \Enc_{pk}(m_2) & =(g^{r_2}, pk^{r_2}\cdot m_2)
+    \end{align*}
+    We note that this is multiplicatively homomorphic (element-wise):
+    \[\Enc_{pk}(m_1)\cdot \Enc_{pk}(m_2) = (g^{r_1 + r_2}, pk^{r_1 + r_2}\cdot (m_1\cdot m_2)) = \Enc_{pk}(m_1\cdot m_2).\]
+    This gives us multiplicative homomorphism, but we want additive homomorphism (we want votes to add, not multiply).
+
+    We can consider exponential ElGamal, where the message is a power of $g$ (and exponents add).
+    \begin{align*}
+        \Enc_{pk}(m_1) & =(g^{r_1}, pk^{r_1}\cdot g^{m_1}) \\
+        \Enc_{pk}(m_2) & =(g^{r_2}, pk^{r_2}\cdot g^{m_2})
+    \end{align*}
+    then
+    \[\Enc(m_1)\cdot \Enc(m_2) = (g^{r_1 + r_2}, pk^{r_1 + r_2}\cdot g^{m_1\cdot m_2}) = \Enc(m_1 + m_2).\]
+    but how do we recover the message? We can decrypt (normally) to get $g^{m_1 + m_2}$, but solving for $m_1 + m_2$ is \emph{hard}, since it is a discrete log.
+
+    However, we're using this in the context of online voting. If $m\in \{0, \dots, n\}$ for $n$ the total number of voters (some polynomial range). This is fine for our uses!\framedfootnote{Normally, we talk about exponents from exponentially large sizes. Here, we can solve the discrete log since $n$ is quite small.}
+\end{example}
