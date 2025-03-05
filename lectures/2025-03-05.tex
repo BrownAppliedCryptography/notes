@@ -1,0 +1,292 @@
+%!TEX root = ../notes.tex
+\section{March 5, 2025}
+\label{20250305}
+
+This lecture we will continue our discussion on zero-knowledge proofs for OR statements, discuss RSA blind signature, and put it all together for anonymous online voting. Then we will discuss prime-order groups and more example of sigma protocols.
+
+\subsection{Blind Signature}
+
+As a recap, in the voting framework, each voter receives a $\sigma_i$ (certificate $\text{cert}_i$) from the Registrar, which is eventually published by the Tallyer. The Registrar is able to figure out who is voting, since they know exactly which signatures have been issued to the voters. To hide this information from the Registrar, we introduce something called blind signatures. This is a new idea this semester, and is used in practice.
+
+\pseudocodeblock{
+    \textbf{Signer} \< \< \textbf{Requester}\\
+    (\vk, \sk) \gets \text{Gen}(1^\lambda) \< \< (m', r) \gets \text{Blind}(m)\\
+    \< \sendmessageleft*{m'}\< \\
+    \sigma' \gets \text{SignBlind}_\sk (m') \< \< \\
+    \< \sendmessageright*{\sigma'} \< \sigma = \text{Unblind}(\sigma', r) \\
+    \< \< \text{Vrfy}_{\vk} (m, \sigma) = 1
+}
+
+If the Signer sees $\sigma$ after this protocol, they will be unable to recognize if they signed it before.
+
+\subsection{RSA Blind Signature}
+
+\pseudocodeblock{
+    \textbf{Signer} \< \< \textbf{Requester}\\
+    (\vk, \sk) \gets \text{Gen}(1^\lambda) \< \< \text{Blind}(m):\\
+    \< \< r \sample \ZZ_N^*\\
+    \< \< m': = H(m) \cdot r^e \mod N\\
+    \< \sendmessageleft*{m'}\< \\
+    \text{SignBlind}_\sk (m'): \< \< \\
+    \sigma' := (m')^d \< \< \\
+    \< \sendmessageright*{\sigma'} \< \text{Unblind}(\sigma', r)\\
+    \< \< \sigma := \sigma ' \cdot r^{-1} \mod N\\
+    \< \< \text{Vrfy}_{\vk} (m, \sigma) = 1
+}
+
+Notice that 
+\begin{align*}
+    \sigma' &= (m')^d\\
+    &= (H(m)\cdot r^e)^d\\
+    &= H(m)^d \cdot r^{ed}\\
+    &= H(m)^d \cdot r \mod N
+\end{align*}
+
+Thus $\sigma := \sigma' \cdot r^{-1} = H(m)^d \mod N$.
+
+% \subsection{Example: Diffie-Hellman Tuple}
+
+% We give a brief recap of Diffie-Hellman tuple.
+
+% \textbf{Input:} Cyclic group $G$ of order q (prime), generator $g$, (h, u, v)
+
+% \textbf{Statement:} We want to prove that (h, u, v) is a Diffie-Hellman Tuple.
+
+% \textbf{Witness:} $b$ such that $u = g^b \wedge v = h^b$.
+
+% \textbf{Language:} $R_L = \{ (h, u, v), b\}$
+
+% \pseudocodeblock{
+%     \textbf{Prover} \< \< \textbf{Verifier} \\
+%     r \sample \ZZ_q \< \sendmessageright*{A = g^r, B = h^r} \< \\
+%     \< \sendmessageleft*{\sigma} \< \sigma \sample \ZZ_q\\
+%     \< \sendmessageright*{s = \sigma \cdot b + r ( \mod q )} \< \text{Verify:} \\
+%     \< \< g^s = u^\sigma \cdot A\\
+%     \< \< h^s = v^\sigma \cdot B
+% }
+
+% We showed completeness, proof of knowledge, and zero-knowledge in previous lectures.
+
+% \subsection{Fiat-Shamir Heuristic}
+
+% We give a brief recap on Fiat-Shamir. Non-interactive zero-knowledge proof in a random oracle model. 
+
+% \pseudocodeblock{
+%     \textbf{Prover} \< \< \textbf{Verifier} \\
+%     \text{Input:} (X, W) \< \< \text{Input:} X\\
+%     \< \sendmessageright*{m_1} \< \\
+%     \< \sendmessageleft*{\sigma := H(x || m_1)} \> \\
+%     \< \sendmessageright*{m_2} \> \text{Verify}\\
+% }
+
+\subsection{Anonymous Online Voting}
+
+Here is a recap of the voting framework.
+
+\Graphic{images/2025/framework.png}{0.8}
+We have some servers:
+\begin{description}
+    \item[Registrar.] For a voter to be able to vote, they register with the Registrar to obtain a certificate to vote. They get a certificate for their verification key.
+    \item[Arbiters.] The arbiters will generate the threshold encryption keys. There will be $t$ arbiters and each will have their $(pk_i, sk_i)$. They all reveal $pk_i$ to the public, so that everyone can compute the full public key $pk$.
+    \item[Voter.] The voter, using the public key, will encrypt $v_i \in\{0, 1\}$. The voter will sign this vote using their signing key. They will send this vote to the Tallyer.
+    \item[Tallyer.] The tallyer will check that the signature is valid and the user has not voted before. Then, they will strip the signature and output $\Enc_{pk}(v_1), \dots, \Enc_{pk}(v_i), \dots, \Enc_{pk}(v_n)$.
+\end{description}
+
+% \subsection{Correctness of Encryption}
+% We want voters to prove that their encryption is either of $0$ or $1$. We're in group $\GG$ with order $q$ and generator $g$. We have public key $pk\in \GG$, and ciphertext $c = (c_1, c_2)$. We're trying to prove the statement ``$c$ is an encryption of $0$ $\mathsf{OR}$ $c$ is an encryption of $1$.''
+
+% Our languages are then encryptions of $0$ and encryptions of $1$:
+% \begin{align*}
+%     R_{L_0} & = \{(\smallunderbrace{(pk, c_1, c_2)}_{x}, \smallunderbrace{r}_{\text{witness}}) : c_1 = g^r\land c_2 = pk^r\}        \\
+%     R_{L_1} & = \{(\smallunderbrace{(pk, c_1, c_2)}_{x}, \smallunderbrace{r}_{\text{witness}}) : c_1 = g^r\land c_2 = pk^r\cdot g\}
+% \end{align*}
+% where $r$ is our private key. Using this, we can prove that $c$ is an encryption of $0$ ($c_2 = pk^r$) or $c$ is an encryption of $1$ ($c_2 = pk^r\cdot g$).
+
+% In both languages, $x$ gives us a Diffie-Hellman tuple.
+
+% \subsection{Proving OR Statement}
+
+% In proving OR statements, we have a language like
+% \[ R_{OR} = \{ ((x_1, x_2), w): (x_1, w) \in R_{L_1} \vee (x_2, w) \in R_{L_2} \} \]
+
+% To prove $R_{OR}$, we know that both languages $R_{L_1}$ and $R_{L_2}$ works with a sigma protocol. The prover is going to send $(A_1, B_1)$ for the first language and $(A_2, B_2)$ for the second language, pretending that both are correct. The verifier sends a challenge $\sigma \gets \mathbb{Z}_q$. The prover separates $\sigma$ into $\sigma_1$ and $\sigma_2$, and computes responds $S_1, S_2$ for $\sigma_1, \sigma_2$ respectively. Then the verifier will verify that $\sigma = \sigma_1 + \sigma_2$, as well as the responses $((A_1, B_1), \sigma_1, S_1)$ and $((A_2, B_2), \sigma_2, S_2)$.
+
+% \pseudocodeblock{
+%     \textbf{Prover} \< \< \textbf{Verifier}\\
+%     \< \sendmessageright*{(A_1, B_1), (A_2, B_2)} \< \\
+%     \< \< \sigma \sample \ZZ_q \\
+%     \< \sendmessageleft*{\sigma} \< \\
+%     \text{Split } \sigma = \sigma_1 + \sigma_2 (\mod q)\< \< \\
+%     \< \sendmessageright*{(\sigma_1, S_1), (\sigma_2, S_2)} \< \text{Verify:}\\
+%     \< \< ((A_1, B_1), \sigma_1, S_1)\\
+%     \< \< ((A_2, B_2), \sigma_2, S_2)\\
+%     \< \< \sigma = \sigma_1 + \sigma_2 (\mod q)
+% }
+
+% When the Prover splits $\sigma = \sigma_1 + \sigma_2$, we can either randomly sample $\sigma_1$ and then compute $\sigma_2$ or randomly sample $\sigma_2$ and then compute $\sigma_1$. However, in either case, they follow the same distribution. Both statements can be verified, and to the verifier, either statement can be true. This is desirable since we want to hide from the verifier which is true.
+
+% \textbf{Completeness:} We rely on the two separate protocols that generate $(A_1, B_1)$ and $(A_2, B_2)$ to be complete.
+
+% \textbf{Honest-Verifier Zero Knowledge:} We want to show that the entire three round protocol can be simulated by the Verifier. First, sample $\sigma$, then simulate $(\sigma_1, S_1)$. Compute $(A_1, B_1)$, then $(\sigma_2, S_2)$, then $(A_2, B_2)$.
+
+% \textbf{Proof of Knowledge:} We want to show that an Extractor can extract from the Prover a $w$ such that $(x_1, w) \in R_{L_1} \vee (x_2, w) \in R_{L_2}$. The extractor will rewind, sending new challenge $\sigma'$ and receiving new response $(\sigma'_1, S'_1), (\sigma'_2, S'_2)$. If $\sigma_1 \neq \sigma_1'$, then we can extract $w$ from the transcript $((A_1, B_1), \sigma_1, S_1)$ and $((A_1, B_1), \sigma_1', S_1')$. If $\sigma_2 \neq \sigma_2'$, we can do the same for the other transcript.
+
+\subsection{Multiple Candidates}
+
+Recall earlier when we talked about homomorphic encryption, each voter has encrypts their vote $v_i \in \{0, 1\}$. This works if we have only two candidates. What if we want to have multiple candidates? Then, we need $v_i \in \{0, 1, \dots, t-1\}$. Furthermore, $\text{Enc}(\sum v_i)$ no longer gives us the majority vote.
+
+One idea is for each of the $t$ candidates, we use 0/1 voting. Every voter votes for each candidate, yes or no, and then the votes are summed and decrypted as in two candidate voting. This gives something like an ``approval rating'' for each candidate, where voters can vote for multiple candidates.
+
+% If you are only allowed to vote for at most one candidate, we will need to use a different scheme. To detect double voting, we can sum all votes for a single user and add a ZKP that the sum is an encryption of 0 or 1. This way, we can detect if a user has voted for multiple candidates.
+
+% SECTION BREAK
+% \subsection{Prime-Order Groups}
+
+% Let $G$ be a finite group of order $m$ (not necessarily prime). Recall that $\forall g \in G, \langle g \rangle := \{ g^0, g^1, \dots, g^{m-1}\}.$ This is a subgroup of $G$ of order $|\langle g\rangle |$. If $g^m = 1$, then $|\langle g \rangle |$ divides $m$.
+
+% \begin{definition}
+%     A prime $p$ is a safe prime if $p = 2q + 1$ and $q$ is a prime.
+% \end{definition}
+
+% \begin{lemma}
+%     $\ZZ_p^*$ is a cyclic group of order $m = p-1 = 2q$. Consider subgroup $\langle g \rangle$ for $g \in \ZZ_p^*$. The order of $g$ must either be $2, q, 2q$.
+% \end{lemma}
+ 
+% \begin{example}
+%     $p=7$ is a safe prime. Some subgroups $\langle g \rangle$ include
+%     \begin{align*}
+%         \langle 3 \rangle &= \{1, 3, 2, 6, 4, 5\} \\
+%         \langle 2 \rangle &= \{ 1, 2, 4\} \\
+%         \langle 6 \rangle &= \{1, 6\}
+%     \end{align*}
+
+%     The order of all of these subgroups is either $2, 3, 6$ which are all divisors of $m = p-1 = 6$.
+% \end{example}
+
+
+\subsection{More Examples of Sigma Protocols}
+
+\begin{remark}
+The following are examples of sigma protocols. We do not go in depth in lecture, and we do not expect you to study these examples thoroughly at all - they are just examples of what ZKPs can look like besides the ones we have seen so far.
+\end{remark}
+
+\begin{example}[Okamoto's Protocol for Representation]
+
+This is similar to Diffie-Hellman, except there are two group elements as input $(h, u)$ instead of 3. Now we want to prove that $u = g^a h^b$.
+
+The protocol is also similar to the Diffie-Hellman example, except the Prover will sample two random integers instead of one. One corresponds to $a$, and the other corresponds to $b$.
+
+\textbf{Input:} Cyclic group $G$ of order $q$, generator $g, h, u$.
+
+\textbf{Witness:} $(a, b)$
+
+\textbf{Language:} $R_{L} = \{ ((h, u), (a, b)): u = g^a h^b\}$
+
+\pseudocodeblock{
+    \textbf{Prover} \< \< \textbf{Verifier} \\
+    r_1 \sample \ZZ_q \< \< \\
+    r_2 \sample \ZZ_q \< \sendmessageright*{A = g^{r_1}h^{r_2} \mod q} \< \\
+    \< \sendmessageleft*{\sigma}\< \sigma \sample \ZZ_q\\
+    \< \sendmessageright*{S_1 = \sigma \cdot a + r_1 \mod q\\ S_2 = \sigma \cdot b + r_2 \mod q} \< \\
+    \< \< \text{Verify:}\\
+    \< \< g^{s_1}\cdot h^{s_2} = u^\sigma \cdot A\\
+}
+
+For completeness, you can do the math and everything works out. It is saying that if both parties are honest, following the protocol, it will be verified. Proof of Knowledge was not covered in lecture, but it is similar to the examples covered in before lectures. Honest-Verifier Zero-Knowledge can be proved by considering the entire transcript, which can be simulated by a simulator without knowing the witness $(a, b)$. The intuition is the same as before. You change the order of the messages. For example, sample $\sigma, S_1, S_2$ randomly in that order, then compute $A$, and that will be the exactly the same distribution as the reward.
+
+\end{example}
+
+\begin{example}[Arbitrary Linear Equations]
+
+\textbf{Input:} Cyclic group $G$ of order $q$, generator $g, h, u, v$.
+
+\textbf{Witness:} $(a, b, c)$
+
+\textbf{Language:} $R_L = \{ ((h, u, v), (a, b, c)): u = g^a h^b\ \wedge\ h = u^a v^b g^c\}$
+
+The idea for the protocol is the same as before. We sample random $r_1, r_2, r_3$ which correspond to $a, b, c$ respectively. $A$ corresponds to $u = g^ah^b$ and $B$ corresponds to $h = u^a v^b g^c$. Note that everything in the diagram is taken modulo $q$.
+
+\pseudocodeblock{
+    \textbf{Prover} \< \< \textbf{Verifier}\\
+    r_1, r_2, r_3 \sample \ZZ_q \< \< \\ 
+    \< \sendmessageright*{A = g^{r_1}h^{r_2}\\ B = u^{r_1}v^{r_2}g^{r_3}}\\
+    \< \sendmessageleft*{\sigma} \< \sigma \sample \ZZ_q \\
+    \< \sendmessageright*{S_1 = \sigma \cdot a + r_1\\ 
+    S_2 = \sigma \cdot b + r_2\\
+    S_3 = \sigma \cdot c + r_3} \< \\
+    \< \< \text{Verify:}\\
+    \< \< g^{S_1} h^{S_2} = u^\sigma \cdot A\\
+    \< \< u^{S_1} v^{S_2} g^{S_3} = h^\sigma \cdot B\\
+}
+
+Completeness follows from assuming that the prover and verifier honestly follow the protocol, and we can confirm by following the math that it will be verified correctly. Proof of Knowledge is saying that we can extract knowledge from the prover. An Extractor will run the protocol with the Prover once, and then rewind and run the protocol again with a different challenge $\sigma '$. You can do this exercise offline. For Honest-Verifier Zero-Knowledge, the entire protocol can be simulated by a simulator without knowing the witness by changing the order of the messages. In particular, you can first sample $\sigma$ and then sample $S_1, S_2, S_3$ randomly, which can be done because these numbers are random because of $r_1, r_2, r_3$, then compute $A, B$.
+
+This example is similar to the previous example, except we have $h = u^a v^b g^c$ added to $u = g^ah^b$. In general, we can keep extending this language to an arbitrary number of equations of this form. 
+
+\end{example}
+
+\subsection{Zero-Knowledge Proof for Graph 3-Coloring (All NP)}
+
+\begin{remark}
+    As long as you can verify a proof in polynomial time, you can construct a sigma protocol for any NP language, it is possible to construct a ZKP using 3-coloring. While this is theoretically very interesting, in practice, it is more efficient to use a more optimized ZKP.
+\end{remark}
+
+Given a graph $G$, with vertices and edges, let the language be defined as the set of all graphs that have a 3-coloring. This is an NP language given by $L = \{ G: G \text{ has 3-coloring}\}$. The NP relation is $R_L = \{ (G, \text{3Col})\}$. 
+
+Recall that a graph has 3-coloring if it is possible to color each vertex from a set of 3 colors such that adjacent vertices have different colors. This is the statement we will be trying to prove. For example, below is a graph with a three coloring.
+
+\begin{center}
+\begin{tikzpicture}
+\SetGraphUnit{2}
+\Vertices{circle}{A,B,C,D,E}
+\Edges(B,C,D,E,A,C,E,B)
+\AddVertexColor{red}{B,D,A}
+\AddVertexColor{blue}{C}
+\AddVertexColor{green}{E}
+\end{tikzpicture}
+\end{center}
+
+Now we construct a proof without revealing the 3 coloring. Both the Prover and the Verifier can see the graph structure, but only the Prover can see the coloring. The Prover wants to prove that the graph is 3 colorable without revealing the coloring.
+
+First, the Prover will hide all of the colors in the 3 coloring. Say that the Prover covers up each vertex with a piece of paper. They can color in the coloring, but after the paper goes down, the coloring cannot be modified. There is a way to do this cryptographically, which we will discuss later.
+
+Next, the Verifier will give a random challenge, for example, choose two adjacent vertices. The Prover will reveal their colors, and show that they are different colors. Doing so will reveal the colors of some vertices, which is undesirable. Instead, we can map the original colors to a different set of colors each time, so that whichever colors are revealed are random. We keep the set of colors the same. For example, we can remap the colors as follows.
+\begin{align*}
+    \text{blue} &\to \text{red}\\
+    \text{red} &\to \text{blue}\\
+    \text{green} &\to \text{red}
+\end{align*}
+
+Checking one edge is not sufficient for the Verifier to be convinced that the graph is 3-colorable. If $G \notin L$, i.e. the graph is not 3-colorable, the probability that the Prover is caught is $\Pr [P^* \text{ is caught}] \geq 1 / |E| $. This is because if the graph is not 3-colorable, then there exists at least 1 edge whose vertices have the same color. The probability of the Verifier picking this edge is $1 / |E|$. There is some probability of catching the Prover, so we can amplify this, i.e. amplifying soundness.
+
+One way to do this is for the Verifier to choose multiple edges. Then the Prover must remap the colors to avoid revealing the original coloring. The process is as follows: the Prover remaps the colors, then the Verifier chooses and edge, and the Prover reveals the colors of the vertices on that edge to show that they have distinct colors. This repeats multiple times, with the Prover remapping the colors randomly each time.
+
+The Verifier is allowed to choose the same edge in multiple iterations. If the graph is not 3-colorable, the Prover might try to cheat by setting two adjacent vertices with the same color after they have been checked. Thus, the Verifier may want to check the same edge again to ensure that the Prover does not do so.
+
+If we repeat this $n$ times, the probability that the Prover $P^*$ survives (not caught) is $$\Pr [P^* \text{ survives}] \leq (1 - 1 / |E|)^n.$$
+If we pick $n  = \lambda|E|$, then 
+\begin{align*}
+    \Pr [P^* \text{ survives}] &\leq (1 - 1 / |E|)^{\lambda |E|} \\
+    &\approx (1 / e)^\lambda.
+\end{align*}
+
+\subsection{Commitment Scheme}
+
+In the earlier 3-coloring example, the Prover places down a piece of paper on each of the vertices so that the color is hidden and cannot be modified. We discuss a cryptographic protocol that can achieve this, which is called a commitment scheme.
+
+\pseudocodeblock{
+    \textbf{Sender} \< \< \textbf{Receiver} \\
+    m \in \{0, 1\} \< \< \\[2mm][\hline]
+    \text{Commit:} \< \< \\
+    r \sample \{0, 1\}^\lambda \< \< \\
+    c : = \text{Com}(m; r) \< \sendmessageright*{c} \< \\[2mm][\hline]
+    \text{Open:} \< \< \\
+    \< \sendmessageright*{(m, r)} \< \text{Verify:} \\
+    \< \< c = \text{Com}(m; r)\\
+}
+
+There are two properties with this scheme:
+\begin{itemize}
+    \item \textbf{Hiding:} The commitment of 0 is roughly the same as the commitment of 1, i.e. $\text{Com}(0; r) \approx \text{Com}(1; s)$.
+    \item \textbf{Binding:} If one has committed to some message, then later on they can only open up to the message that they have committed. They cannot open up do something else. In other words, it is hard to find $r, s$ such that $\text{Com}(0;r) = \text{Com}(1;s)$.
+\end{itemize}
