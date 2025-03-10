@@ -1,0 +1,244 @@
+%!TEX root = ../notes.tex
+\section{March 10, 2025}
+\label{20250310}
+
+This lecture we cover more examples of sigma protocols, zero-knowledge proofs for All NP, and Succinct Non-Interactive Arguments (SNARGs).
+
+
+\subsection{Zero-Knowledge Proof for Graph 3-Coloring (All NP)}
+
+Given a graph $G$, with vertices and edges, let the language be defined as the set of all graphs that have a 3-coloring. This is an NP language given by $L = \{ G: G \text{ has 3-coloring}\}$. The NP relation is $R_L = \{ (G, \text{3Col})\}$. 
+
+Recall that a graph has a k-coloring if it is possible to color each vertex from a set of k colors such that adjacent vertices have different colors. For example, below is a graph with a three coloring.
+
+\begin{center}
+\begin{tikzpicture}
+\SetGraphUnit{2}
+\Vertices{circle}{A,B,C,D,E}
+\Edges(B,C,D,E,A,C,E,B)
+\AddVertexColor{red}{B,D,A}
+\AddVertexColor{blue}{C}
+\AddVertexColor{green}{E}
+\end{tikzpicture}
+\end{center}
+
+Now we construct a proof without revealing the 3 coloring. Both the Prover and the Verifier can see the graph structure, but only the Prover can see the coloring. The Prover wants to prove that the graph is 3 colorable without revealing the coloring.
+
+First, the Prover will hide all of the colors in the 3 coloring. Say that the Prover covers up each vertex with a piece of paper. They can color in the coloring, but after the paper goes down, the coloring cannot be modified. There is a way to do this cryptographically, which we will discuss later.
+
+Next, the Verifier will give a random challenge, for example, choose two adjacent vertices. The Prover will reveal their colors, and show that they are different colors. Doing so will reveal the colors of some vertices, which is undesirable. Instead, we can map the original colors to a different color, so that whichever colors are revealed are random. We keep the set of colors the same. For example, we can remap the colors as follows.
+\begin{align*}
+    \text{blue} &\to \text{red}\\
+    \text{red} &\to \text{blue}\\
+    \text{green} &\to \text{red}
+\end{align*}
+
+Checking one edge is not sufficient for the Verifier to be convinced that the graph is 3-colorable. If $G \notin L$, i.e. the graph is not 3-colorable, the probability that the Prover is caught is $\Pr [P^* \text{ is caught}] \geq 1 / |E| $. This is because if the graph is not 3-colorable, then there exists at least 1 edge whose vertices have the same color. The probability of the Verifier picking this edge is $1 / |E|$. There is some probability of catching the Prover, so we can amplify this, i.e. amplifying soundness.
+
+One way to do this is for the Verifier to choose multiple edges. Then the Prover must remap the colors to avoid revealing the original coloring. The process is as follows: the Prover remaps the colors, then the Verifier chooses and edge, and the Prover reveals the colors of the vertices on that edge to show that they have distinct colors. This repeats multiple times, with the Prover remapping the colors randomly each time.
+
+The Verifier is allowed to choose the same edge in multiple iterations. If the graph is not 3-colorable, the Prover might try to cheat by setting two adjacent vertices with the same color after they have been checked. Thus, the Verifier may want to check the same edge again to ensure that the Prover does not do so.
+
+If we repeat this $n$ times, the probability that the Prover $P^*$ survives (not caught) is $$\Pr [P^* \text{ survives}] \leq (1 - 1 / |E|)^n.$$
+If we pick $n  = \lambda|E|$, then 
+\begin{align*}
+    \Pr [P^* \text{ survives}] &\leq (1 - 1 / |E|)^{\lambda |E|} \\
+    &\approx (1 / e)^\lambda.
+\end{align*}
+
+\subsection{Commitment Scheme}
+
+In the earlier 3-coloring example, the Prover places down a piece of paper on each of the vertices so that the color is hidden and cannot be modified. We discuss a cryptographic protocol that can achieve this, which is called a commitment scheme.
+
+\pseudocodeblock{
+    \textbf{Sender} \< \< \textbf{Receiver} \\
+    m \in \{0, 1\} \< \< \\[2mm][\hline]
+    \text{Commit:} \< \< \\
+    r \sample \{0, 1\}^\lambda \< \< \\
+    c : = \text{Com}(m; r) \< \sendmessageright*{c} \< \\[2mm][\hline]
+    \text{Open:} \< \< \\
+    \< \sendmessageright*{(m, r)} \< \text{Verify:} \\
+    \< \< c = \text{Com}(m; r)\\
+}
+
+There are two properties with this scheme:
+\begin{itemize}
+    \item \textbf{Hiding:} The commitment of 0 is roughly the same as the commitment of 1, i.e. $\text{Com}(0; r) \approx \text{Com}(1; s)$.
+    \item \textbf{Binding:} If one has committed to some message, then later on they can only open up to the message that they have committed. They cannot open up do something else. In other words, it is hard to find $r, s$ such that $\text{Com}(0;r) = \text{Com}(1;s)$.
+\end{itemize}
+
+\begin{example}[Hash-based commitment]
+Randomly sample $r \sample \{0, 1\}^\lambda$. Then the commitment is $\text{Com}(m;r) := H(r || m)$ for a hash $H$. The hash is modeled as a random oracle.
+
+This commitment scheme is \textbf{hiding} because the hash function output appears random. The \textbf{binding} property follows from collision resistance of $H$, which means that it is hard to find two inputs that give the same output.
+
+\end{example}
+
+\begin{example}[Pedersen Commitment]
+Take a cyclic group $G$ with order $q$ and generator $g$. Let $h \sample G$ for $h = g^x$ where $x$ is hidden to the sender. $h$ can be generated by the receiver. Then randomly sample $r \sample \ZZ_q$ and the commitment is $\text{Com}(m;r) = g^m \cdot h^r.$
+
+\textbf{Hiding} holds because $h^r$ appears as a random group element, so $g^m \cdot h^r$ is random and can be any group element since $g$ is a generator, sort of like a one-time pad.
+
+\textbf{Binding} follows from the discrete log assumption. If we find two $r_0, r_1 \sample \ZZ_q$ with $\text{Com}(0;r_0) = \text{Com}(1;r_1)$, then
+
+\begin{align*}
+    g^0 \cdot h^{r_0} &= c = g^1 \cdot h^{r_1}\\
+    h ^{r_0 - r_1} &= g\\
+    h &= g^{(r_0 - r_1)^{-1}}
+\end{align*}
+
+which essentially solves the Discrete Log problem, which is assumed to be hard. Thus, it is hard to find two such $r_0, r_1$.
+
+\end{example}
+
+\subsection{Zero-Knowledge Proof for Graph 3-Coloring}
+
+Now we give a protocol for a Zero-Knowledge Proof for Graph 3-Coloring.
+
+\textbf{Input:} Graph $G = (V, E)$ with vertices $V$ and edges $E$.
+
+\textbf{Witness:} A coloring $\phi : V \to \{0, 1, 2\}$ that assigns vertices to colors 1, 2, 3.
+
+\pseudocodeblock{
+    \textbf{Prover} \< \< \textbf{Verifier}\\
+    \text{Randomly sample }\pi : \{0, 1, 2\} \to \{0, 1, 2\} \< \< \\
+    \forall v \in V, r_v \sample \{0, 1\}^\lambda, c_v : = \text{Comm}(\pi(\phi(V)); r_v) \< \< \\
+    \< \sendmessageright*{\{c_v\}_{v\in V}} \< \\
+    \< \< \text{Randomly pick an edge }(u, v) \in E\\
+    \< \sendmessageleft*{(u, v)} \< \\
+    \text{Open commitments }C_u \text{ and }C_v \< \< \\
+    \< \sendmessageright*{
+        \alpha = \pi(\phi(u)), r_u\\
+        \beta = \pi(\phi(v)), r_v
+    } \< \text{Verify:}\\
+    \< \< C_u = \text{Comm}(\alpha; r_u)\\
+    \< \< C_v = \text{Comm}(\beta; r_v)\\
+    \< \< \alpha, \beta \in \{0, 1, 2\}, \alpha \neq \beta
+}
+
+This lets us prove all \textsf{NP} languages---we can do a reduction to the 3-coloring and prove it that way. In reality, this is expensive and merely a theoretical result.
+
+\subsection{Circuit Satisfiability}
+In reality, many choose another \textsf{NP}-complete language, the circuit satisfiability problem. The language considers an arbitrary boolean circuit which consists of \textsf{AND}, \textsf{XOR} gates. The input are certain values $x$ for input values, and witnesses $w$ are the rest of the wires. The satisfiability problem is whether there exists some $w$ to make the circuit evaluate to $1$. Since the input can be any boolean circuit, this is adaptable and widely used in implementation.
+
+% \Graphic{images/2023-03-14/circuit_sat.png}{0.5}
+
+This circuit model is considered a lot.
+\begin{example}[Pre-Image of Hash Function]
+    The function is $\mathrm{C}(x,w) = H(w) - x + 1$. The circuit will output $1$ on $w$ such that $H(w) = x$. $w$ here is the pre-image of $x$.
+
+    This allows us to, say, represent SHA as a boolean circuit to prove the pre-image of a hash function.
+\end{example}
+
+The intuition of the zero-knowlege proof is similar. Let's say the prover has some input values. The prover will commit to the bit of every wire.
+
+% \Graphic{images/2023-03-14/circuit_sat.png}{0.5}
+
+For example, when a verifier asks to confirm a certain \textsf{XOR} gate, the prover will perform a \emph{small} zero-knowledge proof to prove that that gate was computed correctly. Composing commitments and using sigma protocols from before will allow us to gain the functionality we want.
+
+Let's say
+\begin{align*}
+    c_1 = \mathrm{Com}(x) \\
+    c_2 = \mathrm{Com}(y) \\
+    c_3 = \mathrm{Com}(z)
+\end{align*}
+and $x = y\oplus z$. Using a sigma-\textsf{OR} protocol, we can prove
+\[(y = 0, z = 0, x = 0)\ \mathsf{OR}\ (y = 0, z = 1, x = 1)\ \mathsf{OR}\ \cdots\]
+This allows us to do ZK-proofs for circuit satisfiability.
+
+\subsubsection{Proof Systems for Circuit Satisfiability}
+We discuss the proof systems so far for circuit satisfiability.
+
+% \Graphic{images/2023-03-14/circuit_sat_proof_systems.png}{0.5}
+
+The na\"ive proof is to reveal witness $w$. This is not zero-knowledge, but is non-interactive. Using $\Sigma$-protocols, we have zero-knowledge but not non-interaction. Using the Fiat-Shamir heuristic, we get both zero-knowledge and non-interaction.
+
+For the easiest \textsf{NP} proof, communication requires $O(|w|)$ complexity and the verifier verifies in $O(|c|)$ (linear in number of gates) complexity. For $\Sigma$-protocols, communication requires a commitment to each wire, which is $O(|c|\cdot \lambda)$ (needs a factor of $\lambda$ security parameter), and the verifier also verifies in $O(|c|\cdot \lambda)$. This is the same for NIZK.
+
+\begin{center}
+    \begin{tabular}{c|c|c|c}
+        & NP & $\Sigma$-Protocol & (Fiat-Shamir) NIZK \\
+        Zero-Knowledge & No & Yes & Yes\\
+        Non-Interactive & Yes & No & Yes\\
+        Communication & $O(|w|)$ & $O(|C|*\lambda)$ & $O(|C|*\lambda)$ \\
+        Verifier's computation & $O(|C|)$ & $O(|C|)$ & $O(|C|)$ \\
+    \end{tabular}
+\end{center}
+
+Even if we do our proof with the Fiat-Shamir heuristic, we will incur linear communication costs and computation costs. 
+\emph{Can we make this proof system more succinct?} In other words, can we have communication and verification complexity to be \emph{sublinear} in $|c|$ and $|w|$? In other words, would it be possible to design a protocol that is even more efficient than just sending each witness in the clear?
+
+\subsection{Succinct Non-Interactive Argument (SNARG)}
+This brings us to succinct arguments, which are seemingly not quite possible.
+\begin{definition}[Succinct Non-Interactive Arguments]
+    A non-interactive proof/argument system is \ul{succinct} if
+    \begin{itemize}
+        \item The proof $\pi$ is of length $|\pi| = \mathrm{poly}(\lambda, \log |c|)$.
+        \item The verifier runs in time $\mathrm{poly}(\lambda, |x|, \log|c|)$.
+    \end{itemize}
+\end{definition}
+Additionally, SNARKs are Succinct Non-Interactive Arguments of Knowledge. A zk-SNARG or zk-SNARK additionally guarantees zero-knowledge property.
+
+\emph{Why succinct proofs?} Here are some examples where we might want succinct proofs.
+\begin{example}[Verifiable Computation]
+    The client sends some $x$ to the server, along with function $f$. The server sends back $y = f(x)$ and a proof. The client wants to check if the computation was done correctly.
+
+    \pseudocodeblock{
+        \textbf{Server} \< \< \textbf{Client}\\
+            \< \sendmessageleft*{x} \< \\
+            \< \sendmessageleft*{\text{compute }f} \< \\
+            \< \sendmessageright*{y} \< \text{Check }y = f(x)
+    }
+
+    If we did not have succinct proofs, then the client would still have to run the function again to verify the output. Note this allows interactions, so this is not the go-to example.
+\end{example}
+\begin{example}[Anonymous Transactions on Blockchains]
+    We think of the blockchain as a public ledger. Say Alice wants to send 2 Bitcoin to Bob, Alice will sign the transaction using her signing key and add that transaction onto the ledger. All transactions are public, you know which addresses sent to which addresses.
+
+    \pseudocodeblock{
+        \textbf{Alice's Account A} \< \< \textbf{Bob's Account B}\\
+        \text{vk}_A \text{ (public)}, \text{sk}_A \text{ (private)} \< \sendmessageright*{2 \text{BTC (Bitcoin)}} \< \text{vk}_B \text{ (public)}, \text{sk}_B \text{ (private)}\\
+        \< \< \\[][\hline]
+        \textit{Transaction}\< \< \\
+        \sigma = \text{Sign}_{\text{sk}_A} (\text{vk}_A, \text{vk}_B, \text{2 BTC}) \< \sendmessageright*{\sigma}\< \\
+        \< \< \\[][\hline]
+        \textit{Anonymous Transaction} \< \< \\
+        \text{Com}(\sigma) \< \sendmessageright*{ }\< \\
+        \text{NIZK: valid transaction} \< \< \\
+    }
+
+    There's a lot of work to make transactions anonymous. We'll hide a transaction and hide it, and use a NIZK to prove that it is a valid transaction. We want these proofs to be non-interactive and succinct (we don't want users to spend too long doing verification). This is a major application of SNARK and zk-SNARK
+\end{example}
+
+\emph{Is it possible?} This remains as the large problem. Even in the na\"ive \textsf{NP} situation, we need to send the entire witness $w$ and check the entire witness.
+
+Enter probabilistically checkable proofs (PCP):
+
+The prover prepares a proof and the verifier will only need to check certain bits of the proof.
+
+\begin{theorem}[PCP Theorem, Informally]
+    Every \textsf{NP} language has a PCP where the verifier reads only a \emph{constant} number of bits of the proof, to gain constant soundness.
+\end{theorem}
+
+The intuition is for the prover to commit the entire proof, the verifier checks certain bits, and the prover opens commitments.
+
+
+The problem with this is that the first round message is not succinct (the commitment is just as long).
+
+Instead of committing linearly, we'll use a Merkle Tree, and only send the commitment/hash of the root node. We build up a binary tree where each node is the hash of its branches. Opening particular bits, the prover will send the root-to-leaf path along with siblings to prove that this opening was correct. This size will grow logarithmically with the size of the tree.
+
+\Graphic{images/2023-03-16/merkle.png}{0.7}
+
+We hash values in a tree format, with each parent node being the hash of its children. We only send the \emph{root note}. Whenever the verifier requests a certain bit, we send the path from the root to the bit (revealing all hashes, and siblings) to verify that this is indeed.
+
+It's very difficult to change any bit. If we changed a bit, at some point up the path of the tree we'll have found a collision for a hash. That is to say, a specific bit being correct is predicated on whether the path to the root is valid and the root hash matches.
+
+\emph{Can we make this hiding?} Right now, we don't guarantee the hiding property. If we only had one layer, every bit would be revealed. How can we modify this algorithm to ensure that each bit is hiding?
+
+One solution would be to add a random string $r$ as a sibling to every leaf. However, this would require us to reveal all siblings when we're verifying a certain leaf node. We can easily modify this to \emph{salt} \emph{every} leaf node. We can add some random $r_i$ to the hash of \emph{every} bit that hides those bits.
+
+Now, instead of sending a commitment of the entire proof, we send a Merkle Tree of the commitment of the proof. Then, when requested for certain bits $i, j, k$, we'll open those commitments as paths on the tree.
+
+\emph{Is this zero-knowledge?} Note that in the PCP theorem, we did not have the zero-knowledge property. Our solution is that when opening commitments, we can instead provide ZK proofs for our `reveals' instead of the actual bits themselves. Asymptotically, this still preserves our succinctness property.
+
+Theoretically, this lets us construct zk-SNARGs. In practice, there are more efficient ways to construct them, but we will not cover them now.
