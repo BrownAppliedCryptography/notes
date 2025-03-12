@@ -2,7 +2,7 @@
 \section{March 10, 2025}
 \label{20250310}
 
-This lecture we cover more examples of sigma protocols, zero-knowledge proofs for All NP, and Succinct Non-Interactive Arguments (SNARGs).
+This lecture we cover more examples of sigma protocols and zero-knowledge proofs for All NP.
 
 
 \subsection{Zero-Knowledge Proof for Graph 3-Coloring (All NP)}
@@ -168,77 +168,4 @@ For the easiest \textsf{NP} proof, communication requires $O(|w|)$ complexity an
 Even if we do our proof with the Fiat-Shamir heuristic, we will incur linear communication costs and computation costs. 
 \emph{Can we make this proof system more succinct?} In other words, can we have communication and verification complexity to be \emph{sublinear} in $|c|$ and $|w|$? In other words, would it be possible to design a protocol that is even more efficient than just sending each witness in the clear?
 
-\subsection{Succinct Non-Interactive Argument (SNARG)}
-This brings us to succinct arguments, which are seemingly not quite possible.
-\begin{definition}[Succinct Non-Interactive Arguments]
-    A non-interactive proof/argument system is \ul{succinct} if
-    \begin{itemize}
-        \item The proof $\pi$ is of length $|\pi| = \mathrm{poly}(\lambda, \log |c|)$.
-        \item The verifier runs in time $\mathrm{poly}(\lambda, |x|, \log|c|)$.
-    \end{itemize}
-\end{definition}
-Additionally, SNARKs are Succinct Non-Interactive Arguments of Knowledge. A zk-SNARG or zk-SNARK additionally guarantees zero-knowledge property.
-
-\emph{Why succinct proofs?} Here are some examples where we might want succinct proofs.
-\begin{example}[Verifiable Computation]
-    The client sends some $x$ to the server, along with function $f$. The server sends back $y = f(x)$ and a proof. The client wants to check if the computation was done correctly.
-
-    \pseudocodeblock{
-        \textbf{Server} \< \< \textbf{Client}\\
-            \< \sendmessageleft*{x} \< \\
-            \< \sendmessageleft*{\text{compute }f} \< \\
-            \< \sendmessageright*{y} \< \text{Check }y = f(x)
-    }
-
-    If we did not have succinct proofs, then the client would still have to run the function again to verify the output. Note this allows interactions, so this is not the go-to example.
-\end{example}
-\begin{example}[Anonymous Transactions on Blockchains]
-    We think of the blockchain as a public ledger. Say Alice wants to send 2 Bitcoin to Bob, Alice will sign the transaction using her signing key and add that transaction onto the ledger. All transactions are public, you know which addresses sent to which addresses.
-
-    \pseudocodeblock{
-        \textbf{Alice's Account A} \< \< \textbf{Bob's Account B}\\
-        \text{vk}_A \text{ (public)}, \text{sk}_A \text{ (private)} \< \sendmessageright*{2 \text{BTC (Bitcoin)}} \< \text{vk}_B \text{ (public)}, \text{sk}_B \text{ (private)}\\
-        \< \< \\[][\hline]
-        \textit{Transaction}\< \< \\
-        \sigma = \text{Sign}_{\text{sk}_A} (\text{vk}_A, \text{vk}_B, \text{2 BTC}) \< \sendmessageright*{\sigma}\< \\
-        \< \< \\[][\hline]
-        \textit{Anonymous Transaction} \< \< \\
-        \text{Com}(\sigma) \< \sendmessageright*{ }\< \\
-        \text{NIZK: valid transaction} \< \< \\
-    }
-
-    There's a lot of work to make transactions anonymous. We'll hide a transaction and hide it, and use a NIZK to prove that it is a valid transaction. We want these proofs to be non-interactive and succinct (we don't want users to spend too long doing verification). This is a major application of SNARK and zk-SNARK
-\end{example}
-
-\emph{Is it possible?} This remains as the large problem. Even in the na\"ive \textsf{NP} situation, we need to send the entire witness $w$ and check the entire witness.
-
-Enter probabilistically checkable proofs (PCP):
-
-The prover prepares a proof and the verifier will only need to check certain bits of the proof.
-
-\begin{theorem}[PCP Theorem, Informally]
-    Every \textsf{NP} language has a PCP where the verifier reads only a \emph{constant} number of bits of the proof, to gain constant soundness.
-\end{theorem}
-
-The intuition is for the prover to commit the entire proof, the verifier checks certain bits, and the prover opens commitments.
-
-
-The problem with this is that the first round message is not succinct (the commitment is just as long).
-
-Instead of committing linearly, we'll use a Merkle Tree, and only send the commitment/hash of the root node. We build up a binary tree where each node is the hash of its branches. Opening particular bits, the prover will send the root-to-leaf path along with siblings to prove that this opening was correct. This size will grow logarithmically with the size of the tree.
-
-\Graphic{images/2023-03-16/merkle.png}{0.7}
-
-We hash values in a tree format, with each parent node being the hash of its children. We only send the \emph{root note}. Whenever the verifier requests a certain bit, we send the path from the root to the bit (revealing all hashes, and siblings) to verify that this is indeed.
-
-It's very difficult to change any bit. If we changed a bit, at some point up the path of the tree we'll have found a collision for a hash. That is to say, a specific bit being correct is predicated on whether the path to the root is valid and the root hash matches.
-
-\emph{Can we make this hiding?} Right now, we don't guarantee the hiding property. If we only had one layer, every bit would be revealed. How can we modify this algorithm to ensure that each bit is hiding?
-
-One solution would be to add a random string $r$ as a sibling to every leaf. However, this would require us to reveal all siblings when we're verifying a certain leaf node. We can easily modify this to \emph{salt} \emph{every} leaf node. We can add some random $r_i$ to the hash of \emph{every} bit that hides those bits.
-
-Now, instead of sending a commitment of the entire proof, we send a Merkle Tree of the commitment of the proof. Then, when requested for certain bits $i, j, k$, we'll open those commitments as paths on the tree.
-
-\emph{Is this zero-knowledge?} Note that in the PCP theorem, we did not have the zero-knowledge property. Our solution is that when opening commitments, we can instead provide ZK proofs for our `reveals' instead of the actual bits themselves. Asymptotically, this still preserves our succinctness property.
-
-Theoretically, this lets us construct zk-SNARGs. In practice, there are more efficient ways to construct them, but we will not cover them now.
+Yes! We can do this with zk-SNARGs, which we will cover more in-depth next lecture.
