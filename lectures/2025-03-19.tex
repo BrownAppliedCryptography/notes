@@ -1,0 +1,247 @@
+%!TEX root = ../notes.tex
+% similar to 4-10-24
+\section{March 19, 2025}
+\label{20250319}
+
+This lecture, we will continue the Learning with Errors assumption, which is assumed to be a post-quantum assumption. We will see an encryption scheme using this assumption called Regev Encryption. Then we will see another homomorphic encryption scheme called BFV. We put this all together for our next project on Private Information Retrieval (PIR).
+
+\subsection{Learning With Errors (LWE) Assumption}
+Recall the Learning with Errors (LWE) assumption from the previous lecture, which is assumed to be post-quantum secure. There is no known quantum algorithm to solve this in polynomial time.
+
+We have security parameter $n$, and $q\sim 2^{n^\epsilon}$ for constant $\epsilon$. $m = \Omega (n\log q)$. We have some distribution $\chi$ which is a distribution over $\ZZ_q$ concentrated on ``small integers''. For example, this can be Gaussian.
+
+\begin{center}
+\def\svgwidth{0.5\columnwidth}
+\input{images/2024/.xdp-2024-04-10-chi.pdf_tex-S0vhZX}
+\end{center}
+
+We require that for $e\sample \chi$, 
+\[\Pr[|e| < \alpha\cdot q ]\simeq 1\]
+with $\alpha \ll 1$. That is, the probability that our error deviates significantly from $0$ is negligible.
+
+The assumption states the following: sampling a random matrix $A\sampledfrom \ZZ_q^{m\times n}$ and randomly sample a vector $s\sampledfrom \ZZ_q^n$ with error $e\sampledfrom \chi^m$. We have \[b:=A\times s + e\]
+
+The computational assumption is that
+\[(A, b)\overset{c}{\simeq} (A, b')\]
+for $b'\sampledfrom \ZZ_q^m$. That is, $(A, b)$ is indistinguishable from a truly random $(A, b')$.
+
+\begin{center}
+    \def\svgwidth{0.5\columnwidth}
+    \input{images/2024/.xdp-2024-04-10-Ab.pdf_tex-e1apG8}
+\end{center}
+
+\begin{remark}
+    \textit{What if we do not add the $e$ vector?} Then it is easy to distinguish $(A, b)$ from $(A, b')$, since in this case $(A, b)$ satisfies a linear system $As = b$. This can be solved, e.g. using Gaussian elimination.
+\end{remark}
+
+\subsection{Lattice-Based Cryptography}
+
+\begin{definition}
+    Given a basis $B = \{ b_1, \dots, b_n\}$, a \textbf{lattice} $L(B)$ is defined as the set
+    \[ L(B) := \left\{ \sum_{i=1}^n \alpha_i b_i | \alpha_i \in \ZZ \right\}\]
+
+    \begin{center}
+        \def\svgwidth{0.5\columnwidth}
+        \input{images/2024/.xdp-2024-04-10-lattice.pdf_tex-aosdAD}
+    \end{center}
+\end{definition}
+
+Given the basis of a lattice, the \textbf{Shortest Vector Problem (SVP)} would be to find the vector in the lattice with the shortest length. This is a problem that is known to be hard and post-quantum, i.e. there is no quantum algorithm that can solve it easily.
+
+In crypto, we want average-case hardness, and worst-case hardness may not be sufficient. If we only know worst-case hardness, it might be possible for polynomial attacks to work on average. For example, 3-SAT is known to be hard in the worst case, but there are practical 3-SAT solvers that can solve it easily on average.
+
+Lattice problems are nice because there is a reduction from worse-case hardness to average-case hardness. In other words, if you can solve it easily in the average-case, you can solve it in the worst-case.
+
+It has been shown that solving SVP can be reduced to solving LWE. In other words, if we could solve LWE, we could solve SVP. Since SVP is hard, cryptographers settled on LWE being hard, and used LWE to construct encryption schemes.
+
+\begin{remark}
+    There is no known attack on LWE, even with the help of quantum computers. This problem is relatively new, only introduced in 2009. There is still much work going on to study this problem more, but it is generally accepted that LWE is hard.
+
+    Much research is being done in industry and research to better establish post-quantum cryptography and bring them into practice before quantum computers become advanced enough.
+\end{remark}
+
+\subsection{Post-Quantum Encryption: Regev}
+
+Next, we will use LWE to make a symmetric-key encryption scheme called Regev.
+
+\begin{itemize}
+    \item $\text{Gen}(1^n):$ Randomly sample $s \sample \ZZ_q^n$ then output $\text{sk} = s$.
+    \item $\text{Enc}_{\text{sk}}(\mu):$ Given a message $\mu \in \{0, 1\}$, randomly sample $a \sample \ZZ_q^n$ and $e \gets \chi$. The ciphertext is
+    \[ c = (a, \langle a, s \rangle + e + \mu \cdot \lfloor q / 2 \rfloor)\]
+    \item $\text{Dec}_\text{sk}(c):$ We are given a ciphertext in the form of $(a, z)$. Then \[ z - \langle a, s\rangle = e + \mu \lfloor q / 2 \rfloor\]
+    Since $e$ is small (by definition of $\chi$), this quantity is close to $\mu \lfloor q/2 \rfloor $. If $\mu =0$, it is close to 0, otherwise it is close to $q/2$. Thus, by rounding we can decrypt the message.
+\end{itemize}
+
+You can think of the encryption as taking the first row $a$ of $A$ in our LWE setup. If $z$ is the first entry of $b$ plus $\mu \lfloor q/2 \rfloor$, then the ciphertext is $c = (a, z)$. Then, by the LWE assumption, this is computationally indistinguishable from a random element.
+
+\begin{center}
+    \def\svgwidth{0.75\columnwidth}
+    \input{images/2024/.xdp-2024-04-10-regev.pdf_tex-qbG8jm}
+\end{center}
+
+We can do this encryption for an arbitrary number of encryptions by letting $a$ be a subsequent row in $A$. We can do this up to $m$ times until we exhaust the number of rows in $A$ to keep the LWE assumption.
+
+\textbf{CPA Security.} By LWE assumption, the ciphertext $(a, z)$ is indistinguishable from a random group element.
+
+\textbf{Additive Homomorphism:} We can get additive homomorphism by simply adding the ciphertexts together. The scheme does \textbf{not} support multiplicative homomorphism out of the box (it can, however be achieved with matrices).
+\begin{align*}
+    c_1 &= (a_1, \langle a_1, s\rangle + e_1 + \mu_1 \cdot \lfloor q/2 \rfloor)\\
+    c_2 &= (a_2, \langle a_2, s \rangle + e_2 + \mu_2 \cdot \lfloor q/2 \rfloor)\\
+    \implies \quad c_1 + c_2 &= (a_1 + a_2, \langle a_1 + a_2, s \rangle + (e_1 + e_2) + (\mu_1 + \mu_2) \cdot \lfloor q/2 \rfloor)
+\end{align*}
+
+\textbf{Public-Key Version:} This symmetric-key encryption scheme can be easily turned into a public-key encryption scheme. Use the scheme to encrypt 0 for an arbitrary number of times $\lambda$, then let the public key be collection of these encryptions.
+
+$$\pk = (\underbrace{\Enc_{\sk}(0) \dots \Enc_{\sk}(0)}_{\lambda})$$
+
+If you take the sum of all lambda encryptions, we still get an encryption of 0 by additive homomorphism. To encrypt a message $\mu$, take a random subset-sum of pk (i.e. take a random subset of pk, then take its sum), then add $\mu \cdot \lfloor q/ 2 \rfloor $.
+
+\subsection{Ring LWE (RLWE) Assumption}
+We also have an LWE assumption on rings\footnote{A ring is a set of elements with two operations $\cdot$ and $+$ and certain properties. You can read more \href{https://en.wikipedia.org/wiki/Ring_(mathematics)}{here}. Essentially, they are like integers, there's multiplication and addition, both have identity, and associative. Addition commutes and multiplication commutes if we are in commutative ring. There is additive inverse and we have distribution. There is no inverse for multiplication!}. We consider a polynomial ring
+\[R = \ZZ[x]/(x^m + 1)\]
+where $m = 2^k$. This is all polynomials with integer coefficients modulo $(x^m + 1)$. We might also consider
+\[R_q = \ZZ_q[x] / (x^m + 1)\]
+which are all polynomials with integer coefficients modulo $q$ and $(x^m + 1)$.
+
+We also consider a ``noise'' distribution $\chi$ over $R$.
+
+The assumption is that for $a\sampledfrom R_q$, $s\sampledfrom R_q$ (or $s\leftarrow \chi$), $e\leftarrow \chi$, then
+\[\left( a, [a\cdot s + e]_q \right) \overset{c}{\simeq} \left( a, b\sampledfrom R_q \right)\]
+which is to say that $a\cdot s + e$ is computationally indistinguishable from random.
+
+\subsection{SWHE from RLWE (BFV)}
+Our plaintext space will be $R_t = \ZZ_t[x]/(x^K + 1)$ and ciphertext space $R_q\times R_q$, with $t\ll q$. Define $\Delta := \left\lfloor \frac{q}{t}\right\rfloor$.
+
+We set up $a\sampledfrom R_q$, $s\leftarrow \chi$, $e\leftarrow \chi$ as above. We have keys
+\begin{align*}
+    pk & = \left( [-(a\cdot s + e)]_1, a \right) \\
+    sk & = s
+\end{align*}
+
+\begin{description}
+    \item[Encryption.] To encrypt $\Enc_{pk}(m)$: $m\in R_t$\footnote{This is good! We can pack multiple messages into this polynomial by taking each coefficient as segments of the message. We can pack them into coefficients:
+        \[f(x) = a_{k-1}x^{k-1} + a_{k-2}x^{k-2}+ \cdots + a_0\]
+        or can pack in other ways, such as $f(0) = m_0, f(1) = m_1, \cdots$. }. We sample $u, e_1, e_2\leftarrow \chi$. Then
+        \[c = \left( [pk_0\cdot u + e_1 + \Delta\cdot m]_q , [pk_1\cdot u + e_2]_q\right) = (c_0, c_1)\]
+    \item[Decryption.] To decrypt $\Dec_{sk}(m)$:
+        \begin{align*}
+            [c_0 + c_1\cdot s]_q & = -(\cancel{a\cdot s} + e) \cdot u + e_1 + \Delta\cdot m + (\cancel{a\cdot u} + e_2)\cdot s \\
+                                 & = -e\cdot u + ee_1 + \Delta\cdot m + e_2\cdot s                                             \\
+                                 & = [\Delta \cdot m + \text{small polynomial mod $q$}]_q
+        \end{align*}
+        Note that $e, e_1, e_2$ and $s$ are all small, so other terms become small. We see which multiple of $\left\lfloor \frac{q}{t}\right\rfloor$ this value is closest to in order to recover $m$ (do this coefficient-wise).
+
+    \item[Homomorphism.] We have homomorphisms
+        \begin{align*}
+            [c^{(1)}(s)]_q & = \Delta\cdot m_1 + e_1 \\
+            [c^{(2)}(s)]_q & = \Delta\cdot m_2 + e_2
+        \end{align*}
+    \item[Additive Homomorphism.] Just adding,
+        \[[c^{(1)}(s) + c^{(2)}(s)]_q = [\Delta\cdot (m_1 + m_2)n + e_1 + e_2]_q\]
+    \item[Multiplicative Homomorphism?] Let's just try (na\"ively) to multiply (we multiply outside the mod $q$ ring)
+        \begin{align*}
+            c^{(1)}(s) \cdot c^{(2)}(s)
+             & = (\Delta\cdot m_1 + e_1 + \alpha_1\cdot q)(\Delta\cdot m_2 + e_2 + \alpha_2\cdot q)     \\
+             & = \Delta^2 m_1m_2 + \Delta m_1e_2 + \Delta m_1\alpha_2q + e_1\cdot \Delta m_2            \\
+             & \quad + e_1e_2 + e_1\alpha_2q + \alpha_1q\Delta m_2 + \alpha_1qe_2 + \alpha_1\alpha_2q^2
+        \end{align*}
+        Note the term we want has a coefficient of $\Delta^2$, but that is the only $m_1m_2$ term here, so we try to divide by $\Delta$.
+        \begin{align*}
+            c^{(1)}(s) \cdot c^{(2)}(s)\cdot \frac{1}{\Delta}
+             & = \Delta m_1m_2 + \text{small} + \frac{\alpha_1\alpha_2q^2}{\Delta}
+        \end{align*}
+        but we still don't have a final small term. Instead of using $\Delta$ exactly, we'll divide by $\frac{q}{t}$ exactly.
+        \begin{align*}
+            c^{(1)}(s) \cdot c^{(2)}(s)\cdot \frac{t}{q}
+             & \approx \Delta m_1m_2 + \text{small} + \underbrace{\frac{\alpha_1\alpha_2q^2}{q/t}}_{\text{small now yay}} \\
+             & = \Delta m_1m_2 + \text{small}
+        \end{align*}
+        We have one final step which is that our degrees of polynomials don't add up now.
+\end{description}
+
+
+\subsection{Relinearization in SWHE from RLWE}
+We have polynomial
+\begin{align*}
+    [c(s)]_q  & = c_0 + c_1\cdot s + c_2\cdot s^2 = \Delta \cdot m + e \\
+    \intertext{and we want to get rid of the $s^2$ term, yielding}
+    [c'(s)]_q & = c_0' + c_1'\cdot s + = \Delta \cdot m + e
+\end{align*}
+The intuition of what we will do is to provide an encrypted version of $s^2$ and we can remove it homomorphically. This is called a \ul{relinearization key}.
+
+The relinearization key will be
+\[\mathsf{rlk} = \left( [-(a\cdot s + e + s^2)]_q, a \right)\]
+and so $[\mathsf{rlk}(s)]_q = -s^2 + \text{small}$. This leaves us with
+\[c(s) + c_2 \cdot \mathsf{rlk}(s) = c_0 + c_1\cdot s + c_2\cdot s^2 + c_2\cdot (-s^2 + \text{small})\]
+but there is a small issue, because $c_2$ might not be small!
+
+What we do instead is to consider a bit decomposition of $c_2$, and to provide multiple relinearization keys, one for each bit of $c_2$. In simpler terms, we split $c_2$ into bits and multiply each RLK with the ith bit. Afterwards, we add up these small products.
+\[\mathsf{rlk}_i = ([-(a\cdot s + e + s^i\cdot s)]_q, a)\]
+and $\mathsf{rlk}(s) = -2^i\cdot s + \text{small}$. Then,
+\[c(s) + \sum^{|c_2|}_{i=1}\mathsf{rlk}_i(s)\cdot c_2[i]\]
+gives us $c_0 + c_1\cdot s + \text{small}$.
+
+It's cheaper to do addition because the error grows linearly, instead of multiplication which grows exponentially. Decomposing $s$ into its binary representation makes it an addition of small multiplications.
+
+Multiplication, in summary, will require a relinearization step to make our ciphertext linear again.
+
+% \subsection{Private Information Retrieval (PIR)}
+
+% The server holds the database $D$ and the client wants to retrieve $D[i]$. A na\"ive solution would be for the server to send the entire database to the client, but this requires communication complexity $O(n)$. We want sublinear communication complexity: $o(n)$.
+
+% We briefly mentioned that if we have FHE that supports any function, the client can easily encrypt index $i$ to send to the server, the server can homomorphically evaluate the `lookup' function that will compute $D[i]$. To do that, our fully homomorphic encryption is very expensive, so we'll use somewhat homomorphic encryption (using limited number of operations).
+
+% The client will have some encryptions of $0$s and an encryption of $1$ in the $i$-th position. That is, $ct_i \leftarrow \Enc(1)$ and $ct_j \leftarrow \Enc(0)$ for $j\neq i$. All this gets transferred to the server.
+
+% The server computes
+% \[ct'\leftarrow \sum^n_{i=1}D[i]\cdot ct_i\]
+% and sends $ct'$ back. In essence, the $ct_i$ is an indicator for the index.
+
+% \pseudocodeblock{
+%     \textbf{Server} \< \< \textbf{Client}\\
+%     \text{Database }D \< \< \text{Want: }D[i] \text{ while hiding }i \\
+%     \< \< \text{ from the server}\\
+%     \< \sendmessageleft*{
+%             \text{ct}_1 \> \gets \Enc(0)\\
+%             \> \vdots \\
+%             \text{ct}_{i-1} \> \gets \Enc(0) \\
+%             \text{ct}_i \> \gets \Enc(1)\\
+%             \text{ct}_{i+1} \> \gets \Enc(0) \\
+%             \> \vdots \\
+%             \text{ct}_n \> \gets \Enc(0)
+%     } \< \\
+%     ct'\leftarrow \sum^n_{i=1}D[i]\cdot ct_i \< \< \\
+%     \text{(Homomorphic sum } \< \< \\
+%     \text{and scalar multiplication)} \< \< \\
+%     \< \sendmessageright*{\text{ct}'} \< \\
+%     \< \< D[i] = \Dec(\text{ct'})
+% }
+
+% However, this is still $O(n)$ communication. Instead, store the database as a 2D-matrix. Say the client wants to query $D[x,y]$. The client will send $ct_i^{(1)}\leftarrow \Enc(0)$ if $i\neq x$, or $ct_x^{(1)}\leftarrow \Enc(1)$. Similarly for the $y$ coordinate.
+
+% Then, the server will compute
+% \[ct'\leftarrow \sum^{\sqrt{n}}_{i,j=1}D[i,j]\cdot ct_i^{(1)}\cdot ct_j^{(2)}\]
+% and sends $ct'$ back.
+
+% $D[x,y] = \Dec(ct')$. This achieves query in $O(\sqrt{n})$ communication complexity, with 1 homomorphic multiplication and 1 homomorphic scalar multiplication.
+
+% \pseudocodeblock{
+%     \textbf{Server} \< \< \textbf{Client}\\
+%     \text{Database }D,\ \text{a square matrix} \< \< \text{Want: }D[x, y] \text{ while hiding (x, y)} \\
+%     \< \< \text{ from the server}\\
+%     \< \sendmessageleft*{
+%             \text{ct}^{(1)}_1 \> \gets \Enc(0)\quad 
+%             \text{ct}^{(2)}_1 \>\> \gets \Enc(0)\\
+%             \> \vdots \>\> \vdots \\
+%             \text{ct}^{(1)}_x \> \gets \Enc(1) \quad 
+%             \text{ct}^{(2)}_y \>\> \gets \Enc(1) \\
+%             \> \vdots \>\> \vdots\\
+%             \text{ct}^{(1)}_{\sqrt{n}} \> \gets \Enc(0) \quad 
+%             \text{ct}^{(2)}_{\sqrt{n}} \>\> \gets \Enc(0)
+%     } \< \\
+%     ct'\gets \sum^{\sqrt{n}}_{i,j=1}D[i,j]\cdot ct_i^{(1)}\cdot ct_j^{(2)}\< \< \\
+%     \text{(Homomorphic sum, multiplication,} \< \< \\
+%     \text{and scalar multiplication)} \< \< \\
+%     \< \sendmessageright*{\text{ct}'} \< \\
+%     \< \< D[x, y] = \Dec(\text{ct'})
+% }
