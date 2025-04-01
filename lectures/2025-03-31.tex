@@ -1,0 +1,253 @@
+%!TEX root = ../notes.tex
+% similar to 4-10-24
+\section{March 31, 2025}
+\label{20250331}
+
+% \subsection{Private Information Retrieval (PIR)}
+
+% The server holds the database $D$ and the client wants to retrieve $D[i]$. A na\"ive solution would be for the server to send the entire database to the client, but this requires communication complexity $O(n)$. We want sublinear communication complexity: $o(n)$.
+
+% We briefly mentioned that if we have FHE that supports any function, the client can easily encrypt index $i$ to send to the server, the server can homomorphically evaluate the `lookup' function that will compute $D[i]$. To do that, our fully homomorphic encryption is very expensive, so we'll use somewhat homomorphic encryption (using limited number of operations).
+
+% The client will have some encryptions of $0$s and an encryption of $1$ in the $i$-th position. That is, $ct_i \leftarrow \Enc(1)$ and $ct_j \leftarrow \Enc(0)$ for $j\neq i$. All this gets transferred to the server.
+
+% The server computes
+% \[ct'\leftarrow \sum^n_{i=1}D[i]\cdot ct_i\]
+% and sends $ct'$ back. In essence, the $ct_i$ is an indicator for the index.
+
+% \pseudocodeblock{
+%     \textbf{Server} \< \< \textbf{Client}\\
+%     \text{Database }D \< \< \text{Want: }D[i] \text{ while hiding }i \\
+%     \< \< \text{ from the server}\\
+%     \< \sendmessageleft*{
+%             \text{ct}_1 \> \gets \Enc(0)\\
+%             \> \vdots \\
+%             \text{ct}_{i-1} \> \gets \Enc(0) \\
+%             \text{ct}_i \> \gets \Enc(1)\\
+%             \text{ct}_{i+1} \> \gets \Enc(0) \\
+%             \> \vdots \\
+%             \text{ct}_n \> \gets \Enc(0)
+%     } \< \\
+%     ct'\leftarrow \sum^n_{i=1}D[i]\cdot ct_i \< \< \\
+%     \text{(Homomorphic sum } \< \< \\
+%     \text{and scalar multiplication)} \< \< \\
+%     \< \sendmessageright*{\text{ct}'} \< \\
+%     \< \< D[i] = \Dec(\text{ct'})
+% }
+
+% However, this is still $O(n)$ communication. Instead, store the database as a 2D-matrix. Say the client wants to query $D[x,y]$. The client will send $ct_i^{(1)}\leftarrow \Enc(0)$ if $i\neq x$, or $ct_x^{(1)}\leftarrow \Enc(1)$. Similarly for the $y$ coordinate.
+
+% Then, the server will compute
+% \[ct'\leftarrow \sum^{\sqrt{n}}_{i,j=1}D[i,j]\cdot ct_i^{(1)}\cdot ct_j^{(2)}\]
+% and sends $ct'$ back.
+
+% $D[x,y] = \Dec(ct')$. This achieves query in $O(\sqrt{n})$ communication complexity, with 1 homomorphic multiplication and 1 homomorphic scalar multiplication.
+
+% \pseudocodeblock{
+%     \textbf{Server} \< \< \textbf{Client}\\
+%     \text{Database }D,\ \text{a square matrix} \< \< \text{Want: }D[x, y] \text{ while hiding (x, y)} \\
+%     \< \< \text{ from the server}\\
+%     \< \sendmessageleft*{
+%             \text{ct}^{(1)}_1 \> \gets \Enc(0)\quad 
+%             \text{ct}^{(2)}_1 \>\> \gets \Enc(0)\\
+%             \> \vdots \>\> \vdots \\
+%             \text{ct}^{(1)}_x \> \gets \Enc(1) \quad 
+%             \text{ct}^{(2)}_y \>\> \gets \Enc(1) \\
+%             \> \vdots \>\> \vdots\\
+%             \text{ct}^{(1)}_{\sqrt{n}} \> \gets \Enc(0) \quad 
+%             \text{ct}^{(2)}_{\sqrt{n}} \>\> \gets \Enc(0)
+%     } \< \\
+%     ct'\gets \sum^{\sqrt{n}}_{i,j=1}D[i,j]\cdot ct_i^{(1)}\cdot ct_j^{(2)}\< \< \\
+%     \text{(Homomorphic sum, multiplication,} \< \< \\
+%     \text{and scalar multiplication)} \< \< \\
+%     \< \sendmessageright*{\text{ct}'} \< \\
+%     \< \< D[x, y] = \Dec(\text{ct'})
+% }
+
+\subsection{Fully Homomorphic Encryption (FHE)}
+
+Earlier, we discussed additive and multiplicative homomorphism.
+
+An additively homomorphic scheme can combine $\Enc(m_1)$ and $\Enc(m_2)$ to get
+\[\Enc(m_1 + m_2)\]
+as we saw in Exponential ElGamal or Paillier.
+
+A multiplicatively homomorphic scheme can combine $\Enc(m_1)$ and $\Enc(m_2)$ to get
+\[\Enc(m_1 \cdot m_2)\]
+as we saw in ElGamal or RSA.
+
+Additionally, we want \textbf{Homomorphic Scalar Multiplication}. Given a scalar $c$ and an encryption $\Enc(m)$, combine them to get $\Enc(cm)$. Naively, we can achieve this by encrypting $c$ and use multiplicative homomorphism on $\Enc(c)$ and $\Enc(m)$. However, this is not always necessary. In fact, most of the encryption schemes that we have seen so far do not require this, and can achieve homomorphic scalar multiplication much more efficiently.
+
+\subsection{Private Information Retrieval (PIR)}
+
+Consider a database stored on a server, for which we want to do privacy-preserving queries. A trivial solution, where the data is stored as a vector of size $n$, would have communication complexity of $n$. Thus, we store the database as a 2D-matrix. Say the client wants to query $D[x,y]$. The client will send $ct_i^{(1)}\leftarrow \Enc(0)$ if $i\neq x$, or $ct_x^{(1)}\leftarrow \Enc(1)$. Similarly for the $y$ coordinate.
+
+Then, the server will compute
+\[ct'\leftarrow \sum^{\sqrt{n}}_{i,j=1}D[i,j]\cdot ct_i^{(1)}\cdot ct_j^{(2)}\]
+and sends $ct'$ back.
+
+$D[x,y] = \Dec(ct')$. This achieves query in $O(\sqrt{n})$ communication complexity, with 1 homomorphic multiplication and 1 homomorphic scalar multiplication.
+
+\begin{center}
+    \def\svgwidth{0.2\columnwidth}
+    \input{images/2024/.xdp-2024-04-15-pir-database.pdf_tex-tWH8Mp}
+\end{center}
+
+\pseudocodeblock{
+    \textbf{Server} \< \< \textbf{Client}\\
+    \text{Database }D,\ \text{a square matrix} \< \< \text{Want: }D[x, y] \text{ while hiding (x, y)} \\
+    \< \< \text{ from the server}\\
+    \< \sendmessageleft*{
+            \text{ct}^{(1)}_1 \> \gets \Enc(0)\quad 
+            \text{ct}^{(2)}_1 \>\> \gets \Enc(0)\\
+            \> \vdots \>\> \vdots \\
+            \text{ct}^{(1)}_x \> \gets \Enc(1) \quad 
+            \text{ct}^{(2)}_y \>\> \gets \Enc(1) \\
+            \> \vdots \>\> \vdots\\
+            \text{ct}^{(1)}_{\sqrt{n}} \> \gets \Enc(0) \quad 
+            \text{ct}^{(2)}_{\sqrt{n}} \>\> \gets \Enc(0)
+    } \< \\
+    ct'\gets \sum^{\sqrt{n}}_{i,j=1}D[i,j]\cdot ct_i^{(1)}\cdot ct_j^{(2)}\< \< \\
+    \text{(Homomorphic sum, multiplication,} \< \< \\
+    \text{and scalar multiplication)} \< \< \\
+    \< \sendmessageright*{\text{ct}'} \< \\
+    \< \< D[x, y] = \Dec(\text{ct'})
+}
+
+Consider extending this to dimension $d$. The number of homomorphic multiplications (per entry) will be $d-1$ (with $1$ homomorphic scalar multiplication), and the number of homomorphic additions will be $n$. The communication complexity will be $O(d\cdot \sqrt[d]{n})$.
+
+\begin{center}
+\begin{tabular}{c|c}
+    \# Hom. Mult. & $O((d-1)\cdot n)$ \\
+    \# Hom. Scalar Mult. & $O(n)$ \\
+    \# Hom. Add. & $O(n)$ \\
+    Communication & $O(n^{1/d}\cdot d)$
+\end{tabular}
+\end{center}
+
+There is a tradeoff between computation and communication---we can save on communication with a larger $d$ but will require more computation. For higher dimensions, we'll need to choose larger noise space and ciphertext space. We should find the `sweet spot' between computation and communication.
+
+\subsection{FHE Constructions}
+
+So far, we only have talked about Somewhat Homomorphic Encryption schemes. They have some sort of noise/error associated with them. As we try to grow our problems, so will the noise, until we cannot do more operations. To resolve this, we introduce a technique called bootstrapping.
+
+We begin with a collection of ciphertexts $\ct_1, \dots, \ct_n$, and we want to homomorphically evaluate a function $f$ on them to get $\ct_f$. There may be too much noise on $\ct_f$. Our hope is to decrypt $\ct_f$ to get $y= f(x)$, then re-encrypt $y$ to get $\ct_y$ which gives removes the old noise and gives us ``fresh'' noise (so the noise does not build up).
+
+\begin{center}
+    \def\svgwidth{0.55\columnwidth}
+    \input{images/2024/.xdp-2024-04-15-fhe-bootstrap.pdf_tex-rWOKhT}
+\end{center}
+
+One can think of this using a box analogy. The collection of ciphertexts $\ct_1, \dots, \ct_n$ acts as a box that hides the input $x$. Then homomorphically evaluating $f$ on this box gives us $y$, which is still encrypted and thus remains in a box. Then decryption ``peels'' away the box to uncover $y$, and encryption puts a new box that covers $y$.
+
+The problem is that we need a secret key to decrypt $y$. To solve this, the secret key is shared by using another encryption (i.e. putting it into another box), which allows us to decrypt $\ct_f$
+
+\begin{enumerate}
+    \item[Step 1.] Begin with a collection of ciphertexts $\ct_1, \dots, \ct_n$ (which is an encryption of $x$) and homomorphically compute $f$ on them to get $\ct_f$ (which is an encryption of $f(x)$). Let this encryption have public key and secret key $(\pk_1, \sk_1)$.
+    \item[Step 2.] Take $\ct_f$ and encrypt it with a new encryption with public key and secret key $(\pk_2, \sk_2)$. This can be done by considering the binary string of $\ct_f$ and encrypting the $i$th bit as $\ct_i^{(2)}$.
+    \item[Step 3.] Take $\sk_1$ and encrypt it with the encryption in the previous step. This can be done by considering the binary string of $\sk_1$ and encrypting the $i$th bit as $\tilde{\ct}_i^{(2)}$.
+    \item[Step 4.] Do a decryption $f' = \Dec(\sk_1, \ct_f)$, which is homomorphic with respect to the $(\pk_2, \sk_2)$ encryption. This gives us a ciphertext $\ct_{f'} = \Enc_{\pk_2}(y)$.
+\end{enumerate}
+
+\begin{center}
+    \def\svgwidth{0.7\columnwidth}
+    \input{images/2024/.xdp-2024-04-15-level-fhe.pdf_tex-qGXmQ8}
+\end{center}
+
+This procedure is called \textbf{Leveled FHE}. We can repeat this for multiple encryptions. Note we are always encrypting the previous secret key $\sk_{n-1}$ with a new public key $\pk_n$.
+
+\begin{align*}
+    \pk_1 \quad & \pk_2  && \pk_3 &&& \dots &&&& \pk_n\\
+    & \Enc_{\pk_2}(\sk_1) && \Enc_{\pk_3}(\sk_2) &&& &&&& \Enc_{\pk_n}(\sk_{n-1})
+\end{align*}
+
+However, this is still not Fully-Homomorphic Encryption. To achieve FHE, we need to use the idea of encrypting our own secret key using our own public key, i.e. $\Enc_{\pk}(\sk)$. There is only one public key and one secret key. This is a little tricky because there is a ``circular'' security assumption. This is the only technique we know to achieve FHE.
+
+There is a lot of research going on to find applications of homomorphic encryption, but people are more interested in finding how to achieve FHE. So far, bootstrapping is the biggest bottleneck. Even doing one operation can take hours. However, in a lot of cases, we do not need FHE, and SWHE is sufficient enough.
+
+\subsection{Outsourcing Computation by FHE}
+
+Recall that by using FHE, we can outsource computation for a server to do while preserving the privacy of the inputs.
+
+\pseudocodeblock{
+    \textbf{Server} \< \< \textbf{Client} \\
+    \< \< \text{Data }x \text{, Key } \sk \\
+    \< \< \ct \gets \Enc(x)\\
+    \< \sendmessageleft*{\ct, f} \< \\
+    \text{Public Evaluation} \< \< \\
+    \ct' \gets \Eval(f, \ct) \< \< \\
+    \< \sendmessageright*{\ct'} \< \\
+    \< \< f(x) \gets \Dec_{\sk}(\ct')\\
+}
+
+Usually, this procedure is very expensive for the server to compute. Instead of using this, there is an alternate solution using \textit{secure hardware}.
+
+\subsection{Outsourcing Computation by Secure Hardware}
+
+Imagine that the server, instead of having all of the computations being public, has an encrypted form of the memory and the CPU. Whatever happens on the server side in the hardware (memory and CPU) is hidden to the server. The hardware is like a secure enclave. This is known as \textit{secure hardware}.
+
+If the client and the secure hardware can agree on a secret key $\sk$ that is hidden from the server, then the server uses the secure hardware to do computation without learning the input. This is much faster than homomorphic encryption.
+
+\pseudocodeblock{
+    \textbf{Server} \< \< \textbf{Client} \\
+    \< \< \text{Data }x \text{, Key } \sk \\
+    \< \< \ct \gets \Enc(x)\\
+    \text{Input }(\ct, f) \< \sendmessageleft*{\ct, f}\< \\
+    % begin secure hardware box
+    \fbox{\begin{subprocedure}\procedure{Secure Hardware}{
+        x \gets \Dec_{\sk}(\ct)\\
+        y:= f(x)\\
+        \pcreturn \ct' \gets \Enc_{\sk}(y)\\
+    }\end{subprocedure}} \< \< \\
+    % end secure hardware box
+    \text{Get }\ct' \< \sendmessageright*{\ct'} \< y \gets \Dec_{\sk}(\ct')\\
+}
+
+\subsubsection{Intel Software Guard Extension (SGX)}
+
+How does the client and the secure hardware agree on the secret key? They must do a key exchange with each other. This is exactly what happens in Intel SGX, also known as ``secure enclave''.
+
+\pseudocodeblock{
+    \textbf{Server} \< \< \textbf{Client} \\
+    \< \sendmessagerightleft*{\text{DH Key Exchange}} \< \\
+    % begin secure hardware box
+    \fbox{\begin{subprocedure}\procedure{Enclave}{
+        b \gets \ZZ_q\\
+        \pcreturn g^b\\
+        k := \text{HKDF}(g^{ab})\\
+    }\end{subprocedure}} \< \sendmessageleft*{g^a} \< a \sample \ZZ_q \\
+    \< \sendmessageright*{g^b} \< k: = \text{HKDF}(g^{ab})\\
+    % end secure hardware box
+    \text{Input }(\ct, f) \< \sendmessageleft*{\ct, f}\< \\
+    % begin secure hardware box
+    \fbox{\begin{subprocedure}\procedure{Enclave}{
+        x \gets \Dec_{\sk}(\ct)\\
+        y:= f(x)\\
+        \pcreturn \ct' \gets \Enc_{\sk}(y)\\
+    }\end{subprocedure}} \< \< \\
+    % end secure hardware box
+    \text{Get }\ct' \< \sendmessageright*{\ct'} \< y \gets \Dec_{\sk}(\ct')\\
+}
+
+Here, the client does a DH key exchange with the secure enclave by sending $g^a$ to the server, which passes it onto the enclave. Then the enclave returns $g^b$, which the server passes onto the client. However, the is susceptible to a man-in-the-middle attack, where the server is the man-in-the-middle and can send their own $g^{b'}$ to the client instead of $g^b$. To remedy this, we need to use digital signatures so that the enclave can prove to the client that they are certified by Intel.
+
+Every time when you want to compute some function, you need to generate a new certificate. The enclave must run a ``provisioning'' procedure with Intel to receive a new certificate (Intel can charge you here!) and the client must run some ``attestation'' procedure (Intel can charge you here!). It does not have to be as complicated as this, but it is so because there is a business model.
+
+The certificate is also generated on the the function $f$, so that the client ensures that the enclave is computing the correct function.
+
+\textbf{Constraints and Attacks:}
+
+\begin{enumerate}
+    \item Need to trust hardware and Intel to do things correctly.
+    \item Limited memory size: 128 MB
+    \item Replay attacks: although everything is secure against the server, the server can keep a snapshot of everything and replay things on a future input.
+    \item Side-channel attacks: it leaks the memory access pattern. When the CPU in the enclave will utilize different blocks of memory, and the server can see the pattern in which the CPU accesses different memory locations. For example, the server might notice that the CPU accesses the same memory location multiple times, which can reveal something about the computation. A fix involves something called ``Oblivous RAM (ORAM)'', which requires $\Theta (\log N)$ memory overhead.
+\end{enumerate}
+
+\subsubsection{Hardware Secure Module (HSM)}
+
+In Intel SGX, you can do arbitrary computations. However, HSM can only do restricted computations, for example, encryption/decryption. Alice can have an HSM that encrypts a message and she sends the encryption to Bob who has an HSM to decrypt the message. Another example is an HSM that takes in a ciphertext, decrypts it, then re-encrypts it with a new secret key.
+
+This is used in places like Visa and a lot of bank systems. This is because they do not want to store the key anywhere, so that the user can only interact with the HSM like a black box without seeing the key.
+
+\textit{How does an encrypt/decrypt HSM pai agree on a key?} The encrypt HSM (Alice) randomly samples $k_1, k_2, k_3$ such that $k_1 \oplus k_2 \oplus k_3 = k$. Then the 3 of them will be mailed to the decrypt HSM (Bob) using 3 different carriers, and the decrypt HSM will reconstruct the key $k$ on its own.
