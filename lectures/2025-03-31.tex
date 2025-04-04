@@ -243,11 +243,3 @@ The certificate is also generated on the the function $f$, so that the client en
     \item Replay attacks: although everything is secure against the server, the server can keep a snapshot of everything and replay things on a future input.
     \item Side-channel attacks: it leaks the memory access pattern. When the CPU in the enclave will utilize different blocks of memory, and the server can see the pattern in which the CPU accesses different memory locations. For example, the server might notice that the CPU accesses the same memory location multiple times, which can reveal something about the computation. A fix involves something called ``Oblivous RAM (ORAM)'', which requires $\Theta (\log N)$ memory overhead.
 \end{enumerate}
-
-\subsubsection{Hardware Secure Module (HSM)}
-
-In Intel SGX, you can do arbitrary computations. However, HSM can only do restricted computations, for example, encryption/decryption. Alice can have an HSM that encrypts a message and she sends the encryption to Bob who has an HSM to decrypt the message. Another example is an HSM that takes in a ciphertext, decrypts it, then re-encrypts it with a new secret key.
-
-This is used in places like Visa and a lot of bank systems. This is because they do not want to store the key anywhere, so that the user can only interact with the HSM like a black box without seeing the key.
-
-\textit{How does an encrypt/decrypt HSM pai agree on a key?} The encrypt HSM (Alice) randomly samples $k_1, k_2, k_3$ such that $k_1 \oplus k_2 \oplus k_3 = k$. Then the 3 of them will be mailed to the decrypt HSM (Bob) using 3 different carriers, and the decrypt HSM will reconstruct the key $k$ on its own.

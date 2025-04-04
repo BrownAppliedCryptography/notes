@@ -1,0 +1,119 @@
+%!TEX root = ../notes.tex
+\section{April 2, 2025}
+\label{20250402}
+
+\subsection{Hardware Secure Module (HSM)}
+
+In Intel SGX, you can do arbitrary computations. However, HSM can only do restricted computations, for example, encryption/decryption. Alice can have an HSM that encrypts a message and she sends the encryption to Bob who has an HSM to decrypt the message. Another example is an HSM that takes in a ciphertext, decrypts it, then re-encrypts it with a new secret key.
+
+This is used in places like Visa and a lot of bank systems. This is because they do not want to store the key anywhere, so that the user can only interact with the HSM like a black box without seeing the key.
+
+\textit{How does an encrypt/decrypt HSM pai agree on a key?} The encrypt HSM (Alice) randomly samples $k_1, k_2, k_3$ such that $k_1 \oplus k_2 \oplus k_3 = k$. Then the 3 of them will be mailed to the decrypt HSM (Bob) using 3 different carriers, and the decrypt HSM will reconstruct the key $k$ on its own.
+
+\subsection{Secure Multi-Party Computation}
+
+\subsubsection{2-Party Computation}
+
+We've seen this before, but it is whensome parties want to compute the output of some function on their individual inputs, without revealing their own inputs.
+
+\begin{example}
+    Alice and Bob just returned from a date, and want to figure out if they each want a second date. Alice has some choice bit $x$ and Bob some choice bit $y$. They want to jointly compute $f(x, y) = x\land y$.
+\end{example}
+\begin{example}
+    Alice and Bob want to compare riches (who is richer?). They compute
+    \[f(x, y) = \begin{cases}
+            0 & \text{if }x>y    \\
+            1 & \text{otherwise}
+        \end{cases}\]
+\end{example}
+\begin{example}
+    Alice and Bob meet for the first time and want to see if they have friends in common. They have sets of friends $X,Y$, and compute
+    \[f(X, Y) = X\cap Y.\]
+    There are variants of this which only give cardinality of $X\cap Y$, etc.
+\end{example}
+
+\Graphic{images/2023-03-16/2pc.png}{0.6}
+
+In general, this is when two parties have inputs $x, y$ and want to compute some function $f(x, y)$ on them.
+
+Use cases include:
+\begin{itemize}
+    \item Password breach alert (Chrome/Firefox/Azure/iOS Keychain) runs a set intersection on your passwords and server leaked passwords.
+    \item Privacy-preserving contact tracing for COVID-19 (Apple and Google). We want to know if we have contact but not who had contact with.
+    \item Ads conversion measurements/personalized advertising (Google/Meta). We want to match conversions without either party knowing who converted.
+\end{itemize}
+
+\subsubsection{Multiple Parties!}
+The general case of this is Secure Multi-Party Computation (MPC)
+
+\Graphic{images/2023-03-16/mpc.png}{0.4}
+
+This is when we have some parties $P_i$ and want to compute input on $f(x_i, \cdots, x_n)$.
+
+Here are some applications:
+\begin{itemize}
+    \item Privacy-preserving Inventory Matching (J.P. Morgan)
+    \item Distributed key management (Unbound/Coinbase)
+    \item Federated learning (used in Google Keyboard Search Suggestion). We want to run machine learning, federated amongst multiple devices. However, we don't want to leak the actual training data from users.
+    \item Auctions (Danish sugar beet auction). Nobody should reveal their bid in the clear.
+    \item Also deployed in Boston area to analyze the wage gap between genders without revealing the individual salaries.
+    \item Study/Analysis on Medical Data. Every institution has limited data, but they cannot openly share that data due to regulations. How could they jointly do analysis on this data without revealing the data.
+    \item Fraud Detection (banks). Users might have cards at multiple banks, they want to jointly detect fraud but do not want to share their transactions.
+\end{itemize}
+
+When we normally talk about cryptography, we talk about `slowing down' the system (crypto makes everything slower). In the case of MPC, though, we've enabled new features that were not otherwise possible without these tools.
+
+\subsection{Definition}
+Our setting is that we have $n$ parties $P_1, \dots, P_n$ with private inputs $x_1, \dots, x_n$. They want to jointly compute $f(x_1, \dots, x_n)$.
+
+In terms of communication infrastructure: we usually assume point-to-point channels between each pair $(p_i, p_j)$. We know how to do this (key exchange, authenticated encryption, etc). Sometimes, we also assume a reliable broadcast channel where every other party gets information.
+
+There is a single adversary that can ``corrupt'' a subset of the parties (at most $t$).
+
+\emph{What properties do we want out of this system?} Here are some common security properties we might want:
+\begin{description}
+    \item[Correctness.] The function is computed correctly.
+    \item[Privacy.] Only the output is revealed.
+    \item[Independence of Inputs.] Parties cannot choose their inputs depending on others' inputs.
+\end{description}
+Also with security guarantees:
+\begin{description}
+    \item[Security with Abort.] The adversary may ``abort'' the protocol. This prevents honest parties from receiving the output. This is the weakest model.
+    \item[Fairness.] If one party receives the output, then all parties will receive the output.
+    \item[Guaranteed Output Delivery (GOD):] Honest parties \emph{always} receive output. Even if adversarial parties leave, the honest parties will simply continue the protocol.
+\end{description}
+
+We also have some characterizations of adversaries:
+\begin{itemize}
+    \item Allowed adversarial behavior:
+          \begin{itemize}
+              \item Semi-honest (or passive/honest-but-curious): They follow the protocol description honestly, but they try to extract more information by inspecting the transcript. This is the weaker model.
+              \item Malicious/active: These adversaries can deviate arbitrarily from protocol description.
+          \end{itemize}
+    \item Adversary's computing power:
+          \begin{itemize}
+              \item Unbounded computing power: this gives us information-theoretic (IT) security.
+              \item PPT bounded: this gives us computational security.
+          \end{itemize}
+\end{itemize}
+
+If you're interested, you can look into the literature of how to define security for MPCs. The idea is similar to that of ZK proofs---everything an adversary can do (see the transcript) can be simulated by a simulator who only has the input and output.
+
+
+\subsubsection{Feasibility Results}
+In the computational security setting, if we have a fundamental building block, a semi-honest oblivious transfer (OT), we can get semi-honest MPC for any function $t<n$. At a high level, using zero-knowledge proofs to enforce correctness of the protocol, we can convert any semi-honest MPC into a malicious MPC.
+
+In terms of information-theoretic (IT) security. We can also get semi-honest and malicious MPC for any function with $t < \frac{n}{2}$. We call this an \ul{honest majority}. This is a necessary bound, we cannot do any better than this.
+
+\subsection{Oblivious Transfer}
+\begin{definition}[Oblivious Transfer]
+    An \ul{oblivious transfer} is a protocol in which a sender, with messages $m_0, m_1\in\{0, 1\}^l$ gives a choice to the receiver to receive either $m_0, m_1$.
+
+    Given a choice bit from the receiver $b\in\{0,1\}$, the receiver gets $m_b$ and the sender also gets no information about the messeage transferred.
+
+    \Graphic{images/2023-03-21/ot.png}{0.6}
+\end{definition}
+
+We'll learn about constructions of OT later, but we black-box its implementation until later.
+
+Using a semi-honest OT, we can use Yao's Garbled Circuit to construct semi-honest 2PC for any function. We can also use the GMW compiler to compile this into a semi-honest MPC for any function. We'll focus on the first approach in this lecture, but we'll learn GMW in the following lectures.
