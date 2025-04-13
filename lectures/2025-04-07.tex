@@ -1,0 +1,105 @@
+%!TEX root = ../notes.tex
+\section{April 7, 2025}
+\label{20250407}
+
+\subsection{Multi-Party Computation - Big Picture}
+
+There are two different levels of MPC: either semi-honest or malicious. Semi-honest means that the adversary follows the protocol, but tries to extract more information. Malicious means that the adversary deviates from the protocol to extract information.
+
+If we have an oblivious transfer (OT) that is secure against semi-honest adversaries, we can use it with Yao's garbled circuit to achieve semi-honest 2-party computation for any function. Then, with the cut-and-choose with commitments, we can achieve malicious 2-party computation. We will discuss this next.
+
+\begin{align*}
+    \text{Semi-honest OT}\ & \underset{\text{Yao's Garbled Circuits}}{\implies}\ \text{Semi-honest 2PC for any function} \\
+    & \underset{\text{Cut-and-choose with commitments}}{\implies}\ \text{Malicious 2PC for any function}
+\end{align*}
+
+In the last part of this lecture, we will discuss how to use semi-honest OT with GMW to achieve semi-honest multi-party computation, which can be extended to malicious MPC.
+
+\begin{align*}
+    \text{Semi-honest OT} \ & \underset{\text{GMW}}{\implies} \text{Semi-honest MPC for any function}\\
+    & \underset{\text{GMW Compiler with ZKP}}{\implies} \text{Malicious MPC for any function}
+\end{align*}
+
+Recall the definition of Oblivious Transfer.
+
+\begin{definition}[Oblivious Transfer]
+    An \ul{oblivious transfer} is a protocol in which a sender, with messages $m_0, m_1\in\{0, 1\}^l$ gives a choice to the receiver to receive either $m_0, m_1$.
+
+    Given a choice bit from the receiver $b\in\{0,1\}$, the receiver gets $m_b$ and the sender also gets no information about the message transferred.
+
+    % \Graphic{images/2023-03-21/ot.png}{0.6}
+
+    \pseudocodeblock{
+        \textbf{Sender} \< \< \textbf{Receiver}\\
+        \text{Input: } m_0, m_1 \in \{ 0 , 1\}^{\ell} \< \< \text{Input: } b \in \{0, 1\}\\
+        \< \sendmessageright*{ } \< \\
+        \< \sendmessageleft*{ }\< \\
+        \< \sendmessageright*{ }\< \\
+        \< \sendmessageleft*{ } \< \\
+        \text{Output: }\perp \< \< \text{Output: }m_b
+    }
+\end{definition}
+
+\subsection{GMW}
+
+There is another method of multi-party computation that does not used garbled circuits called the Goldreich-Micali-Wigderson (GMW) protocol.
+
+Throughout the protocol, we keep the invariant that for each wire $w$, if the value of the wire is $v^w \in\{0, 1\}$, then the parties hold an \ul{additive secret share} of $v^w$. Each party $P_i$ holds a random share $v_i^w\in\{0,1\}$ such that
+\[\bigoplus_{i=1}^n v_i^w = v^w\]
+and we keep this invariant throughout the entire circuit. \footnote{Recall that $\oplus$ means addition modulo 2. You can check that this also gives the XOR operation.}
+
+We need to be able to preserve this invariant throughout \textsf{AND} and \textsf{XOR} gates. The \textsf{XOR} case is easy, since \textsf{XOR} is completely commutative and associative, so each party can locally \textsf{XOR} their shares $c_i := a_i\oplus b_i$ for $c := a\oplus b$.
+
+We'll address the \textsf{AND} case later, but we can do this. We'll proceede gate-by-gate for everyone to compute the result. Each party will publish their local shares, and everyone will \textsf{XOR} the result together to get the final result.
+
+\begin{remark}
+    \textbf{(Frequently asked)} Why do we only consider AND and XOR gates? This is because every other gate (NOT, OR, NAND) can be constructed using only AND and XOR gates. Gates like this are considered \textbf{complete}.
+\end{remark}
+
+\subsubsection{AND Gates}
+We now address the \textsf{AND} gates. We have $\bigoplus^n_{i=1}a_i = a$ and $\bigoplus^n_{i=1}b_i = b$.
+
+We want a set of $\left\{ c_i \right\}$ s.t. $\bigoplus^n_{i=1}c_i = c = a \cdot b$ (multiplication of bits is \textsf{AND}). But
+\begin{align*}
+    a\cdot b
+     & = \left( \sum^n_{i=1}a_i \right)\cdot \left( \sum^n_{i=1}b_i \right)\pmod{2}                \\
+     & = \left( \sum^n_{i=1}a_i \cdot b_i \right) + \left( \sum_{i\neq j}a_i \cdot b_j \right)\pmod{2}
+\end{align*}
+The first sum is easy and computed locally, but the second sum requires parties to communicate. We do something called \ul{resharing}.
+
+\textbf{Goal:} Between $P_i, P_j$, we want random $r_i, r_j\in\{0, 1\}$ such that $r_i + r_j = a_i \cdot b_j \pmod{2}$.
+
+$P_i$ will randomly sample $r_i\sampledfrom \left\{ 0, 1 \right\}$. We can use OT to allow $P_j$ to learn $r_j$ such that $r_i + r_j = a_i\cdot b_j\pmod{2}$ without revealing $a_i$ or $r_i$.
+
+$P_i$ will be the sender, $P_j$ is the receiver. $P_j$'s choice bit is $b_j$. Then the messages will be
+\begin{align*}
+    m_0 & = (a_i\cdot 0) - r_i = r_i \mod 2\\
+    m_1 & = (a_i\cdot 1) - r_i = a_i + r_i \mod 2
+\end{align*}
+such that $r_i, r_j$ are two shares of $a_i\cdot b_j$.
+
+\pseudocodeblock{
+    \textbf{Party i} \< \< \textbf{Party j}\\
+    \text{Input: } a_i \in \{ 0 , 1\} \< \< \text{Input: } b_j \in \{0, 1\} \\
+    r_i \sample \{0, 1\} \< \< \\
+    \text{Prepare both possibilities for }r_j \< \< \\
+    \< \sendmessageleft*{} \< \\
+    \< \sendmessageright*{\text{Use OT with choice bit }b_j} \< \\
+    \< \< \text{Receive } r_j\\
+    \text{Output: }r_i \in \{0, 1\}\< \< \text{Output: }r_j \in \{0, 1\}
+}
+
+\subsubsection{Complexities}
+Computational complexity is $O(\#\mathsf{AND}\cdot n)$ for each party, since each XOR gate takes constant number of operations and each AND gates requires a constant number of operations for each other party.
+
+For communication complexity, each party needs to communicate to every other party for every \textsf{AND} gate. For each XOR gate, we do not need to communicate. So the communication complexity is $O(n \cdot \#\mathsf{AND})$ per party.
+
+The round complexity is the depth of the AND gates in circuit. Each party needs to communicate to every other party for each AND gate, but some of these AND gates can be done in parallel (if they do not depend on each other). Thus, the round complexity is $O(\text{depth of AND gates})$.
+
+\begin{center}
+\begin{tabular}{c|c} 
+Computational Complexity & $O(\#\mathsf{AND}\cdot n)$ per party\\
+Communication Complexity & $O(n^2\cdot \#\mathsf{AND})$\\
+Round Complexity & $O(\text{depth of AND gates})$
+\end{tabular}
+\end{center}
