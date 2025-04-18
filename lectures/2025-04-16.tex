@@ -1,0 +1,138 @@
+%!TEX root = ../notes.tex
+\section{April 16, 2025}
+\label{20250416}
+
+In the previous lecture, we finished our discussion of Yao's Garbled Circuits and GMW. In practice, we may want to consider the exact function the we are computing in MPC to enable more efficient protocols. We will discuss an example of this known as Private Set Intersection. We will also briefly look at privacy-preserving machine learning.
+
+\subsection{Private Set Intersection (PSI)}
+
+Alice and Bob want to compute the intersection of their sets $X = \{x_1, x_2, \dots, x_n\}$ and $Y = \{y_1, y_2, \cdots, y_n\}$ without revealing the elements in their set.
+
+\begin{itemize}
+    \item PSI: $f(X, Y) = X\cap Y$.
+    \item PSI-Cardinality: $f(X, Y) = |X\cap Y|$ which counts the number of items in the intersection without revealing the items.
+\end{itemize}
+
+\textbf{Applications:}
+\begin{itemize}
+    \item \textbf{Password Breach Alert} (Chrome, Edge, Firefox, iOS Keychain, ...). There is a set of all compromised passwords, and a set of user's passwords, and we want to see if there is intersection without revealing the passwords.
+    \item \textbf{Ads Conversion Measurement} (Google). Alice is an ad platform and Bob is an advertiser who has the information of users that have a made a purchase with him. The intersection is the ad conversion, those users who have seen the ads and made a purchase, which gives an idea of the effectiveness of the ad.
+    \item \textbf{Privacy-Preserving Inventory Matching} (J.P. Morgan). There is a set of stocks we can sell, and a set of stocks that a buyer wants to buy. We want to which stocks we can sell to the buyer.
+    \item \textbf{Private Database Joins.} For example, two companies may want to find out how many users they have in common.
+\end{itemize}
+
+\subsubsection{Na\"ive Solution}
+Here's a na\"ive solution: Alice and Bob hash all their inputs, exchange hash values, and see which ones they have in common. You can learn the intersection, but could you learn \emph{more} than that?
+
+\pseudocodeblock{
+    \textbf{Alice} \< \< \textbf{Bob}\\
+    \text{Input: } X = \{x_1, \dots, x_n\} \< \< \text{Input: }Y = \{y_1, \dots, y_n\}\\
+    \< \sendmessageright*{H(x_1), \dots, H(x_n)} \< \\
+    \< \< \text{Compute intersection between} \\
+    \< \< H(x_1), \dots, H(x_n) \text{ and}\\
+    \< \< H(y_1), \dots, H(y_n)
+}
+
+If the input space is a relatively small space, we can do a dictionary attack (for example, with names). This is not even semi-honest secure.
+
+\emph{Can we even achieve 2PC/MPC with just a single round of communication (as we have done here, sending hashes one way)?} Taking a step back, we receive a message from Alice and can derive the solution regardless of \emph{any} $y$ we have. This allows us to just test multiple inputs on the function received and we'll receive that output, so we can derive $x$ from that input. Thus, no, we cannot achieve 2PC/MPC with just a single round.
+
+\subsubsection{DDH-Based PSI}\label{sec:apr04-psi-ddh}
+We start with a cyclic group $\GG$ of order $q$ with generator $g$, where DDH holds. We also have a hash function $H: \left\{ 0, 1 \right\}^{*}\to \GG$ (modeled as a random oracle).
+
+\pseudocodeblock{
+    \textbf{Alice:} \< \< \textbf{Bob:}\\
+    \text{Input: } X = \{x_1, \dots, x_n\} \< \< \text{Input: }Y = \{y_1, \dots, y_n\} \\
+    a \sample \ZZ_q \< \< b \sample \ZZ_q \\
+    \< \sendmessageleft*{H(Y)^b := \{H(y_1)^b, \dots, H(y_n)^b\}} \< \\
+    \< \sendmessageright*{H(X)^a, H(Y)^{a\cdot b}} \< \\
+    \< \< \text{Compute the intersection}\\
+    \< \< H(X)^{a\cdot b} \cap H(Y)^{a \cdot b}\\
+}
+
+Bob and Alice generate private exponents $k_B\sampledfrom \ZZ_q, k_A\sampledfrom \ZZ_q$ respectively. Bob will send
+\[H(Y)^{k_B} := \left\{ H(y_1)^{k_B}, \cdots, H(y_n)^{k_B} \right\}\]
+Alice does the same for $X$, $H(X)^{k_A}$, and sends $H(Y)^{k_A\cdots k_B}$. Bob then raises $H(X)^{k_A}$ to $k_B$ and compares. In the semi-honest case, for Bob to perform the same dictionary attack, Bob will need to break DDH in order to raise arbitrary elements $y'$ to $k_A\cdot k_B$.
+
+We can modify this to count cardinality by randomly shuffling the returned $H(Y)^{k_A\cdot k_B}$ such that Bob cannot relate the re-encrypted hashes to the previous order.
+
+% \Graphic{images/2023-04-04/ddh_psi-ca.png}{0.7}
+
+\subsection{Privacy-Preserving Machine Learning (PPML)}
+
+In PPML, there are $n$ parties labeled $x_1, \dots, x_n$. Each party has some private data. All parties want to train a machine learning model and use its inference.
+
+There are two kinds of data partitioning between parties
+\begin{itemize}
+    \item \textbf{Horizontal Data Partitioning} is where each party contains all features of a subset of examples. For example, an institution could have all of the medical information on a subset of patients.
+    \item \textbf{Vertical Data Partitioning} is where each party knows a certain feature over all examples. For example, hospitals could hold the medical data, banks hold the financial data, etc.
+\end{itemize}
+
+Currently, the state of the art solution delegates this problem between two central servers instead of using MPC across $n$ parties. One server gets a secret share $D_0$ of the data and the other server gets a secret share $D_1$ of the data so that $D_0 + D_1 = D$ recovers the total dataset. This is known as 2PC, and people have also looked into 3PC with 1 corruption, 4PC with 1 corruption, which can be more secure and efficient. As of 2025, PPML is not widely used in practice, but it is a field of study with a lot of interest in cryptography.
+
+\subsubsection{Linear Regression}
+
+In linear regression, given data points $(\vec{x}, y)$, our ML model is 
+$$g(\vec{x}) = \langle \vec{x}, \vec{w}\rangle$$
+where $\vec{w}$ is the coefficient vector which will be adjusted during training. For each data point $(\vec{x}_i, y_i)$, we define the loss function as 
+$$L_i(\vec{w}) := \frac{1}{2}(\langle \vec{x_i}, \vec{w}\rangle - y_i)^2.$$
+The total loss is given by $L(\vec{w}):= \frac{1}{N}\sum_{i = 1}^{N} L_i (\vec{w})$. This tells us how bad our coefficient vector $w$ is, and we want to update $w$ to minimize $L(\vec{w})$.
+
+One common method to find $w$ that minimizes the loss is known as \textbf{Stochastic Gradient Descent (SGD)}, which goes as follows. $\vec{w}$ is first initialized with an arbitrary value. Then, given a data point $(\vec{x}_i, y_i)$, update $\vec{w}$ according to the rule
+$$\vec{w} \gets \vec{w} - \eta \cdot \nabla L_i(\vec{w})$$
+where $\eta > 0$ is the \textit{learning rate} and $\nabla L_i(\vec{w})$ is the gradient.
+
+For linear regression, this update rule can be written as follows.
+$$\vec{w} \gets \vec{w} - \eta \cdot (\langle \vec{x}_i, \vec{w}\rangle - y_i)\cdot \vec{x}_i$$
+Computing $y_i^*:= \langle \vec{x}_i, \vec{w}\rangle$ is \textit{forward propagation} and computing $(\langle \vec{x}_i, \vec{w}\rangle - y_i)\cdot \vec{x}_i$ is \textit{backpropagation}.
+
+Let's say we want to use PPML for linear regression. In PPML, two parties will hold secret shares of $\vec{w}$. Both parties will initially sample $\vec{w}_0$ and $\vec{w}_1$ randomly, and $\vec{w}: = \vec{w}_0 + \vec{w}_1$. We want the two parties to run SGD with their secret shares to get a secret share of the updated $\vec{w}$. Let's look term by term.
+
+\begin{itemize}
+    \item A secret share of $\langle \vec{x}_i, \vec{w}\rangle$ can be computed by using resharing. Each party has a secret share of $\vec{x}_i$ and a secret share of $\vec{w}$.
+    \item A secret share of $\langle \vec{x}_i, \vec{w}\rangle - y_i$ can be computed locally by locally subtracting the secret share of $y_i$.
+    \item A secret share of $(\langle \vec{x}_i, \vec{w}\rangle - y_i)\cdot \vec{x}_i$ can be computed by resharing.
+    \item Finally, a secret share of $\vec{w} - \eta \cdot (\langle \vec{x}_i, \vec{w}\rangle - y_i)\cdot \vec{x}_i$ can be computed locally, since $\eta$ is public and this is only subtraction.
+\end{itemize}
+
+Thus, we can get a secret share of the updated $\vec{w}$.
+
+\subsubsection{Logistic Regression}
+
+The setup is the same as linear regression, except the ML model is now given by
+$$g(\vec{x}) = f(\langle \vec{x}, \vec{w}\rangle)$$
+where $f$ is an \textit{activation function}. In this scenario, we use the \textit{sigmoid} function given by
+$$f(u) = \frac{1}{1 + e^{-u}}.$$
+
+The loss function is now given by
+$$L_i(\vec{w}):= -y_i \cdot \log y_i^* - (1-y_i) \cdot \log(1-y_i^*)$$
+where $y_i^* := f(\langle \vec{x}_i, \vec{w}\rangle)$. The total loss $L(\vec{w})$ is defined the same, and we want to find $\vec{w}$ that minimizes it.
+
+The update rule for SGD then becomes
+$$\vec{w} \gets \vec{w} - \eta \cdot ({\color{red} f(}\langle \vec{x}_i, \vec{w}\rangle{\color{red} )} - y_i)\cdot \vec{x}_i.$$
+
+If we want to use PPML for logistic regression, both parties will initially sample $\vec{w}_0$ and $\vec{w}_1$ randomly as before, and $\vec{w}: = \vec{w}_0 + \vec{w}_1$. We want the two parties to run SGD with their secret shares to get a secret share of the updated $\vec{w}$. The update rule for SGD is nearly the same as that in linear regression, but now we have to figure out how to get a secret share for $f(\cdot)$. This function is the sigmoid function, which is complicated, involves exponentiation, and is not MPC friendly. Theoretically, one can do this by representing it as a garbled circuit, but this can be very expensive. Thus, we will approximated $f(\cdot)$ with the following piecewise polynomial.
+$$f(u) = \begin{cases}
+    0 & \text{if }u < -\frac{1}{2}\\
+    u + \frac{1}{2} & u \in [-\frac{1}{2}, \frac{1}{2}]\\
+    1 & u > \frac{1}{2}
+\end{cases}$$
+
+Let
+$$b_1 : = \begin{cases}
+    1 & \text{if }u < -\frac{1}{2}\\
+    0 & \text{otherwise}
+\end{cases}$$
+$$b_2 : = \begin{cases}
+    1 & \text{if }u > \frac{1}{2}\\
+    0 & \text{otherwise}
+\end{cases}$$
+
+Then $$f(u) = 0 \cdot b_1 + 1 \cdot b_2 + (u + \frac{1}{2})\cdot (1-b_1)(1-b_2)$$
+which is more MPC friendly because it only involves additions and multiplications, which can be done using resharing. All we need is a secret share of $b_1$ and $b_2$. This can be a little tricky, and there is not a good way to do it, so we resort to using garbled circuits. However, it is not too bad since it only involves comparison $>$ and $<$.
+
+Once we get a reshare for $f(u)$, then the rest is just arithmetic operations that we have done as in the case for linear regression.
+
+\subsubsection{Neural Networks}
+
+In neural networks, each node is a linear function fed into an activation function. Thus, one can imagine that the work that we have done for linear and logistic regression can go into neural networks. At a high level, the idea is to look at which functions go into the training the model and figure out how to make it MPC friendly.

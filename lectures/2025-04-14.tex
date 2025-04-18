@@ -1,0 +1,75 @@
+%!TEX root = ../notes.tex
+\section{April 14, 2025}
+\label{20250414}
+
+This lecture we discuss optimizations of garbled circuits, construction of oblivious transfer, semi-honest 2PC, and cut-and-choose for garbled circuits.
+
+\subsection{Oblivious Transfer}
+
+Recall the definition of Oblivious Transfer.
+
+\begin{definition}[Oblivious Transfer]
+    An \ul{oblivious transfer} is a protocol in which a sender, with messages $m_0, m_1\in\{0, 1\}^l$ gives a choice to the receiver to receive either $m_0, m_1$.
+
+    Given a choice bit from the receiver $b\in\{0,1\}$, the receiver gets $m_b$ and the sender also gets no information about the message transferred.
+
+    % \Graphic{images/2023-03-21/ot.png}{0.6}
+
+    \pseudocodeblock{
+        \textbf{Sender} \< \< \textbf{Receiver}\\
+        \text{Input: } m_0, m_1 \in \{ 0 , 1\}^{\ell} \< \< \text{Input: } b \in \{0, 1\}\\
+        \< \sendmessageright*{ } \< \\
+        \< \sendmessageleft*{ }\< \\
+        \< \sendmessageright*{ }\< \\
+        \< \sendmessageleft*{ } \< \\
+        \text{Output: }\perp \< \< \text{Output: }m_b
+    }
+\end{definition}
+
+\subsection{Yao's Garbled Circuit for Arbitrary function}
+
+Let's say Alice (Garbler) and Bob (Evaluator) want to jointly compute an arbitrary function, represented by a series of boolean gates. In this series of boolean gates, there are input wires, intermediate gates, and output wires. Alice has two input wires (red) and Bob has two input wires (blue). Their inputs are known to themselves and do not want to be revealed, but they want to jointly compute the output.
+
+\Graphic{images/2023-03-21/yao_multiple_gates.png}{0.7}
+
+For each wire (a-g), Alice will sample two random 128-bit strings $k_0$ and $k_1$. Alice will create a \textit{garbled table} for each gate that consists of 4 ciphertexts that corresponds to the gate logic. For example, the table at the bottom of the diagram corresponds to the AND gate where each entry is $\text{Enc}_x (\text{Enc}_y(x \text{ AND } y))$, where $x,y$ are the strings $k_0, k_1$ corresponding to each input wire.
+
+Bob will get one label per wire, so then he will be able to decrypt exactly 1 out of 4 ciphertexts in the table.
+
+This occurs for each gate. Alice will send a garbled gate (garbled table) for each gate. For the labels that belong to Alice, she will send both to Bob. Then we allow Bob to choose his input labels using oblivious transfer. This allows Bob to compute the output of a gate without Alice or Bob learning each other's input. Once an output for an intermediate gate is computed, we repeat the process to evaluate later gates.
+
+\Graphic{images/2023-03-21/yao_protocol.png}{0.8}
+
+In order to ensure that one does not learn the other's inputs, we must shuffle the garbled table. The plaintext is concatenated with a series of 0s before being encrypted.
+
+\subsubsection{Optimizations}
+There are some optimizations we can make:
+
+\emph{Point-and-Permute.} For each wire, we'll randomly sample signal bits $\sigma_\alpha, \sigma_\beta$, and flip it for the other input. (Note that this doesn't reveal anything about $\alpha,\beta$). In the circuit, we can indicate using the signal bit which ciphertext to decrypt.
+
+\Graphic{images/2023-03-21/point_and_permute.png}{0.7}
+
+We reduce Bob's computation complexity by at least a constant of $4$, and saves communication complexity by half (we don't need to expand our garbled circuit size anymore).
+
+\emph{Free \textsf{XOR}.} Sample a global $\Delta\sampledfrom\{0,1\}^\lambda$. Every pair of labels differ by $\Delta$. That is,
+\begin{align*}
+    \alpha_1 & :=\alpha_0\oplus \Delta \\
+    \beta_1  & :=\beta_0\oplus \Delta  \\
+    \gamma_1 & :=\gamma_0\oplus \Delta
+\end{align*}
+and $\gamma_0 = \alpha_0\oplus \beta_0$. To compute the output label, you just perform the \textsf{XOR} plainly.
+
+This is to say, \textsf{XOR} is free. We don't need to send labels and Bob doesn't need to encrypt/decrypt.
+
+\Graphic{images/2023-03-21/free_or.png}{0.5}
+
+We can also use \emph{half-gates} which give us $2\lambda$ bits per \textsf{AND} gate + free \textsf{XOR}. A recent development, \emph{slicing-and-dicing}, gives us around $\sim 1.5\lambda$ bits per \textsf{AND} gate + free \textsf{XOR}.
+
+\subsection{Comparing Yao's and GMW}
+In summary, we have learned two different approaches to semi-honest 2PC: Yao's Garbled Circuits and GMW. Both have their own use cases, efficiencies, and tradeoffs.
+
+Yao's provides semi-honest \textbf{2PC} for any function, while GMW provides semi-honest \textbf{MPC} for any function.
+
+Yao's has a constant number of communication rounds, whereas the number of communication rounds required for GMW scales with the depth of AND gates. Thus, deeply nested circuits with many AND gates can be more expensive in GMW.
+
+Furthermore, Yao's only works for boolean circuits, while GMW works for both boolean and arithmetic circuits.
