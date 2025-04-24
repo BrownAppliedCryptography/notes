@@ -1,7 +1,6 @@
 %!TEX root = ../notes.tex
-% Scribe: Sudatta Hor
-\section{April 24, 2024}
-\label{20240424}
+\section{April 21, 2025}
+\label{20250421}
 
 In this lecture, we will cover federated learning, differential privacy, elliptic curve cryptography.
 
@@ -207,50 +206,3 @@ Thus, elliptic curve groups are more space-efficient for cryptography! The known
         \input{images/2024/.xdp-2024-04-22-elliptic-curve-tangent.pdf_tex-B29VSo}
     \end{center}
 \end{enumerate}
-
-% Geometrically, one can be convinced that $(P \boxplus Q) \boxplus X = P \boxplus (Q\boxplus X)$ and that $P \boxplus Q = Q \boxplus P$. This gives hope that we can construct a group out of this, which is very handy for cryptography!
-
-% \begin{definition}
-%     For prime $p >3$, let $\mathbb{F}_p$ be a finite field, i.e. all of the integers $\{0, 1, \dots, p-1\}$ with addition and multiplication. Let $a, b \in \mathbb{F}_p$ such that $4a^3 + 27b^2 \neq 0$.
-    
-%     An \textbf{elliptic curve $E$ defined over $\mathbb{F}_p$}, denoted $E / \mathbb{F}_p$, is the set of all points $(x,y)$ such that
-%     \begin{itemize}
-%         \item $x,y \in \mathbb{F}_p$ and
-%         \item $y^2 = x^3 + ax +b$
-%     \end{itemize}
-
-%     Additionally, we include an abstract element $\mathcal{O}$ that is thought of as the ``point at infinity''.
-% \end{definition}
-
-% \begin{example}
-%     $y^2 = x^3 + 1$ over $\mathbb{F}_{11}$ consists of the points
-%     $$E / \mathbb{F}_{11} = \{\mathcal{O}, (-1, 0), (0, \pm 1), (2, \pm 3), (5, \pm 4), (7, \pm 5), (9, \pm 2)\}$$
-% \end{example}
-
-% Elliptic curves over finite fields is the same definition as elliptic curves before except we restrict our attention to $\mathbb{F}_p$.
-
-% \begin{proposition}
-%     Elliptic curves over finite fields with the $\boxplus$ operation form a group.
-%     \begin{enumerate}
-%         \item \textbf{Closure:} $\forall g, h \in G, g\boxplus h \in G$. This is true because $g,h$ defines a line, and we can figure out the equation for this line over the finite field because finite fields support division. After we find the line, we can plug it into the curve equation to get a cubic equation. We have two roots, and we know the product of all of the roots is negative the constant term in the cubic equation. Since finite fields support division, we can recover the third root.
-%         \item \textbf{Existence of identity:} $\exists e \in G $ such that $\forall g\in G, e \boxplus g = g \boxplus e = g$. We let $e = \mathcal{O}$ be the identity. 
-%         \item \textbf{Existence of inverse:} $\forall g \in G, \exists h \in G, $ such that $g \boxplus h = h \boxplus g = e$. If $g = (x,y)$, then the inverse $h = (x, -y)$. You can see that drawing a line between $g,h$ gives us the point at infinity, so $g \boxplus h = \mathcal{O}$.
-%         \item \textbf{Associativity:} $\forall g_1, g_2, g_3 \in G, (g_1 \boxplus g_2) \boxplus g_3 = g_1 \boxplus (g_2 \boxplus g_3)$. We discussed this earlier.
-%         \item \textbf{Commutativity (for abelian groups):} $\forall g,h \in G, g\boxplus h = h \boxplus g.$ We discussed this earlier.
-%     \end{enumerate}
-% \end{proposition}
-
-% Furthermore, the \textbf{SEA algorithm} can count the number of points on $E / \mathbb{F}_p$ in polylog(p) time. Thus, figuring out the order of the group does not give us a problem.
-
-% Below are some curves that are standardized and used in practice. We only talk about the first one. The others are secure to use in practice and have some tradeoffs that you are welcome to look into.
-
-% \begin{itemize}
-%     \item curve secp2546r1 (P256) \begin{itemize}
-%         \item Prime $p = 2^{256} - 2^{224} + 2^{192} + 2^{96} -1$, hence only needs 256 bits to store!
-%         \item $y^2 = x^3 -3x + b$ for some constant $b$ that is a 255-bit string.
-%         \item Number of points on the curve is prime (close to p).
-%         \item Standardized generator point $G$. It does not have to be this particular $G$, since every point is a generator, but it is standardized so that everyone can agree on the generator to run DH key exchange for example.
-%     \end{itemize}
-%     \item curve secp256k1
-%     \item curve 25519
-% \end{itemize}
