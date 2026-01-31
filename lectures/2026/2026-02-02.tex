@@ -1,0 +1,63 @@
+
+% Chloe: This was from the 2025-01-29 notes that weren't covered in 2026-01-30
+
+\subsection{Prime Order Subgroups}
+The Decisional Diffie-Hellman assumption (DDH) does \emph{not} hold for prime $p$ in cyclic group $\ZZ_p^\times$ with order $p-1$. We use the prime order subgroup of $\ZZ_p^\times$.
+
+\begin{definition}[Subgroup]
+    A subgroup is some subset of a group that is also a group itself.
+\end{definition}
+
+\begin{definition}[Safe Prime]
+    A prime $p$ is a safe prime if $p = 2q+1$, where $q$ is prime. These are also known as Sophie Germain primes.
+\end{definition}
+
+Where $p$ is a safe prime, the DDH assumption holds in group $\GG := \{x^2 \mod p  \mid  x \in \ZZ_p^\times\}$, and $\GG$ is a provably a subgroup of $\ZZ_p^\times$ with order $q$.
+
+\subsection{Message Integrity}
+Alice sends a message to Bob, how does Bob ensure that the message came from Alice?
+
+\begin{center}
+    \includegraphics[width=0.8\textwidth]{images/2023-02-02/integrity.png}
+\end{center}
+
+We can build up another line of protocols to ensure message integrity. It's similar to encryption, but the parties run 2 algorithms: \emph{Authenticate} and \emph{Verify}.
+
+Using a message $m$, Alice can generate a \emph{tag} or \emph{signature}, and Bob can verify $(m, t)$ is either valid or invalid.
+
+Our adversary has been upgraded to an Eve who can now tamper with messages.
+
+Just like we have symmetric-key and public-key encryption, we also have symmetric-key and public-key authentication and verification.
+
+Using a shared key $k$, Alice can authenticate $m$ using $k$ to get a tag $k$. Similarly, Bob can verify whether $(m, t)$ is valid using $k$. This is called a Message Authentication Code.
+
+\begin{center}
+    \includegraphics[width=0.8\textwidth]{images/2023-02-02/mac.png}
+\end{center}
+
+Using a public key $vk$ (verification key) and private key $sk$ (secret/signing key), Alice can sign a message $m$ using signing key $sk$ to get a \emph{signature} $\sigma$. Bob verifies $(m, \sigma)$ is valid using $vk$. This is called a Digital Signature.
+
+\begin{center}
+    \includegraphics[width=0.8\textwidth]{images/2023-02-02/signature.png}
+\end{center}
+
+\begin{ques*}
+    Can an adversary tamper with a signed message if the adversary can see the message and signature? \emph{Tune in next week to find out...}
+\end{ques*}
+
+\subsubsection{Syntax}\label{sec:message-integrity:syntax}
+The following is the syntax we use for MACs and digital signatures.
+
+A message authentication code (MAC) scheme consists of $\Pi = (\Gen, \mathsf{Mac}, \mathsf{Verify})$.
+\begin{description}
+    \item[Generation.] $k\leftarrow \Gen(1^\lambda)$.
+    \item[Authentication.] $t \leftarrow \mathsf{Mac}_k(m)$.
+    \item[Verification] $0/1 := \mathsf{Verify}_k(m, t)$.
+\end{description}
+
+A digital signature scheme consists of $\Pi = (\Gen, \mathsf{Sign}, \mathsf{Verify})$.
+\begin{description}
+    \item[Generation.] $(sk, vk)\leftarrow \Gen(1^\lambda)$.
+    \item[Authentication.] $\sigma \leftarrow \mathsf{Sign}_{sk}(m)$.
+    \item[Verification] $0/1 := \mathsf{Verify}_{vk}(m, \sigma)$.
+\end{description}
