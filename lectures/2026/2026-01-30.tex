@@ -193,3 +193,16 @@ Using Diffie-Hellman, it's very easy. We have group $(\GG, q, g)\leftarrow \math
 \end{center}
 
 What happens in practice is that parties run Diffie-Hellman key exchange to agree on a shared key. Using that shared key, they run symmetric-key encryption. This gives us efficiency. Additionally, private-key encryptions don't rely on heavy assumptions on the security of protocols (such as the DDH, RSA assumptions).
+
+\subsection{Prime Order Subgroups}
+The Decisional Diffie-Hellman assumption (DDH) does \emph{not} hold for prime $p$ in cyclic group $\ZZ_p^\times$ with order $p-1$. We use the prime order subgroup of $\ZZ_p^\times$.
+
+\begin{definition}[Subgroup]
+    A subgroup is some subset of a group that is also a group itself.
+\end{definition}
+
+\begin{definition}[Safe Prime]
+    A prime $p$ is a safe prime if $p = 2q+1$, where $q$ is prime. These are also known as Sophie Germain primes.
+\end{definition}
+
+Where $p$ is a safe prime, the DDH assumption holds in group $\GG := \{x^2 \mod p  \mid  x \in \ZZ_p^\times\}$, and $\GG$ is a provably a subgroup of $\ZZ_p^\times$ with order $q$.
