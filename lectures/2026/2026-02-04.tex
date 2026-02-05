@@ -1,0 +1,191 @@
+%!TEX root = ../notes.tex
+\section{February 05, 2025}
+\label{20250205}
+
+\subsection{Hash Function}
+A hash function is a public function
+\[H: {0, 1}^*\to {0, 1}^n\]
+where $n$ is order $\Theta(\lambda)$.
+
+\Graphic{images/2023-02-07/hash.png}{0.5}
+
+We want our hash function to be collision-resistant. That is, it's computationally hard to find $x, y\in\left\{ 0, 1 \right\}^*$ such that $x\neq y$ yet $H(x) = H(y)$ (which is called a collision).
+
+How might one find a collision for function $H: \{ 0, 1 \}^*\to \{ 0, 1 \}^n$. We can try $H(x_1), H(x_2), \dots, H(x_q)$.
+
+If $H(x_1)$ outputs a random value, ${0, 1}^n$, what is the probability of finding a collision?
+
+If $q = 2^n + 1$, our probability is exactly $1$ (by pigeon-hole). If $q = 2$, our probability is $\frac{1}{2^\lambda}$ (we have to get it right on the first try). What $q$ do we need for a `reasonable' probability?
+
+\begin{remark*}
+    This is related to the birthday problem. If there are $q$ students in a class, assume each student's birthday is a random day $y_i\sampledfrom [365]$. What is the probability of a collision? $q = 366$ gives $1$, $q = 23$ gives around $50\%$, and $q = 70$ gives roughly $99.9\%$.
+
+    We can apply this trick to our hash function. If $y_i\sampledfrom [N]$, then $q = N+1$ gives us $100\%$, but $q = \sqrt{N}$ gives $50\%$ probability.
+\end{remark*}
+
+Knowing this, we want $n = 2\lambda$ (output length of hash function). If $\lambda = 128$, we want $n$ to be around $256$.
+
+\subsection{Collision-Resistant Hash Function (CRHF)}
+Recall that we defined a hash function to be a public and deterministic function for which it is computationally hard to find a collision. That is, finding two distinct strings $x, y$ such that $H(x) = H(y)$ is computationally difficult.
+
+For the hash function, the input domain is arbitrary-length string, and the output is a fixed-length string - 256 bits. The security guarantee is Collision-Resistant Hash Function(CRHF).
+\Graphic{images/2023-02-09/hash.png}{0.4}
+
+\subsubsection{Random Oracle Model}
+Another way to model a hash function is the \emph{Random Oracle Model}. We think of our hash function to be an oracle (in the sky) that can \emph{only} take input and a random output (and if you give it the same input twice, the same output).
+
+\Graphic{images/2023-02-07/oracle.png}{0.5}
+
+There are proofs that state that no hash functions can be a random oracle. There are schemes that can be secure in the random oracle model, but are not using hash functions\footnote{Some constructions don't rely on this model.}.
+
+In reality, hash functions are \emph{about as good as}\footnote{But can never be\dots} random oracles. Thinking of our hash functions as random oracles gives us a good intuitive understanding of how hash functions can be used in our schemes.
+
+In this model, the best thing that an attacker can do is to try inputs and query for outputs.
+
+If you are given an arbitrary output, it's extremely hard to find its input. But it is not the case for CRHF, since CRHF only assumes you can not find a collision, thus this model is tronger than CRHF.
+
+\Graphic{images/2023-02-09/hash-oracle.png}{0.4}
+
+\subsubsection{Constructions for Hash Function}
+\begin{description}
+    \item[MD5.] Output length $128$-bit. Best known attack is in $2^{16}$. A collision was found in 2004.
+\end{description}
+And we also have Secure Hash Functions (SHA), founded by NIST.
+\begin{description}
+    \item[SHA-0.] Standardized in 1993. Output length is 160-bit. Best known attack is in $2^{39}$.
+    \item[SHA-1.] Standardized in 1995. Output length is $160$-bit. Best known attack is in $2^{63}$, and a collision \emph{was} found in 2017.
+    \item[SHA-2.] Standardized in 2001. Output length of 224, 256, 284, 512-bit. The most commonly used is SHA-256.
+    \item[SHA-3.] There was a competition from 2007-2012 for new hash functions. SHA-3 was released in 2015, and has output length 224, 256, 2384, 512-bit. This is \emph{completely different} from SHA-2.
+\end{description}
+
+\begin{remark*}
+    The folklore is that during a session at a cryptography conference, a mathematician, Xiaoyun Wang, presented slide-after-slide of attacks on MD5 and SHA-0, astounding the audience.
+\end{remark*}
+
+\subsubsection{Applications}
+
+\begin{description}
+    \item[HMAC.] We can use a hash function to conduct a MAC. Computing a tag involves computing the hash function on the key appended to the message ($k||m$). It is computationally difficult to find another $k || m'$ that produces the same hash. This is a scheme that looks like
+        \[\Mac_k(m) = H(k||m).\]
+
+        However, an adversary could potentially attach some additional $s$ to $m$ to produce $m' = m||s$ such that they can easily compute $\mathsf{tag}' = H(\mathsf{tag}||s)$. This is due to the Merkle-Damgård construction of SHA-2, which associatively tags blocks of the message one-by-one.
+
+        \Graphic{images/2023-02-09/md.png}{0.4}
+
+        Therefore, in practice, we use a nested MAC like
+        \[\Mac_k(m) = H(k||H(k||m))\]
+        and just to be sure (that we're not reusing the key), we produce $k_1, k_2$ as such
+        \[\mathsf{HMAC}_k(m) = H(k_1||H(k_2||m))\]
+        such that $k_1 = k\oplus \mathsf{opad}$ and $k_2 = k\oplus\mathsf{ipad}$, some one-time pads.
+
+    \item[Hash-and-Sign.] There are some other applications of a hash function. We've seen before with RSA that we want to Hash-and-Sign, removing any homomorphism that an adversary could exploit. Additionally, this allows us to sign larger messages since they are constant size after hashing.
+
+    \item[Password Authentication.] Another application is password authentication. Instead of storing plaintext passwords on servers, websites can store a hash of the password instead. This means that the passwords are not compromised even if the server is compromised.
+
+    \item[Deduplicate Files.] We can also use hash functions to deduplicate files. We can hash two files to produce identifiers $h_1$ and $h_2$. If $h_1\neq h_2$, this implies $D_1\neq D_2$. If $h_1 = h_2$, it almost always\footnote{If they are not equal, we've found a collision for our hash function, which is extremely unlikely.} implies that $D_1 = D_2$.
+
+    \item[HKDF (Key Derivation Function).] We can derive more keys from a shared key, essentially using a hash function as a pseudorandom generator (PRG).
+
+        For example, if there is $g^{ab}$ shared key, we can do
+        \[\mathsf{HMAC}(g^{ab}, \textsf{salt})\]
+
+        Using a random seed, and concatenating a public deterministic salt $G$, we can generate a random\footnote{Computationally random, because if our computational power were to be unbounded, we can try all strings.} string.
+
+        \Graphic{images/2023-02-09/hkdf.png}{0.8}
+
+    \item[Pseudorandom Generator (PRG).] Given a hash function $H$, we can generate a PRG easily for any length string by generating
+        \begin{align*}
+            \mathsf{seed}\sampledfrom \{0, 1\}^\lambda \longrightarrow & H(\mathsf{seed}||00\cdots 00) \\
+                                                                       & H(\mathsf{seed}||00\cdots 01) \\
+                                                                       & H(\mathsf{seed}||00\cdots 10) \\
+                                                                       & \qquad\qquad \vdots
+        \end{align*}
+
+        We can take a bit of randomness (like the way we move our mouse, type keyboard, system properties) and generate our seed.
+
+    \item[Fast Membership Proof (Merkle Tree).] Using hash functions, we can generate Merkle Trees to prove membership. In blockchains, this is equivalent to checking if a transaction occurred.
+
+    \item[SKE Scheme?] Could we use this to encrypt? If we have a secret key $k\sampledfrom\{0, 1\}^\lambda$, can we just encrypt by
+        \[\Enc_k(m) = H(k||m)\]
+        Well, we can't decrypt for one without having unbounded computational power. If our plaintext $m$ comes from a small set, like $\{0, \dots, 10\}$, we could decrypt properly. However, this is not CPA-secure, since the adversary could just query for all the messages.
+
+        \begin{remark}
+            In general, all deterministic encryption schemes are not CPA-secure.
+        \end{remark}
+\end{description}
+
+\subsection{Putting it Together: Secure Communication}
+This is essentially what we want to do in the second project.
+
+We use Diffie-Hellman Key Exchange between Alice and Bob to get shared $g^{ab}$. Hashing the shared key using an HKDF, we can get shared key $k = (k_1, k_2)$ (one for AES encryption, one for HMAC). Then, they perform authenticated encryption, namely Encrypt-then-MAC.
+
+\begin{ques*}
+    Are there any issues with this scheme?
+\end{ques*}
+An Eve could pretend to be Alice to Bob and Bob to Alice, fudging up their shared keys. This is called a \emph{Man-in-the-Middle} attack.
+
+\subsubsection{Diffie-Hellman Ratchet}
+What if a secret key gets leaked, or cracked? One simple way to fix this is to perform a Diffie-Hellman key exchange on every message. However, this incurs additionall communications costs.
+
+Here's another idea: with every new message (when the direction of communications shifts), the party sending the message sends a new Diffie-Hellman public key for themselves. For example, if Bob is sending a message to Alice and he knows Alice's public key $g^{a_1}$ and his previous secret was $b_1$ (hence shared $g^{a_1b_1})$, Bob will generate new key $b_2, g^{b_2}$ and encrypt using $g^{a_1b_2}$, sending $g^{b_2}$ as public to Alice. Alice can recompute the shared key before decrypting.
+
+\Graphic{images/2023-02-09/dh-ratchet.png}{0.7}
+
+This is the protocol used in the Signal messaging app, and is what you will implement for Project 1.
+
+\begin{ques*}
+    What if $k_1$ is leaked?
+\end{ques*}
+We might have leaked one key, but the other keys are still computationally hard to compute. $k_1=g^{a_1b_1}$ is known, but it's equivalent to DDH to compute $g^{a_1b_2}$ or other keys.
+
+\begin{ques*}
+    What if $b_1$ is leaked?
+\end{ques*}
+We can compute key $k_1=g^{a_1b_1}$ and $k_2=g^{a_2b_1}$, but no further keys are leaked, and the next round of communications (after Bob refreshes his private key $b_2$) is still secure.
+
+\subsection{Block Cipher}
+To summarize, here's what we've seen so far (this table should be familiar):
+\begin{center}
+    \begin{tabular}{@{}lll@{}}
+        \toprule
+                                      & \textbf{Symmetric-Key}                                                                               & \textbf{Public-Key}                                                                   \\ \midrule
+        \textbf{Message Secrecy}      & \begin{tabular}[c]{@{}l@{}}Primitive: SKE\\ Construction: \boxed{\textbf{Block Cipher}}\end{tabular} & \begin{tabular}[c]{@{}l@{}}Primitive: PKE\\ Constructions: RSA/ElGamal\end{tabular}   \\ \midrule
+        \textbf{Message Integrity}    & \begin{tabular}[c]{@{}l@{}}Primitive: MAC\\ Constructions: CBC-MAC/HMAC\end{tabular}                 & \begin{tabular}[c]{@{}l@{}}Primitive: Signature\\ Constructions: RSA/DSA\end{tabular} \\ \midrule
+        \textbf{Secrecy \& Integrity} & \begin{tabular}[c]{@{}l@{}}Primitive: AE\\ Construction: Encrypt-then-MAC\end{tabular}               &                                                                                       \\ \midrule
+        \textbf{Key Exchange}         &                                                                                                      & Construction: Diffie-Hellman                                                          \\ \midrule
+        \textbf{Important Tool}       & \begin{tabular}[c]{@{}l@{}}Primitive: Hash function\\ Construction: SHA\end{tabular}                 &                                                                                       \\ \bottomrule
+    \end{tabular}
+\end{center}
+The only thing we haven't seen thus far is a block cipher. We first start with the definitions.
+
+We saw earlier that a Pseudorandom Generator (PRG) produces a string that looks random. We also have Pseudorandom Functions (PRF), which are `random-looking' functions.
+
+\subsubsection{Pseudorandom Function (PRF), \emph{continued}}
+
+A block cipher, at a very high level, is a pseudo random function.
+
+Recall last time that we talked about pseudorandom \emph{generators} (PRG), which takes a seed and expands it into a long string of pseudorandom bits. This ``random-looking'' \textbf{string} is computationally indistinguishable from a truly random string.
+
+A pseudorandom \emph{function} (PRF) is a ``random-looking'' \textbf{function} that takes a key and an input and produces an output. This function is computationally indistinguishable from a truly random function.
+
+More formally, our pseudorandom function $F$ is a keyed function\footnote{In deterministic polynomial-time.} $F : \{0, 1\}^\lambda\times \{0, 1\}^n\to\{0, 1\}^m$, $F$ will take key $k$ and input $x$ to produce output $y$, $F(k, x) = y$.
+
+Without knowing our key $k$, $F_k$ is computationally indistinguishable from some random $f\sampledfrom\{F\mid F\{0, 1\}^n\to \{0, 1\}^m\}$.
+
+\Graphic{images/2023-02-09/prf.png}{0.8}
+
+We have $2^\lambda$ possible $F_k$'s, and we have $(2^m)^{2^n}$ possible functions $f$. A computationally unbounded adversary could try all possible functions and distinguish our function, since $F_k$ lives in a subset of the space of $f$. However, in reality, we can assume that $F_k$ is computationally indistinguishable from any generic function.
+
+\subsubsection{Pseudorandom Permutation (PRP)}
+
+A further assumption is that our function is a bijection. $F_k$ is a keyed function from $F_k : \{0, 1\}^n\to\{0, 1\}^n$. We still have $2^\lambda$ possible $F_k$'s since there are $2^\lambda$
+
+\Graphic{images/2023-02-09/prp.png}{0.8}
+
+\begin{ques*}
+    Again, how many possible $f$'s are there?
+\end{ques*}
+Our first string has $2^n$ choices to map to, our second choice has $2^n - 1$, so there are
+\[(2^n)(2^n-1)(2^n-2)\cdots 1 = 2^n!\]
+
+Still, this is a much larger number than $2^\lambda$, so we still make a computational assumption that our keyed function $F_k$ is still computationally indistinguishable from a random function $f$.
