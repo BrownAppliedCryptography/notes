@@ -1,0 +1,114 @@
+%!TEX root = ../notes.tex
+\section{February 9, 2025}
+\label{20260209}
+
+\subsection{Recap}
+Last lecture, we introduced Pseudorandom Functions (PRFs) and Pseudorandom Permutations (PRPs). We also introduced the concept of a block cipher, which is a special form of a PRP. Refer to last lecture's notes for a refresher.
+
+\subsection{Practical Constructions of Block Ciphers}
+Looking back on \cref{sec:feb7-summary-so-far}, the last outstanding primitive was the block cipher.
+
+Recall that we had seen pseudorandom functions which are keyed functions that are computationally indistinguishable from \emph{all} random functions from $\{0, 1\}^n\to \{0, 1\}^m$. A stronger form of pseudorandom functions are pseudorandom permutations: a keyed bijective map between $\{0, 1\}^n\to \{0, 1\}^n$ that is computational indistinguishable from pseudorandom permutations.
+
+Block ciphers are a special form of pseudorandom permutation. It is a keyed function
+\[F : \{0, 1\}^\lambda\times \{0, 1\}^n\to \{0, 1\}^n\]
+where $\lambda$ is the key length and $n$ is the block length. The practical construction of which is AES, which takes blocks of $n = 128$ and key length $\lambda = 128, 192, 256$ as choices.
+
+\subsubsection{History of AES and DES}
+
+AES (Advanced Encryption Standard) was standardized in 2001 by NIST, and is a block cipher with a block length of 128 bits and key lengths of 128, 192, and 256 bits. Its predecessor, DES, had a block length of 64 bits and a key length of 56 bits - the best attack on DES is still a brute force attack.
+
+We will see how to construct DES, which has similar ideas in constructing AES. To do so, we need to talk about Substitution-Permutation Networks (SPN) and Feistel Networks.
+
+\subsubsection{Substitution-Permutation Network (SPN)}
+
+We want to incorporate a design principle known as the ``Avalanche Effect'', where a small change in the input should have an effect on every part of the output. In particular, even if one-bit is changed in the input, every bit in the output should be affected so that it looks completely different.
+
+SPN proceeds as follows.
+
+\begin{enumerate}
+    \item[Step 1.] \textbf{Key mixing.} Take input $x$ and XOR it with sub-key $k$, i.e. $x:= x \oplus k$. The result is 64-bit.
+    \item[Step 2.] \textbf{Confusion Step.} Split $x$ into $8$ parts of 8 bits each. On each part, apply an \textbf{S-box}, which is a public permutation of 8 bits. Furthermore, 1-bit change in the input gives a 2-bit change in the output.
+    \item[Step 3.] \textbf{Diffusion Step.} Take the output from each S-box and concatenate them together into a 64-bit result. Then use a public mixing permutation to shuffle the bits.
+\end{enumerate}
+
+\begin{center}
+    \includegraphics[width=0.5\linewidth]{2024-04-15-spn.png}
+\end{center}
+
+We can repeat this procedure for multiple rounds. For example, below is a 3-round SPN.
+
+\begin{center}
+    \includegraphics[width=0.5\linewidth]{2024-04-15-spn-mult.png}
+\end{center}
+
+Different sub-keys are used in each round. These sub-keys are derived from a \textit{master key} using a \textit{key schedule}, for example, by taking different subsets from the master key.
+
+Given the master key, we can compute $F_{k}^{-1}(y)$. First, use the key schedule to find each sub-key, which we can use to XOR to get the inverse. Then, since each mixing permutation is public, we can compute its inverse for each round. Additionally, each S-box is public, so we can find its inverse too. Thus we have all the information we need to compute the inverse.
+
+\subsubsection{Attacks on Reduced-Round SPN}
+
+\textbf{1-round SPN without final key mixing.} The adversary can begin with the output $y$, then invert it starting from the end to the beginning. Since the permutations are public, the adversary can compute $x \oplus k$, and since they know the input $x$, they can figure out $k$. Thus we have a complete break. This shows that we need a final key mixing step.
+
+\textbf{1-round SPN with final key mixing.} Assume the key and input is 16-bit. The adversary can try to attack by enumerate the possible values of $k_2$, then using the SPN derive $k_1$ for each $k_2$. This takes $O(2^{16})$ time and gives $2^{16}$ possible values for the master key.
+
+\subsubsection{Feistel Network}
+
+\begin{center}
+    \includegraphics[width=0.5\linewidth]{2024-04-15-feistel-3round.png}
+\end{center}
+
+Let $x = L_0 || R_0$ be the input split into two halves, left and right. The $R_0$ is fed into a \textit{round function} $f_1$ and is XOR-ed with $L_0$ to get $R_1$. Then $L_1$ is defined to be $R_0$. This is repeated for several rounds (3 rounds in the figure above). Let $y= L_n || R_n$ be the output after $n$ rounds.
+
+To compute the inverse $F_k^{-1}(y)$, start from the output e.g. $(L_3, R_3)$. We know $R_2 = L_3$, so we can compute $f_3(R_2)$. This satisfies $f_3(R_2) \oplus L_2 = R_3$, so we can find $L_2$. Thus we have found $(L_2, R_2)$, and we can continue until we get $x$.
+
+There are attacks on reduced-round Feistel Networks that we will not cover in lecture, but you can think about it on your own.
+
+\subsubsection{Data Encryption Standard (DES)}
+
+Recall that the block length is $n=64$ and master key length is $\lambda = 56$ for DES. Use the Feistel network on our $64$-bit input $x$ so that $L_0, R_0$ each get $32$ bits. For the round functions, we use something called a \textit{DES mangler function}, which is essentially a SPN.
+
+However, unlike an SPN, the S-boxes are not permutation, but rather they reduce the size from 6-bit to 4-bit. Additionally, the follow the following properties
+\begin{enumerate}
+    \item Maps $\{0, 1\}^6 \to \{0, 1\}^4$.
+    \item ``4-to-1'': Exactly 4 inputs map to the same output.
+    \item 1-bit change of input gives at least 2-bit change in the output.
+\end{enumerate}
+
+\begin{center}
+    \includegraphics[width=0.5\linewidth]{2024-04-15-dsa-mangler.png}
+\end{center}
+
+$E$ is an expansion function. Given a 32-bit string AB where A and B are 16-bit, the output is a 42-bit string ABA.
+
+For the key schedule, we have a master key with length 56 but need a 48-bit sub-key. To do so, split the master key into two halves of 28-bits each, then take a random subset of 24-bits from each half. Then concatenate these two subsets to form a 48-bit sub-key.
+
+\begin{remark}
+    DES does seem very complicated. This is intentional to do so so that attacks are hard.
+
+    Multiple rounds of DES does not necessarily improve the security guarantees. Once DES is applied multiple times, we lose our security guarantee, and we need to do additional cryptanalysis, so it is unclear if it is secure. This is the reason NIST developed a new standard known as AES.
+\end{remark}
+
+\subsection{Practical Constructions of Hash Functions}
+
+Given a block cipher $F$, there is a way to construct a hash function.
+
+First, let's construct a fixed-length hash function. We can split the input into two halves, $k$ and $x$, and compute $F_k(x)$ as the output. This construction is known as the Davies-Mayer construction. 
+
+\begin{theorem}
+  If $F$ is modeled as an "ideal cipher," then the Davies-Mayer construction is collision resistant. 
+\end{theorem}
+
+Notice that this construction creates a compression function which takes an input of $2\lambda$ bits, and produces an output of $\lambda$ bits. But hash functions can take an arbitrary length string! 
+
+To achieve this, we can use the Merkle-Damgård construction, which iteratively applies the compression function to blocks of the input message. At the end of the input message, we attach one more block which contains the length of the message in order to ensure collision-resistance.
+
+\begin{theorem}
+  If the compression function is a collision-resistant hash function for fixed-length inputs, then Merkle-Damgård construction is a collision-resistant hash function for arbitrary-length inputs.
+\end{theorem}
+
+\subsection{Block Cipher Modes of Operation}
+
+\textbf{Electronic Code Book (ECB) Mode:} We will run our block cipher on each block of our message individually. However, this is not CPA secure, since encryptions are deterministic. We need to `seed' our encryption with some random value. 
+
+\emph{In summary: not CPA secure}.
