@@ -1,7 +1,7 @@
 %!TEX root = ../notes.tex
 \section{February 11, 2026}
 \label{20260211}
-\subsubsection{More Block Cipher Modes of Operation}
+\subsection{More Block Cipher Modes of Operation}
 Last time, we introduced the Electronic Code Book (ECB) mode, and demonstrated that it is not CPA secure.
 
 \textbf{Cipher Block Chaining (CBC) Mode:} Instead of running on our block cipher on each block individually, every block will get an additional \emph{initialization vector} IV, which is $\mathsf{XOR}$ed onto each message before running the block cipher.
