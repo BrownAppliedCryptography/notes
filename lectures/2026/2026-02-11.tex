@@ -40,7 +40,7 @@ Another way to think about the CTR mode is that we're using $F_k$ and a random I
 
 \Graphic{images/2023-02-14/ctr.png}{0.5}
 
-\emph{How do we decrypt?} Since we know the first IV, we can compute the one-time pads $F_k(\mathrm{IV} + i)$ and $\mathsf{XOR}$ with $m_i$s. This scheme is valid.
+\emph{How do we decrypt?} Since we know the first IV, we can compute the one-time pads $F_k(\mathrm{IV} + i)$ and $\mathsf{XOR}$ with $c_i$s. This scheme is valid.
 
 \emph{Is this CPA secure?} The $\mathsf{XOR}$ \emph{after} $F_k$ might throw you off and cast doubt in your mind. However, this mode of operation is CPA-secure. Even if we know IV, $\mathrm{IV}+1, \mathrm{IV}+2, \cdots$, we can't figure out the output of $F_k$ that becomes our one-time pad (to do so constradicts the CPA security of our block cipher). The CPA security of each $F_k$ being pseudorandom guarantees the CPA security of this scheme.
 

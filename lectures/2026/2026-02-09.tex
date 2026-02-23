@@ -79,7 +79,7 @@ However, unlike an SPN, the S-boxes are not permutation, but rather they reduce 
     \includegraphics[width=0.5\linewidth]{2024-04-15-dsa-mangler.png}
 \end{center}
 
-$E$ is an expansion function. Given a 32-bit string AB where A and B are 16-bit, the output is a 42-bit string ABA.
+$E$ is an expansion function. Given a 32-bit string AB where A and B are 16-bit, the output is a 48-bit string ABA.
 
 For the key schedule, we have a master key with length 56 but need a 48-bit sub-key. To do so, split the master key into two halves of 28-bits each, then take a random subset of 24-bits from each half. Then concatenate these two subsets to form a 48-bit sub-key.
 
