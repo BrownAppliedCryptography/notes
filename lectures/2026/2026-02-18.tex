@@ -7,35 +7,11 @@ In some circumstances, it's more difficult for a client to communicate their ver
 
 \Graphic{images/2023-02-16/one-sided_secure_authentication.png}{0.8}
 
-\emph{Whacould an adversary potentially do?} The adversary could not pretend to be the server since they have no access to the server's signing key. The adversary \emph{can} pretend to be the client and talk to the server. The adversary could forward all messages sent to the server, and can also communicate $g^b, \sigma_b$ back to the client (it's a valid signature since it has not been modified).
+\emph{What could an adversary potentially do?} The adversary could not pretend to be the server since they have no access to the server's signing key. The adversary \emph{can} pretend to be the client and talk to the server. The adversary could forward all messages sent to the server, and can also communicate $g^b, \sigma_b$ back to the client (it's a valid signature since it has not been modified).
 
 At the end of this protocol, the client has Diffie-Hellman private $g^{ab}$ and the adversary and server will have $g^{eb}$ (where $g^e, e$ is a Diffie-Hellman keypair the adversary provided to the client). Whatever the client sends to the server cannot be decrypted by the adversary, since it is encrypted with $g^{ab}$, however, the server's communications \emph{could} be decrypted by the adversary.
 
 This can be easily circumvented by requiring the server and user complete their handshake---the server could request a hash or encryption of the shared secret, and realize that they are communicating to an adversary when this cannot be forged by the man-in-the-middle.
-
-\subsubsection{Certificate Chain}
-In reality, there are several certificate authorities, and they also form \emph{chains} of certificate authorities.
-
-\Graphic{images/2023-02-16/cert_chain.png}{0.8}
-
-A Root CA\footnote{We mentioned earlier that CAs are built into devices. For example, \href{https://support.apple.com/en-us/HT213464}{here} is a list of all root certificates that are built-in for Apple devices. This can go wrong too! \href{https://en.wikipedia.org/wiki/Root_certificate\#Incidents_of_root_certificate_misuse}{CAs have been misused} which causes implications on the security of the internet.} with a known $(vk, sk)\Gen(1^\lambda)$ can first sign the $vk_1$ of an Intermediate CA1, producing cert $\mathsf{cert}_1 = \sigma \leftarrow \Sign_{sk}(vk_1)$.
-
-Then, the Intermediate CA1 can sign a certificate for Intermediate CA2, but we'll have to preserve this chain. Intermediate CA1 could produce cert $\sigma_1\leftarrow\Sign_{sk_1}(vk_2)$, but how do we know that $sk_1$ is valid? So, we'll need to include $vk_1$ and $vk_1$'s signature signed by $sk$. That is,
-\begin{align*}
-    \mathsf{cert}_2 = & vk_1, \sigma \leftarrow \Sign_{sk}(vk_1),   \\
-                      & vk_2, \sigma_2\leftarrow \Sign_{sk_1}(vk_2)
-\end{align*}
-Finally, Intermediate CA2 can sign Bob's verification key using their chain. Bob's certificate will contain
-\begin{align*}
-    \mathsf{cert}_B = & vk_1, \sigma \leftarrow \Sign_{sk}(vk_1),   \\
-                      & vk_2, \sigma_2\leftarrow \Sign_{sk_1}(vk_2) \\
-                      & vk_B, \sigma_B\leftarrow \Sign_{sk_2}(vk_B)
-\end{align*}
-\emph{How can an Intermediate CA restrict Bob's use of these certificates? What if Bob will then go on and start signing his own certificates for people?} We can concatenate information in each certificate that restricts its use. It could specify whether it is being issued to an \emph{end user}, or even additional information like validity time.
-
-To protect against CAs that get compromised, certificates are short-lived and have set validity times. Additionally, certificate authorities can publish revocation lists that browsers check against when validating a certificate.
-
-
 
 \subsection{Password-Based Authentication}
 Sometimes, you also want to \emph{authenticate} with a server using a password. The na\"ive implementation is that a user with an ID sends a hash of the password $h = H(\mathrm{password})$ to the server. The server stores $(\mathrm{ID}, h)$.
@@ -73,166 +49,42 @@ For app-generated codes, the user and server will first share a seed $\mathsf{se
 
 \Graphic{images/2023-02-23/2fa.png}{0.8}
 
-% \subsection{SSH}
+\subsection{Public Key Infrastructure}
 
-% This is \emph{exactly} how the SSH algorithm works.
+\emph{How can we know who has which public keys on the internet?} We can rely on a Public Key Infrastructure (PKI) to know each other's public keys.
 
-% \Graphic{images/2023-02-16/ssh_protocol.png}{0.8}
+If Bob purports to be \texttt{bob.com} and wants to prove that $vk_B$ belongs to him, Bob will send a certificate signing request (CSR) to a Certificate Authority (CA)\footnote{\emph{The higher beings that be}...this is companies like \emph{DigiCert}, \emph{Let's Encrypt}, etc.}.
 
-% Let's work through the steps of GitHub's SSH setup to see how it works.
+The CA will sign the message $(\mathtt{bob.com}, vk_B)$ and send that signature $\sigma$ back to Bob. This verifies that the user of \texttt{bob.com} holds signing key $sk_B$ with public key $vk_B$.
 
-% \Graphic{images/2023-02-16/ssh_instruction.png}{0.8}
+\Graphic{images/2023-02-16/pki_cert.png}{0.8}
 
-% The instructions are given for the EDDSA-25519 algorithm, which relies on elliptic curves.
+The standard of which is the X.509 certificate.
 
-% \begin{enumerate}
-%     \item We first generate a signing keypair $(vk_A, sk_A) \leftarrow \Gen(1^\lambda)$ via
+For example, when we try to access \texttt{facebook.com}, we can check that the certificate is valid\footnote{In browsers, this is represented by the lock symbol---clicking on that will allow you to verify that certificate.}
 
-%           \texttt{\$ ssh-keygen -t ed25519 -C "your\_email@example.com"}
+\Graphic{images/2023-02-16/fb_cert.png}{0.8}
 
-%           $vk_A$ is the \texttt{id\_ed25519.pub} (the public key) $sk_A$ is \texttt{id\_ed25519} (the private key).
-%     \item We upload our public key to our account on GitHub. This is equivalent of communicating our $vk_A$ to GitHub.
-%     \item When we're connecting via SSH to GitHub for the first time, our terminal will prompt us that this is a new server with a new verification key.
+This pivots on the fact that \emph{everyone} must know $vk$ of the certificate authority. We shift our trust from individual sites and users to the certificate authorities. Most devices have the $vk$s of trusted authorities built in.
 
-%           \texttt{> The authenticity of host `github.com (IP ADDRESS)' can't be established. \\
-%               > RSA key fingerprint is SHA256:nThbg6kXUpJWGl7E1IGOCspRomTxdCARLviKw6E5SY8. \\
-%               > Are you sure you want to continue connecting (yes/no)?}
+\subsubsection{Certificate Chain}
+In reality, there are several certificate authorities, and they also form \emph{chains} of certificate authorities.
 
-%           which we can verify against GitHub's known verification keys\footnote{The security of our web upload to GitHub, or GitHub's site which publishes the verification key, relies on the security of the website, likely through TLS. But you could also imagine exchanging keys in person, etc. }. This is the equivalent of receiving a $vk_B$ from GitHub.
-% \end{enumerate}
+\Graphic{images/2025/cert_chain.png}{0.8}
 
+A Root CA\footnote{We mentioned earlier that CAs are built into devices. For example, \href{https://support.apple.com/en-us/HT213464}{here} is a list of all root certificates that are built-in for Apple devices. This can go wrong too! \href{https://en.wikipedia.org/wiki/Root_certificate\#Incidents_of_root_certificate_misuse}{CAs have been misused} which causes implications on the security of the internet.} with a known $(vk, sk)\Gen(1^\lambda)$ can first sign the $vk_1$ of an Intermediate CA1, producing cert $\mathsf{cert}_1 = \sigma \leftarrow \Sign_{sk}(vk_1)$.
 
-% \subsection{Public Key Infrastructure}
+Then, the Intermediate CA1 can sign a certificate for Intermediate CA2, but we'll have to preserve this chain. Intermediate CA1 could produce cert $\sigma_1\leftarrow\Sign_{sk_1}(vk_2)$, but how do we know that $sk_1$ is valid? So, we'll need to include $vk_1$ and $vk_1$'s signature signed by $sk$. That is,
+\begin{align*}
+    \mathsf{cert}_2 = & vk_1, \sigma \leftarrow \Sign_{sk}(vk_1),   \\
+                      & vk_2, \sigma_2\leftarrow \Sign_{sk_1}(vk_2)
+\end{align*}
+Finally, Intermediate CA2 can sign Bob's verification key using their chain. Bob's certificate will contain
+\begin{align*}
+    \mathsf{cert}_B = & vk_1, \sigma \leftarrow \Sign_{sk}(vk_1),   \\
+                      & vk_2, \sigma_2\leftarrow \Sign_{sk_1}(vk_2) \\
+                      & vk_B, \sigma_B\leftarrow \Sign_{sk_2}(vk_B)
+\end{align*}
+\emph{How can an Intermediate CA restrict Bob's use of these certificates? What if Bob will then go on and start signing his own certificates for people?} We can concatenate information in each certificate that restricts its use. It could specify whether it is being issued to an \emph{end user}, or even additional information like validity time.
 
-% \emph{How can we know who has which public keys on the internet?} We can rely on a Public Key Infrastructure (PKI) to know each other's public keys.
-
-% If Bob purports to be \texttt{bob.com} and wants to prove that $vk_B$ belongs to him, Bob will send a certificate signing request (CSR) to a Certificate Authority (CA)\footnote{\emph{The higher beings that be}...this is companies like \emph{DigiCert}, \emph{Let's Encrypt}, etc.}.
-
-% The CA will sign the message $(\mathtt{bob.com}, vk_B)$ and send that signature $\sigma$ back to Bob. This verifies that the user of \texttt{bob.com} holds signing key $sk_B$ with public key $vk_B$.
-
-% \Graphic{images/2023-02-16/pki_cert.png}{0.8}
-
-% The standard of which is the X.509 certificate.
-
-% For example, when we try to access \texttt{facebook.com}, we can check that the certificate is valid\footnote{In browsers, this is represented by the lock symbol---clicking on that will allow you to verify that certificate.}
-
-% \Graphic{images/2023-02-16/fb_cert.png}{0.8}
-
-% This pivots on the fact that \emph{everyone} must know $vk$ of the certificate authority. We shift our trust from individual sites and users to the certificate authorities. Most devices have the $vk$s of trusted authorities built in.
-
-
-% \subsection{A Brief Recap: Secure Authentication}
-
-% We'll quickly review what we have covered so far.
-
-% Recall that we have introduced a third party, the server, who is trusted by all party's and assigns certificates.
-
-% \Graphic{images/2024/2024-02-21-auth.png}{0.8}
-
-% After party's have their certificates, they can run two-sided authenticated key-exchange.
-
-% \Graphic{images/2024/2024-02-21-2-sided-kex.png}{0.8}
-
-% \subsection{Public Key Infrastructure}
-
-% \emph{How can we know who has which public keys on the internet?} We can rely on a Public Key Infrastructure (PKI) to know each other's public keys.
-
-% If Bob purports to be \texttt{bob.com} and wants to prove that $vk_B$ belongs to him, Bob will send a certificate signing request (CSR) to a Certificate Authority (CA)\footnote{\emph{The higher beings that be}...this is companies like \emph{DigiCert}, \emph{Let's Encrypt}, etc.}.
-
-% The CA will sign the message $(\mathtt{bob.com}, vk_B)$ and send that signature $\sigma$ back to Bob. This verifies that the user of \texttt{bob.com} holds signing key $sk_B$ with public key $vk_B$.
-
-% \Graphic{images/2023-02-16/pki_cert.png}{0.8}
-
-% The standard of which is the X.509 certificate.
-
-% For example, when we try to access \texttt{facebook.com}, we can check that the certificate is valid\footnote{In browsers, this is represented by the lock symbol---clicking on that will allow you to verify that certificate.}
-
-% \Graphic{images/2023-02-16/fb_cert.png}{0.8}
-
-% This pivots on the fact that \emph{everyone} must know $vk$ of the certificate authority. We shift our trust from individual sites and users to the certificate authorities. Most devices have the $vk$s of trusted authorities built in. 
-
-% \emph{What happens if a root CA gets compromised?} An attacker can issue as many malicious certificates as they want - they could give certificates for Google, or certificates for Amazon, etc. \href{https://en.wikipedia.org/wiki/DigiNotar}{This has actually happened before}, and can be very hard to detect.
-
-% \subsubsection{Certificate Chain}
-% In reality, there are several certificate authorities, and they also form \emph{chains} of certificate authorities.
-
-% \Graphic{images/2025/cert_chain.png}{0.8}
-
-% A Root CA\footnote{We mentioned earlier that CAs are built into devices. For example, \href{https://support.apple.com/en-us/HT213464}{here} is a list of all root certificates that are built-in for Apple devices. This can go wrong too! \href{https://en.wikipedia.org/wiki/Root_certificate\#Incidents_of_root_certificate_misuse}{CAs have been misused} which causes implications on the security of the internet.} with a known $(vk, sk)\Gen(1^\lambda)$ can first sign the $vk_1$ of an Intermediate CA1, producing cert $\mathsf{cert}_1 = \sigma \leftarrow \Sign_{sk}(vk_1)$.
-
-% Then, the Intermediate CA1 can sign a certificate for Intermediate CA2, but we'll have to preserve this chain. Intermediate CA1 could produce cert $\sigma_1\leftarrow\Sign_{sk_1}(vk_2)$, but how do we know that $sk_1$ is valid? So, we'll need to include $vk_1$ and $vk_1$'s signature signed by $sk$. That is,
-% \begin{align*}
-%     \mathsf{cert}_2 = & vk_1, \sigma \leftarrow \Sign_{sk}(vk_1),   \\
-%                       & vk_2, \sigma_2\leftarrow \Sign_{sk_1}(vk_2)
-% \end{align*}
-% Finally, Intermediate CA2 can sign Bob's verification key using their chain. Bob's certificate will contain
-% \begin{align*}
-%     \mathsf{cert}_B = & vk_1, \sigma \leftarrow \Sign_{sk}(vk_1),   \\
-%                       & vk_2, \sigma_2\leftarrow \Sign_{sk_1}(vk_2) \\
-%                       & vk_B, \sigma_B\leftarrow \Sign_{sk_2}(vk_B)
-% \end{align*}
-% \emph{How can an Intermediate CA restrict Bob's use of these certificates? What if Bob will then go on and start signing his own certificates for people?} We can concatenate information in each certificate that restricts its use. It could specify whether it is being issued to an \emph{end user}, or even additional information like validity time.
-
-% To protect against CAs that get compromised, certificates are short-lived and have set validity times. Additionally, certificate authorities can publish revocation lists that browsers check against when validating a certificate.
-
-% \subsection{Case Studies}
-
-% \subsubsection{SSH}
-
-% \Graphic{images/2023-02-16/ssh_protocol.png}{0.8}
-
-% Let's work through the steps of GitHub's SSH setup to see how it works.
-
-% The instructions are given for the EDDSA-25519 algorithm, which relies on elliptic curves.
-
-% \begin{enumerate}
-%     \item We first generate a signing keypair $(vk_A, sk_A) \leftarrow \Gen(1^\lambda)$ via
-
-%           \texttt{\$ ssh-keygen -t ed25519 -C "your\_email@example.com"}
-
-%           $vk_A$ is the \texttt{id\_ed25519.pub} (the public key) $sk_A$ is \texttt{id\_ed25519} (the private key).
-%     \item We upload our public key to our account on GitHub. This is equivalent of communicating our $vk_A$ to GitHub.
-%     \item When we're connecting via SSH to GitHub for the first time, our terminal will prompt us that this is a new server with a new verification key.
-
-%           \texttt{> The authenticity of host `github.com (IP ADDRESS)' can't be established. \\
-%               > RSA key fingerprint is SHA256:nThbg6kXUpJWGl7E1IGOCspRomTxdCARLviKw6E5SY8. \\
-%               > Are you sure you want to continue connecting (yes/no)?}
-
-%           which we can verify against GitHub's known verification keys\footnote{The security of our web upload to GitHub, or GitHub's site which publishes the verification key, relies on the security of the website, likely through TLS. But you could also imagine exchanging keys in person, etc. }. This is the equivalent of receiving a $vk_B$ from GitHub.
-% \end{enumerate}
-
-% \subsubsection{Secure Messaging}\label{sec:feb23-secure-messaging}
-% How can we design a secure messaging service where two people, Alice and Bob, can communicate across a server?
-
-% One solution is to have Alice sends an encrypted message, with a noted recipient (under Alice/Server's keys) to the server, the server decrypts it in the clear, and encrypts the message (using Bob/Server's keys) to send to Bob.
-
-% However, the message is completely revealed to the server in plaintext. Optimally, we don't want to do this, but many services do nevertheless. Alice and Bob can do a secure key exchange \emph{through} the server to get shared $g^{ab}$, and encrypt messages between them.
-
-% Alice will first encrypt using their shared key, then using their shared secret with the server, encrypt that ciphertext. The server will decrypt the first layer, encrypt that with Bob's key, and send that to Bob.
-
-% We note that the server is still the perfect middleman, but our trust assumption is that the server is \textbf{semi-honest}---it will honestly follow the protocol but can try to glean any additional information from them.
-
-% \Graphic{images/2023-02-23/server_relay.png}{0.7}
-
-% \emph{Why might we still adopt the first approach, sending messages in plaintext?} Alice and Bob needs to know their private keys, and remain `online' all the time. If they switch a device, or lose their phone, messages will get lost. Sending messages in plaintext avoids this scenario.
-
-% \subsubsection{Group Chats}
-% \emph{What about group chats? How might we implement this.}
-
-% When we move to group chats, there are more things we need to consider. For example, do we want to reveal this message to the server? In this case, Alice can send the message in the clear to the server and it is forwarded. Additionally, we might ask whether we want to hide the group structure from the server.
-
-% \Graphic{images/2023-02-23/group_chats.png}{0.6}
-
-% The first scenario is the same---users can send the encrypted message to the server, the server reveals the message and reencrypts to the group members.
-
-% We might posit that Alice, Bob and Charlie share keys $g^a, g^b, g^c$, then they jointly have shared secret $g^{abc}$. This is called multi-party key exchange. However, this is in fact very difficult and relies on strong primitives.
-
-% Signal and WhatsApp use two different approaches (agree on the same key or pairwise keys), but they both have tradeoffs. We'll continue this next lecture.
-
-% In general, there are two paradigms for group messaging. Either everyone uses the \emph{same} key, or everyone has a different key. In WhatsApp, Alice would use a symmetric ratchet with key $A, gr$ (Alice's key and group key) to send the message to the server, and WhatsApp will forward the same encrypted message to Bob and Charlie. While the group structure is revealed to the server, but the message contents are unbeknownst to the server.
-
-% \Graphic{images/2023-02-28/whatsapp.png}{0.6}
-
-% In Signal, on the other hand, every pair of users has a differnt key. If Alice wants to send a message to Bob and Charlie, Alice will encrypt two messages, one with Alice/Bob's key and another with Alice/Charlie's key. The server will forward the encrypted messages to the users respectively. In Signal, a double ratchet encryption is preformed between every pair of parties. Another guarantee is that the group structure can be hidden against the server---Alice sending individual messages to Bob and Charlie is indistinguishable from their group texts.
-
-% \Graphic{images/2023-02-28/signal.png}{0.6}
+To protect against CAs that get compromised, certificates are short-lived and have set validity times. Additionally, certificate authorities can publish revocation lists that browsers check against when validating a certificate.

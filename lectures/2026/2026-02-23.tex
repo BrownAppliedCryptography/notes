@@ -1,0 +1,223 @@
+%!TEX root = ../notes.tex
+\section{February 23, 2026}
+\label{20260223}
+
+\subsection{A Brief Recap: Secure Authentication}
+
+We'll quickly review what we have covered so far.
+
+Recall that we have introduced a third party, the server, who is trusted by all party's and assigns certificates.
+
+\Graphic{images/2024/2024-02-21-auth.png}{0.8}
+
+After party's have their certificates, they can run two-sided authenticated key-exchange.
+
+\Graphic{images/2024/2024-02-21-2-sided-kex.png}{0.8}
+
+\subsection{Case Studies}
+
+\subsubsection{SSH}
+
+\Graphic{images/2023-02-16/ssh_protocol.png}{0.8}
+
+Let's work through the steps of GitHub's SSH setup to see how it works.
+
+The instructions are given for the EDDSA-25519 algorithm, which relies on elliptic curves.
+
+\begin{enumerate}
+    \item We first generate a signing keypair $(vk_A, sk_A) \leftarrow \Gen(1^\lambda)$ via
+
+          \texttt{\$ ssh-keygen -t ed25519 -C "your\_email@example.com"}
+
+          $vk_A$ is the \texttt{id\_ed25519.pub} (the public key) $sk_A$ is \texttt{id\_ed25519} (the private key).
+    \item We upload our public key to our account on GitHub. This is equivalent of communicating our $vk_A$ to GitHub.
+    \item When we're connecting via SSH to GitHub for the first time, our terminal will prompt us that this is a new server with a new verification key.
+
+          \texttt{> The authenticity of host `github.com (IP ADDRESS)' can't be established. \\
+              > RSA key fingerprint is SHA256:nThbg6kXUpJWGl7E1IGOCspRomTxdCARLviKw6E5SY8. \\
+              > Are you sure you want to continue connecting (yes/no)?}
+
+          which we can verify against GitHub's known verification keys\footnote{The security of our web upload to GitHub, or GitHub's site which publishes the verification key, relies on the security of the website, likely through TLS. But you could also imagine exchanging keys in person, etc. }. This is the equivalent of receiving a $vk_B$ from GitHub.
+\end{enumerate}
+
+\subsubsection{Secure Messaging}\label{sec:feb23-secure-messaging}
+How can we design a secure messaging service where two people, Alice and Bob, can communicate across a server?
+
+One solution is to have Alice sends an encrypted message, with a noted recipient (under Alice/Server's keys) to the server, the server decrypts it in the clear, and encrypts the message (using Bob/Server's keys) to send to Bob.
+
+However, the message is completely revealed to the server in plaintext. Optimally, we don't want to do this, but many services do nevertheless. Alice and Bob can do a secure key exchange \emph{through} the server to get shared $g^{ab}$, and encrypt messages between them.
+
+Alice will first encrypt using their shared key, then using their shared secret with the server, encrypt that ciphertext. The server will decrypt the first layer, encrypt that with Bob's key, and send that to Bob.
+
+We note that the server is still the perfect middleman, but our trust assumption is that the server is \textbf{semi-honest}---it will honestly follow the protocol but can try to glean any additional information from them.
+
+\Graphic{images/2023-02-23/server_relay.png}{0.7}
+
+\emph{Why might we still adopt the first approach, sending messages in plaintext?} Alice and Bob needs to know their private keys, and remain `online' all the time. If they switch a device, or lose their phone, messages will get lost. Sending messages in plaintext avoids this scenario.
+
+\subsubsection{Group Chats}
+\emph{What about group chats? How might we implement this.}
+
+When we move to group chats, there are more things we need to consider. For example, do we want to reveal this message to the server? In this case, Alice can send the message in the clear to the server and it is forwarded. Additionally, we might ask whether we want to hide the group structure from the server.
+
+\Graphic{images/2023-02-23/group_chats.png}{0.6}
+
+The first scenario is the same---users can send the encrypted message to the server, the server reveals the message and reencrypts to the group members.
+
+We might posit that Alice, Bob and Charlie share keys $g^a, g^b, g^c$, then they jointly have shared secret $g^{abc}$. This is called multi-party key exchange. However, this is in fact very difficult and relies on strong primitives.
+
+Signal and WhatsApp use two different approaches (agree on the same key or pairwise keys), but they both have tradeoffs. We'll continue this next lecture.
+
+In general, there are two paradigms for group messaging. Either everyone uses the \emph{same} key, or everyone has a different key. In WhatsApp, Alice would use a symmetric ratchet with key $A, gr$ (Alice's key and group key) to send the message to the server, and WhatsApp will forward the same encrypted message to Bob and Charlie. While the group structure is revealed to the server, but the message contents are unbeknownst to the server.
+
+\Graphic{images/2023-02-28/whatsapp.png}{0.6}
+
+In Signal, on the other hand, every pair of users has a differnt key. If Alice wants to send a message to Bob and Charlie, Alice will encrypt two messages, one with Alice/Bob's key and another with Alice/Charlie's key. The server will forward the encrypted messages to the users respectively. In Signal, a double ratchet encryption is preformed between every pair of parties. Another guarantee is that the group structure can be hidden against the server---Alice sending individual messages to Bob and Charlie is indistinguishable from their group texts.
+
+\Graphic{images/2023-02-28/signal.png}{0.6}
+
+\subsubsection{Single Sign-On (SSO) Authentication}
+Often, we'll `log in with Google' or `log in with Apple'\footnote{Even Brown has Shibboleth!}. A user will authenticate themselves with the authentication server (Google, Apple, Shibboleth), and will be issued a `token' (usually a signature/MAC) for them to then authenticate themselves against the service provider.
+
+Implementations include OAuth or OpenID, which is the format used by Google/Apple/Facebook, etc. Within enterprises, Kerberos credentials allow for SSO as well as things such as printing, connecting to servers, etc.
+
+\Graphic{images/2023-02-28/sso.png}{0.7}
+
+\subsection{Zero-Knowledge Proofs}
+
+As mentioned in our course outline, a Zero-Knowledge Proof (ZKP) is a scheme that allows a prover to prove to a verifier some knowledge that they have, without revealing that knowledge.
+
+\emph{What is a proof?} We consider what a `proof system' is. For example, we'll have a \emph{statement} and a \emph{proof} that is a purported proof of that statement. What guarantees do we want from this proof system? If the statement is true, we should be able to prove it; and if the statement is false, we shouldn't be able to prove this. These are our guarantees of \emph{completeness} and \emph{soundness}.
+\begin{description}
+    \item[Completeness.] If a statement is true, there exists a proof that proves it is true.
+    \item[Soundness.] If a statement is false, any proof cannot prove it is true.
+\end{description}
+
+\begin{example}[Graph 3-Coloring]
+    Consider the \emph{Graph 3-coloring}.
+
+    \Graphic{images/2023-02-28/3color.png}{0.3}
+
+    We define our language
+    \begin{align*}
+        L   & = \{G: G\text{ has a 3-coloring}\} \\
+        \intertext{and relation}
+        R_L & = \{(G, \textrm{3Col})\}
+    \end{align*}
+    Our statement will be that $G$ has a 3-coloring. Our proof is providing such a coloring $(G, \mathrm{3Col})\in R_L$.
+
+    This satisfies completeness and soundness. Every 3-colorable graph has a proof that is the 3-coloring itself, and if a graph doesn't have a 3-coloring, it will not have a proof.
+\end{example}
+
+\subsubsection{Proof System}
+
+We can think of NP languages as a proof system. A language $L$ is in $\mathsf{NP}$ if $\exists \text{poly-time} V$ (verifier) such that
+\begin{description}
+    \item[Completeness.] $\forall x\in L, \exists w$ (witness) such that $V(x, w) = 1$.
+    \item[Soundness.] $\forall x\not\in L, \forall w^*, V(x, w^*) = 0$.
+\end{description}
+The prover will prove to the verifier that they have knowledge of witness $w$ without revealing the witness itself.
+
+\begin{definition}[Zero-Knowledge Proof System]
+    Let $(P, V)$ (for \emph{prover} and \emph{verifier}) be a pair of probabilistic poly-time (PPT) interactive machines. $(P, V)$ is a zero-knowledge proof system for a language $L$ with associated relation $R_L$ if
+    \begin{description}
+        \item[Completeness.] $\forall (x, w)\in R_L$, $\Pr[P(x, w) \leftrightarrow V(x) \text{ outputs }1] = 1$. That is, if there is a $x\in L$ with witness $w$, a prover will be able to prove to the verifier that they have knowledge of $w$.
+        \item[Soundness.] $\forall x\not\in L$, $\forall P^*$, $\Pr[P^*(x) \leftrightarrow V(x)\text{ outputs }1]\simeq 0$. That is, for every $x$ not in the language, our prover $P^*$ will not be able to prove its validity to $V$, with negligible probability. If $P^*$ is PPT, we call the system a \emph{zero-knowledge argument}.
+    \end{description}
+
+\end{definition}
+
+Intuitively, if the prover is able to prove, then they must know a witness $w$. There exists some extractor such that, if you can prove it true, there is some extractor that can extract the witness from it.
+
+\[ \exists E \text{ s.t. } \forall p^*, \forall x, \Pr[E^{P^*(\cdot)}(x) \text{ outputs }w \text{ s.t. }(x, w) \in R_L] \cong \Pr[p^* \leftrightarrow V(x) \text{ outputs } 1]\]
+
+\subsubsection{Honest-Verifier}
+
+Honest-Verifier Zero-Knowledge (HVZK) can be thought of as security against a semi-honest verifier. In this scenario, the verifier will follows the protocol honestly.
+
+\[\exists\PPT\ S\text{ s.t. }\forall(x, w)\in R_L, \mathrm{View}_V(P(x, w)\leftrightarrow V(x))\simeq S(x)\]
+
+That is, that the transcript can be simulated by a simulator $S$ without interaction with the verifier, and without $w$.
+
+\subsubsection{Malicious Verifier}
+
+Now assume that the verifier is malicious. In other words, the verifier can deviate from the protocol in attempt to extract more information than intended. Note that a malicious verifier $V^*$ is unable to learn anything about $w$.
+
+We need an additional property that this is actually \emph{zero-knowledge}\framedfootnote{That is, the prover could just send the witness in the clear to the verifier, which satisfies completeness and soundness.}. We want to say that the verifier is unable to extract any additional information from the interaction between the verifier and prover. That is, even without the witness, a verifier might be able to `simulate' this transaction \emph{by themselves}!
+
+    We'll say $\forall \mathrm{PPT}\ V^*, \exists \mathrm{PPT}\ S$ such that $\forall (x, w)\in R_L$,
+    \[\mathrm{Output}_{V^*}[P(x, w)\leftrightarrow V^*(x)]\simeq S(x).\]
+    That is to say, for everything in the language, the output transcript between the prover and verifier can be \emph{simulated} by the simulator without knowledge of the witness\framedfootnote{This is \emph{counterintuitive}, because if any PPT can simulate the proof by themselves, how do we know we're even talking to a prover that has a witness? This is subtle, but we give extra power to the simulator that they are allowed to \emph{rewind} the verifier to some previous step. If the transcript can be simulated, then surely no information is leaked from the protocol.}.
+    \Graphic{images/2023-02-28/zkp_definition.png}{0.7}
+
+So we've built up our four properties:
+\begin{itemize}
+    \item Completeness: The prover can prove whenever $x\in R_L$.
+    \item Soundness: For any $x$ not in $R_L$, the prover can only prove $x\in R_L$ with \emph{negligible} probability.
+    \item Zero Knowledge: The verifier does not gain any additional information from the proof. That is, a simulator could have `thought up' the entire transcript in their head given the ability to rewind.
+    \item Proof of Knowledge: An even stronger guarantee than soundness (this implies soundness)---a prover must have the witness in hand to be able to prove $x\in R_L$. That is, an extractor could interact with the prover (and rewind) to be able to extract the information of $w$ from the interaction.
+\end{itemize}
+
+\begin{example}[Schnorr's Identification Protocol]\label{sec:mar7-schnorr}
+Let $G$ be a cyclic group of prime order $q$ with generator $g$, $h = g^a$. We wish to prove the relation
+\[R_L = \{(g^\alpha, \alpha)\}_{\alpha\in \ZZ_q}\]
+
+The language $L$ is given by
+\[L = \{ h\in G: \exists a \in \mathbb{Z}_q \text{ s.t. }h = g^a\}\]
+
+However, this is exactly the entire group, i.e. $L = G$. 
+
+Generator $g$ is known, and the prover wishes to prove that they have the discrete log of $h$ ($\alpha$ where $g^\alpha\equiv h$).
+
+\Graphic{images/2023-03-02/schnorr.png}{0.75}
+
+Completeness here is clear, the prover is able to produce such $s$ if the prover has knowledge of $\alpha$.
+\end{example}
+
+% \subsubsection{Proof of Knowledge}
+%
+% We wish that
+% \[\exists\PPT\ E\text{ s.t. }\forall\PPT\ P^*, \forall x\in L, E^{P^*(\cdot)}(x)\text{ outputs }w\text{ s.t. }(x, w)\in R_L\]
+% ``That there exists an extractor that by interacting to the prover $P^*$ that can extract $w$/$\alpha$''
+%
+% In this case, $E$ can rewind the prover as well. We do so as follows:
+%
+% We get the prover to commit to some $r$ and $A := g^r$, and pick $2$ $\sigma$'s (rewinding) such that we have
+% \begin{align*}
+%     g^s                                                         & = h^\sigma\cdot u               \\
+%     g^{s'}                                                      & = h^{\sigma'}\cdot u            \\
+%     \intertext{Given these two equations, we can}
+%     g^{s - s'}                                                  & = h^{\sigma-\sigma'}
+%     \intertext{Then we have}
+%     g^{(s - s')(\sigma-\sigma')^{-1}} = h\Longrightarrow \alpha & = (s - s')(\sigma-\sigma')^{-1}
+% \end{align*}
+%
+% \Graphic{images/2023-03-02/schnorr_pok.png}{0.75}
+%
+% \subsubsection{Honest-Verifier Zero-Knowledge}
+% Can we also construct Zero-Knowledge for this protocol?
+% \[\forall\PPT\ V^*, \exists\PPT\ S \text{ s.t. }\forall (x, w)\in R_L, \mathrm{Output}_{V^*}(P(x, w)\leftrightarrow V^*(x))\overset{C}{\simeq} S(x)\]
+%
+% We first do this for Honest-Verifier Zero-Knowledge. This can be thought of as security against a semi-honest verifier.
+% \[\exists\PPT\ S\text{ s.t. }\forall(x, w)\in R_L, \mathrm{View}_V(P(x, w)\leftrightarrow V(x))\simeq S(x)\]
+% That is, that the transcript can be simulated by a simulator $S$ without interaction with the verifier, and without $w$.
+%
+% \Graphic{images/2023-03-02/schnorr_hvzk.png}{0.75}
+%
+% We construct a simulator that gives us specific values of $A, \sigma, s$ where we can satisfy the equation $g^s = h^\sigma\cdot A$. Once we have $s$ and $\sigma$, we can easily compute the $A$ desired.
+%
+% We don't have to generate them in order. Fixing $s$ and sampling $\sigma\sampledfrom \ZZ_g$, we can compute $g^s\cdot h^{-\sigma} = A$.
+%
+% \subsection{Example: Diffie-Hellman Tuple}
+%
+% We want to prove that $h = g^a, u = g^b, v = g^{ab}$ is a Diffie-Hellman Tuple in a cyclic group $\GG$ of order $q$ and generator $g$.
+%
+% Our witness is `private exponent' $b$. Our statement is that $\exists b\in \ZZ_q$ such that $u = g^b$ and $v = h^b$.
+%
+% \Graphic{images/2023-02-28/dh_tuple_proof.png}{0.7}
+%
+% The prover will randomly sample $r\sampledfrom \ZZ_q$ and send to the verifier $A:=g^r$ and $B:=h^r$. The verifier randomly samples \emph{challenge} $\sigma \sampledfrom \{0, 1\}$, and sends this challenge bit to the prover. The prover will respond with $s := \sigma\cdot b + r\pmod{q}$. If the challenge bit was $0$, $s = r$ and the verifier verifies $A = g^S$ and $B = h^S$. If the challenge bit was $1$, $s = b + r$ and the verifier verifies $u\cdot A = g^s$ and $v\cdot B = h^S$.
+%
+% \textbf{Completeness:} If this statement is true, the prover will be able to convince the verifier since they have knowledge of $b$.
+%
+% Next lecture, we will prove proof of knowledge and honest-verifier zero-knowledge.
