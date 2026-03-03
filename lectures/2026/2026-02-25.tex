@@ -1,0 +1,63 @@
+%!TEX root = ../notes.tex
+\section{February 25, 2026}
+\label{20260225}
+
+Today, we continue our discussion on zero-knowledge proofs. Then, we will briefly give an overview on our next project involving anonymous online voting.
+
+\subsection{Anonymous Online Voting}
+
+Say we have $n$ voters with votes $v_1, \dots, v_n \in \{ 0, 1\}$. Each voter encrypts their vote $\text{Enc}(v_1), \dots, \text{Enc}(v_n)$. Our goal is to compute the sum of these votes without having to decrypt each vote individually. Somehow, we must find $\text{Enc}(\sum v_i)$ then decrypt to find $\sum v_i$.
+
+In this scenario, zero-knowledge proofs can be used to ensure that each vote $v_1$ is 0 or 1 and to verify that the sum $\sum v_i$ was computed correctly.
+
+\subsection{Example: Schnorr's Identification Protocol}\label{sec:mar7-schnorr}
+
+Let $G$ be a cyclic group of prime order $q$ with generator $g$, $h = g^a$. We wish to prove the relation
+\[R_L = \{(g^\alpha, \alpha)\}_{\alpha\in \ZZ_q}\]
+
+The language $L$ is given by
+\[L = \{ h\in G: \exists a \in \mathbb{Z}_q \text{ s.t. }h = g^a\}\]
+
+However, this is exactly the entire group, i.e. $L = G$. 
+
+Generator $g$ is known, and the prover wishes to prove that they have the discrete log of $h$ ($\alpha$ where $g^\alpha\equiv h$).
+
+\Graphic{images/2023-03-02/schnorr.png}{0.75}
+
+Completeness here is clear, the prover is able to produce such $s$ if the prover has knowledge of $\alpha$.
+
+\subsubsection{Proof of Knowledge}
+
+We wish that
+\[\exists\PPT\ E\text{ s.t. }\forall\PPT\ P^*, \forall x\in L, E^{P^*(\cdot)}(x)\text{ outputs }w\text{ s.t. }(x, w)\in R_L\]
+``That there exists an extractor that by interacting to the prover $P^*$ that can extract $w$/$\alpha$''
+
+In this case, $E$ can rewind the prover as well. We do so as follows:
+
+We get the prover to commit to some $r$ and $A := g^r$, and pick $2$ $\sigma$'s (rewinding) such that we have
+\begin{align*}
+    g^s                                                         & = h^\sigma\cdot u               \\
+    g^{s'}                                                      & = h^{\sigma'}\cdot u            \\
+    \intertext{Given these two equations, we can}
+    g^{s - s'}                                                  & = h^{\sigma-\sigma'}
+    \intertext{Then we have}
+    g^{(s - s')(\sigma-\sigma')^{-1}} = h\Longrightarrow \alpha & = (s - s')(\sigma-\sigma')^{-1}
+\end{align*}
+
+\Graphic{images/2023-03-02/schnorr_pok.png}{0.75}
+
+\subsubsection{Honest-Verifier Zero-Knowledge}
+
+Can we also construct Zero-Knowledge for this protocol?
+\[\forall\PPT\ V^*, \exists\PPT\ S \text{ s.t. }\forall (x, w)\in R_L, \mathrm{Output}_{V^*}(P(x, w)\leftrightarrow V^*(x))\overset{C}{\simeq} S(x)\]
+
+We first do this for Honest-Verifier Zero-Knowledge. This can be thought of as security against a semi-honest verifier.
+\[\exists\PPT\ S\text{ s.t. }\forall(x, w)\in R_L, \mathrm{View}_V(P(x, w)\leftrightarrow V(x))\simeq S(x)\]
+That is, that the transcript can be simulated by a simulator $S$ without interaction with the verifier, and without $w$.
+
+\Graphic{images/2023-03-02/schnorr_hvzk.png}{0.75}
+
+We construct a simulator that gives us specific values of $A, \sigma, s$ where we can satisfy the equation $g^s = h^\sigma\cdot A$. Once we have $s$ and $\sigma$, we can easily compute the $A$ desired.
+
+We don't have to generate them in order. Fixing $s$ and sampling $\sigma\sampledfrom \ZZ_g$, we can compute $g^s\cdot h^{-\sigma} = A$.
+
