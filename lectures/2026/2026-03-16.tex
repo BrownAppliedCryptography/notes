@@ -1,0 +1,134 @@
+\section{March 12, 2025}
+\label{20260312}
+
+This lectures continues our discussion on blockchains and introduces elliptical curve cryptography.
+
+\subsection{Blockchain, \emph{continued}}
+
+\subsubsection{Byzantine Agreement}
+
+Imagine a network where we have $n$ nodes and $t$ faulty nodes. How can we get them to agree? Byzantine Fault Tolerance (BFT) Protocol states that if $n \ge 3t + 1$ it is possible to reach concensus. However, we must assume $t < n/3$ - if we do, we can agree that the next block on the blockchain is a valid block. 
+
+In a permissionless protocol like Bitcoin, this is an issue - since anyone can become a node (i.e., become a miner), how do we ensure an honest majority, where an adversary cannot overrun the system with fake nodes? Bitcoin solves this problem with a concept called \textbf{proof of work}. Every node must use computation power to contribute to the blockchain.
+
+In practice, the way this works is as follows: in order to find a block, the block (with some nonce) and the previous hash is hashed. Whichever node finds a block which can cash to a value with more than 30 leading zeros 'wins', and that block becomes the next one. This is a problem of raw computation and luck.
+
+Why would miners want to devote massive amount of computation towards a game of luck? For Bitcoin, every transaction has some transaction fee. When a miner includes a transaction in a block that it solves, it gets that transaction fee. Furthermore, every block generates some new coin, which the winning miner also gets. In practice, miners often pool their computation into mining pools, which distibute the risk and reward across the mining pool.
+
+\Graphic{images/2025/byzantine.png}{0.5}
+
+\subsubsection{Longest Chain Rule}
+It is possible for two miners to compute two valid blocks at roughly the same time, which can cause nodes to get out of sync. Bitcoin solves this issue with the longest chain rule, which states that a node should always use the longest chain. Assuming honest majority of compute, the longest chain is always valid.
+
+In practice, a block should not be considered valid until a node is confident it is on the longest chain. This can be assumed to be 6+ blocks deep.
+
+\Graphic{images/2025/longest-chain.png}{0.7}
+
+\subsubsection{Extensions to Blockchain}
+The protocol described above is relevant to Bitcoin. Other protocols are built differently, with upsides and downsides to each. Other topics you can research (if interested) include:
+\begin{enumerate}
+    \item Proof of Stake
+    \item Anonymous Transactions
+    \item Smart Contracts
+    \item Public bulletin
+\end{enumerate}
+
+\subsection{Elliptic Curve Cryptography}
+
+\subsubsection{Elliptic Curves}
+
+So far, we have primarily been working with cyclic group $G$ of order $q$ with generator $g$ where DLOG/CDH/DDH holds. How large is $q$?
+
+\begin{itemize}
+    \item For integer groups, $q \sim 2048$ bits.
+    \item For elliptic curve groups, $q \sim 256$ bits.
+\end{itemize}
+
+Thus, elliptic curve groups are more space-efficient for cryptography! The known attacks for elliptic curve groups scale on the order of $\sqrt{q}$, which allows us to have a smaller $q$ parameter to ensure security.
+
+\begin{definition}
+    An \textbf{elliptic curve} is the set of solutions $(x,y)$ to the equation
+    $$y^2 = x^3 + ax + b$$
+    where $4a^3 + 27b^2 \neq 0$. The last condition is there so that we get the elliptic curve shape.
+\end{definition}
+
+\begin{example}
+    The elliptic curve to $y^2 = x^3 - x + 9$ is has a plot that looks something like the following. The solutions $(0, \pm 3), (1, \pm 3), (-1, \pm 3)$ are indicated with dots.
+
+    \begin{center}
+    \footnotesize
+    \def\svgwidth{0.35\linewidth}
+    \input{images/2024/.xdp-2024-04-22-elliptic-curve.pdf_tex-giJsNo}
+    \end{center}
+\end{example}
+
+\textit{How to find rational points $(x,y) \in \mathbb{Q}^2$ on the curve?} There are two ways, the chord method and the tangent method.
+\begin{enumerate}
+    \item \textbf{Chord method:} Given a point P and a point Q on the curve, it defines a line $PQ$. This line must intersect the curve in a third point, R. For the curve in the previous example, if $P=(-1, -3)$ and $Q=(1, 3)$, then this defines a line $y=3x$. Plugging this into the equation for the curve gives us
+    $$(3x)^2 = x^3 - x + 9.$$
+    This is a cubic equation, so there must be 3 roots and thus 3 intersections. We know that the product of the roots must be negative the constant term, so $a_1 a_2 a_3 = -9$. We know two of the roots $a_1 = 1$ and $a_2 = -1$, so we have that $a_3 = 9$, which gives us the third point $R = (9, 27)$.
+
+    We define this operation by $P \boxplus Q = R$. Notice that if $P, Q$ are rational points, then $R$ is rational because all of our steps to find $R$ is just multiplying, dividing, adding, and subtracting with rational numbers.
+
+    \begin{center}
+        \def\svgwidth{0.35\linewidth}
+        \input{images/2024/.xdp-2024-04-22-elliptic-curve-chord.pdf_tex-JXGUox}
+    \end{center}
+
+    \pagebreak
+    \item \textbf{Tangent method:} Imagine if the cubic equation had a double root. This corresponds to a point $P$ being the tangent point to the line. In this case, we apply the operation onto itself $P \boxplus P = S$.
+
+    \begin{center}
+        \def\svgwidth{0.35\linewidth}
+        \input{images/2024/.xdp-2024-04-22-elliptic-curve-tangent.pdf_tex-B29VSo}
+    \end{center}
+\end{enumerate}
+
+Geometrically, one can be convinced that $(P \boxplus Q) \boxplus X = P \boxplus (Q\boxplus X)$ and that $P \boxplus Q = Q \boxplus P$. This gives hope that we can construct a group out of this, which is very handy for cryptography!
+
+\subsubsection{Elliptic Curves over Finite Fields}
+
+\begin{definition}
+    For prime $p >3$, let $\mathbb{F}_p$ be a finite field, i.e. all of the integers $\{0, 1, \dots, p-1\}$ with addition and multiplication. Let $a, b \in \mathbb{F}_p$ such that $4a^3 + 27b^2 \neq 0$.
+    
+    An \textbf{elliptic curve $E$ defined over $\mathbb{F}_p$}, denoted $E / \mathbb{F}_p$, is the set of all points $(x,y)$ such that
+    \begin{itemize}
+        \item $x,y \in \mathbb{F}_p$ and
+        \item $y^2 = x^3 + ax +b$
+    \end{itemize}
+
+    Additionally, we include an abstract element $\mathcal{O}$ that is thought of as the ``point at infinity''.
+\end{definition}
+
+\begin{example}
+    $y^2 = x^3 + 1$ over $\mathbb{F}_{11}$ consists of the points
+    $$E / \mathbb{F}_{11} = \{\mathcal{O}, (-1, 0), (0, \pm 1), (2, \pm 3), (5, \pm 4), (7, \pm 5), (9, \pm 2)\}$$
+\end{example}
+
+Elliptic curves over finite fields is the same definition as elliptic curves before except we restrict our attention to $\mathbb{F}_p$.
+
+\begin{proposition}
+    Elliptic curves over finite fields with the $\boxplus$ operation form a group.
+    \begin{enumerate}
+        \item \textbf{Closure:} $\forall g, h \in G, g\boxplus h \in G$. This is true because $g,h$ defines a line, and we can figure out the equation for this line over the finite field because finite fields support division. After we find the line, we can plug it into the curve equation to get a cubic equation. We have two roots, and we know the product of all of the roots is negative the constant term in the cubic equation. Since finite fields support division, we can recover the third root.
+        \item \textbf{Existence of identity:} $\exists e \in G $ such that $\forall g\in G, e \boxplus g = g \boxplus e = g$. We let $e = \mathcal{O}$ be the identity. 
+        \item \textbf{Existence of inverse:} $\forall g \in G, \exists h \in G, $ such that $g \boxplus h = h \boxplus g = e$. If $g = (x,y)$, then the inverse $h = (x, -y)$. You can see that drawing a line between $g,h$ gives us the point at infinity, so $g \boxplus h = \mathcal{O}$.
+        \item \textbf{Associativity:} $\forall g_1, g_2, g_3 \in G, (g_1 \boxplus g_2) \boxplus g_3 = g_1 \boxplus (g_2 \boxplus g_3)$. We discussed this earlier.
+        \item \textbf{Commutativity (for abelian groups):} $\forall g,h \in G, g\boxplus h = h \boxplus g.$ We discussed this earlier.
+    \end{enumerate}
+\end{proposition}
+
+Furthermore, the \textbf{SEA algorithm} can count the number of points on $E / \mathbb{F}_p$ in polylog(p) time. Thus, figuring out the order of the group does not give us a problem.
+
+Below are some curves that are standardized and used in practice. We only talk about the first one. The others are secure to use in practice and have some tradeoffs that you are welcome to look into.
+
+\begin{itemize}
+    \item curve secp2546r1 (P256) \begin{itemize}
+        \item Prime $p = 2^{256} - 2^{224} + 2^{192} + 2^{96} -1$, hence only needs 256 bits to store!
+        \item $y^2 = x^3 -3x + b$ for some constant $b$ that is a 255-bit string.
+        \item Number of points on the curve is prime (close to p).
+        \item Standardized generator point $G$. It does not have to be this particular $G$, since every point is a generator, but it is standardized so that everyone can agree on the generator to run DH key exchange for example.
+    \end{itemize}
+    \item curve secp256k1
+    \item curve 25519
+\end{itemize}
