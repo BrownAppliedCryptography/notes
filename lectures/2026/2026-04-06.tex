@@ -1,0 +1,193 @@
+%!TEX root = ../notes.tex
+\section{April 6, 2026}
+\label{20260406}
+
+\subsection{Multi-Party Computation - Big Picture}
+
+There are two different levels of MPC: either semi-honest or malicious. Semi-honest means that the adversary follows the protocol, but tries to extract more information. Malicious means that the adversary deviates from the protocol to extract information.
+
+If we have an oblivious transfer (OT) that is secure against semi-honest adversaries, we can use it with Yao's garbled circuit to achieve semi-honest 2-party computation for any function. Then, with the cut-and-choose with commitments, we can achieve malicious 2-party computation. We will discuss this next.
+
+\begin{align*}
+    \text{Semi-honest OT}\ & \underset{\text{Yao's Garbled Circuits}}{\implies}\ \text{Semi-honest 2PC for any function} \\
+    & \underset{\text{Cut-and-choose with commitments}}{\implies}\ \text{Malicious 2PC for any function}
+\end{align*}
+
+In the last part of this lecture, we will discuss how to use semi-honest OT with GMW to achieve semi-honest multi-party computation, which can be extended to malicious MPC.
+
+\begin{align*}
+    \text{Semi-honest OT} \ & \underset{\text{GMW}}{\implies} \text{Semi-honest MPC for any function}\\
+    & \underset{\text{GMW Compiler with ZKP}}{\implies} \text{Malicious MPC for any function}
+\end{align*}
+
+Recall the definition of Oblivious Transfer.
+
+\begin{definition}[Oblivious Transfer]
+    An \ul{oblivious transfer} is a protocol in which a sender, with messages $m_0, m_1\in\{0, 1\}^l$ gives a choice to the receiver to receive either $m_0, m_1$.
+
+    Given a choice bit from the receiver $b\in\{0,1\}$, the receiver gets $m_b$ and the sender also gets no information about the message transferred.
+
+    % \Graphic{images/2023-03-21/ot.png}{0.6}
+
+    \pseudocodeblock{
+        \textbf{Sender} \< \< \textbf{Receiver}\\
+        \text{Input: } m_0, m_1 \in \{ 0 , 1\}^{\ell} \< \< \text{Input: } b \in \{0, 1\}\\
+        \< \sendmessageright*{ } \< \\
+        \< \sendmessageleft*{ }\< \\
+        \< \sendmessageright*{ }\< \\
+        \< \sendmessageleft*{ } \< \\
+        \text{Output: }\perp \< \< \text{Output: }m_b
+    }
+\end{definition}
+
+\subsection{GMW}
+
+There is another method of multi-party computation that does not used garbled circuits called the Goldreich-Micali-Wigderson (GMW) protocol.
+
+Throughout the protocol, we keep the invariant that for each wire $w$, if the value of the wire is $v^w \in\{0, 1\}$, then the parties hold an \ul{additive secret share} of $v^w$. Each party $P_i$ holds a random share $v_i^w\in\{0,1\}$ such that
+\[\bigoplus_{i=1}^n v_i^w = v^w\]
+and we keep this invariant throughout the entire circuit. \footnote{Recall that $\oplus$ means addition modulo 2. You can check that this also gives the XOR operation.}
+
+We need to be able to preserve this invariant throughout \textsf{AND} and \textsf{XOR} gates. The \textsf{XOR} case is easy, since \textsf{XOR} is completely commutative and associative, so each party can locally \textsf{XOR} their shares $c_i := a_i\oplus b_i$ for $c := a\oplus b$.
+
+We'll address the \textsf{AND} case later, but we can do this. We'll proceede gate-by-gate for everyone to compute the result. Each party will publish their local shares, and everyone will \textsf{XOR} the result together to get the final result.
+
+\begin{remark}
+    \textbf{(Frequently asked)} Why do we only consider AND and XOR gates? This is because every other gate (NOT, OR, NAND) can be constructed using only AND and XOR gates. Gates like this are considered \textbf{complete}.
+\end{remark}
+
+\subsubsection{AND Gates}
+We now address the \textsf{AND} gates. We have $\bigoplus^n_{i=1}a_i = a$ and $\bigoplus^n_{i=1}b_i = b$.
+
+We want a set of $\left\{ c_i \right\}$ s.t. $\bigoplus^n_{i=1}c_i = c = a \cdot b$ (multiplication of bits is \textsf{AND}). But
+\begin{align*}
+    a\cdot b
+     & = \left( \sum^n_{i=1}a_i \right)\cdot \left( \sum^n_{i=1}b_i \right)\pmod{2}                \\
+     & = \left( \sum^n_{i=1}a_i \cdot b_i \right) + \left( \sum_{i\neq j}a_i \cdot b_j \right)\pmod{2}
+\end{align*}
+The first sum is easy and computed locally, but the second sum requires parties to communicate. We do something called \ul{resharing}.
+
+\textbf{Goal:} Between $P_i, P_j$, we want random $r_i, r_j\in\{0, 1\}$ such that $r_i + r_j = a_i \cdot b_j \pmod{2}$.
+
+$P_i$ will randomly sample $r_i\sampledfrom \left\{ 0, 1 \right\}$. We can use OT to allow $P_j$ to learn $r_j$ such that $r_i + r_j = a_i\cdot b_j\pmod{2}$ without revealing $a_i$ or $r_i$.
+
+$P_i$ will be the sender, $P_j$ is the receiver. $P_j$'s choice bit is $b_j$. Then the messages will be
+\begin{align*}
+    m_0 & = (a_i\cdot 0) - r_i = r_i \mod 2\\
+    m_1 & = (a_i\cdot 1) - r_i = a_i + r_i \mod 2
+\end{align*}
+such that $r_i, r_j$ are two shares of $a_i\cdot b_j$.
+
+\pseudocodeblock{
+    \textbf{Party i} \< \< \textbf{Party j}\\
+    \text{Input: } a_i \in \{ 0 , 1\} \< \< \text{Input: } b_j \in \{0, 1\} \\
+    r_i \sample \{0, 1\} \< \< \\
+    \text{Prepare both possibilities for }r_j \< \< \\
+    \< \sendmessageleft*{} \< \\
+    \< \sendmessageright*{\text{Use OT with choice bit }b_j} \< \\
+    \< \< \text{Receive } r_j\\
+    \text{Output: }r_i \in \{0, 1\}\< \< \text{Output: }r_j \in \{0, 1\}
+}
+
+\subsubsection{Complexities}
+Computational complexity is $O(\#\mathsf{AND}\cdot n)$ for each party, since each XOR gate takes constant number of operations and each AND gates requires a constant number of operations for each other party.
+
+For communication complexity, each party needs to communicate to every other party for every \textsf{AND} gate. For each XOR gate, we do not need to communicate. So the communication complexity is $O(n \cdot \#\mathsf{AND})$ per party.
+
+The round complexity is the depth of the AND gates in circuit. Each party needs to communicate to every other party for each AND gate, but some of these AND gates can be done in parallel (if they do not depend on each other). Thus, the round complexity is $O(\text{depth of AND gates})$.
+
+\begin{center}
+\begin{tabular}{c|c} 
+Computational Complexity & $O(\#\mathsf{AND}\cdot n)$ per party\\
+Communication Complexity & $O(n^2\cdot \#\mathsf{AND})$\\
+Round Complexity & $O(\text{depth of AND gates})$
+\end{tabular}
+\end{center}
+
+\subsection{Comparing Yao's and GMW}
+In summary, we have learned two different approaches to semi-honest 2PC: Yao's Garbled Circuits and GMW. Both have their own use cases, efficiencies, and tradeoffs.
+
+Yao's provides semi-honest \textbf{2PC} for any function, while GMW provides semi-honest \textbf{MPC} for any function.
+
+Yao's has a constant number of communication rounds, whereas the number of communication rounds required for GMW scales with the depth of AND gates. Thus, deeply nested circuits with many AND gates can be more expensive in GMW.
+
+Furthermore, Yao's only works for boolean circuits, while GMW works for both boolean and arithmetic circuits.
+
+\subsection{Privacy-Preserving Machine Learning (PPML)}
+
+In PPML, there are $n$ parties labeled $x_1, \dots, x_n$. Each party has some private data. All parties want to train a machine learning model and use its inference.
+
+There are two kinds of data partitioning between parties
+\begin{itemize}
+    \item \textbf{Horizontal Data Partitioning} is where each party contains all features of a subset of examples. For example, an institution could have all of the medical information on a subset of patients.
+    \item \textbf{Vertical Data Partitioning} is where each party knows a certain feature over all examples. For example, hospitals could hold the medical data, banks hold the financial data, etc.
+\end{itemize}
+
+Currently, the state of the art solution delegates this problem between two central servers instead of using MPC across $n$ parties. One server gets a secret share $D_0$ of the data and the other server gets a secret share $D_1$ of the data so that $D_0 + D_1 = D$ recovers the total dataset. This is known as 2PC, and people have also looked into 3PC with 1 corruption, 4PC with 1 corruption, which can be more secure and efficient. As of 2025, PPML is not widely used in practice, but it is a field of study with a lot of interest in cryptography.
+
+\subsubsection{Linear Regression}
+
+In linear regression, given data points $(\vec{x}, y)$, our ML model is 
+$$g(\vec{x}) = \langle \vec{x}, \vec{w}\rangle$$
+where $\vec{w}$ is the coefficient vector which will be adjusted during training. For each data point $(\vec{x}_i, y_i)$, we define the loss function as 
+$$L_i(\vec{w}) := \frac{1}{2}(\langle \vec{x_i}, \vec{w}\rangle - y_i)^2.$$
+The total loss is given by $L(\vec{w}):= \frac{1}{N}\sum_{i = 1}^{N} L_i (\vec{w})$. This tells us how bad our coefficient vector $w$ is, and we want to update $w$ to minimize $L(\vec{w})$.
+
+One common method to find $w$ that minimizes the loss is known as \textbf{Stochastic Gradient Descent (SGD)}, which goes as follows. $\vec{w}$ is first initialized with an arbitrary value. Then, given a data point $(\vec{x}_i, y_i)$, update $\vec{w}$ according to the rule
+$$\vec{w} \gets \vec{w} - \eta \cdot \nabla L_i(\vec{w})$$
+where $\eta > 0$ is the \textit{learning rate} and $\nabla L_i(\vec{w})$ is the gradient.
+
+For linear regression, this update rule can be written as follows.
+$$\vec{w} \gets \vec{w} - \eta \cdot (\langle \vec{x}_i, \vec{w}\rangle - y_i)\cdot \vec{x}_i$$
+Computing $y_i^*:= \langle \vec{x}_i, \vec{w}\rangle$ is \textit{forward propagation} and computing $(\langle \vec{x}_i, \vec{w}\rangle - y_i)\cdot \vec{x}_i$ is \textit{backpropagation}.
+
+Let's say we want to use PPML for linear regression. In PPML, two parties will hold secret shares of $\vec{w}$. Both parties will initially sample $\vec{w}_0$ and $\vec{w}_1$ randomly, and $\vec{w}: = \vec{w}_0 + \vec{w}_1$. We want the two parties to run SGD with their secret shares to get a secret share of the updated $\vec{w}$. Let's look term by term.
+
+\begin{itemize}
+    \item A secret share of $\langle \vec{x}_i, \vec{w}\rangle$ can be computed by using resharing. Each party has a secret share of $\vec{x}_i$ and a secret share of $\vec{w}$.
+    \item A secret share of $\langle \vec{x}_i, \vec{w}\rangle - y_i$ can be computed locally by locally subtracting the secret share of $y_i$.
+    \item A secret share of $(\langle \vec{x}_i, \vec{w}\rangle - y_i)\cdot \vec{x}_i$ can be computed by resharing.
+    \item Finally, a secret share of $\vec{w} - \eta \cdot (\langle \vec{x}_i, \vec{w}\rangle - y_i)\cdot \vec{x}_i$ can be computed locally, since $\eta$ is public and this is only subtraction.
+\end{itemize}
+
+Thus, we can get a secret share of the updated $\vec{w}$.
+
+\subsubsection{Logistic Regression}
+
+The setup is the same as linear regression, except the ML model is now given by
+$$g(\vec{x}) = f(\langle \vec{x}, \vec{w}\rangle)$$
+where $f$ is an \textit{activation function}. In this scenario, we use the \textit{sigmoid} function given by
+$$f(u) = \frac{1}{1 + e^{-u}}.$$
+
+The loss function is now given by
+$$L_i(\vec{w}):= -y_i \cdot \log y_i^* - (1-y_i) \cdot \log(1-y_i^*)$$
+where $y_i^* := f(\langle \vec{x}_i, \vec{w}\rangle)$. The total loss $L(\vec{w})$ is defined the same, and we want to find $\vec{w}$ that minimizes it.
+
+The update rule for SGD then becomes
+$$\vec{w} \gets \vec{w} - \eta \cdot ({\color{red} f(}\langle \vec{x}_i, \vec{w}\rangle{\color{red} )} - y_i)\cdot \vec{x}_i.$$
+
+If we want to use PPML for logistic regression, both parties will initially sample $\vec{w}_0$ and $\vec{w}_1$ randomly as before, and $\vec{w}: = \vec{w}_0 + \vec{w}_1$. We want the two parties to run SGD with their secret shares to get a secret share of the updated $\vec{w}$. The update rule for SGD is nearly the same as that in linear regression, but now we have to figure out how to get a secret share for $f(\cdot)$. This function is the sigmoid function, which is complicated, involves exponentiation, and is not MPC friendly. Theoretically, one can do this by representing it as a garbled circuit, but this can be very expensive. Thus, we will approximated $f(\cdot)$ with the following piecewise polynomial.
+$$f(u) = \begin{cases}
+    0 & \text{if }u < -\frac{1}{2}\\
+    u + \frac{1}{2} & u \in [-\frac{1}{2}, \frac{1}{2}]\\
+    1 & u > \frac{1}{2}
+\end{cases}$$
+
+Let
+$$b_1 : = \begin{cases}
+    1 & \text{if }u < -\frac{1}{2}\\
+    0 & \text{otherwise}
+\end{cases}$$
+$$b_2 : = \begin{cases}
+    1 & \text{if }u > \frac{1}{2}\\
+    0 & \text{otherwise}
+\end{cases}$$
+
+Then $$f(u) = 0 \cdot b_1 + 1 \cdot b_2 + (u + \frac{1}{2})\cdot (1-b_1)(1-b_2)$$
+which is more MPC friendly because it only involves additions and multiplications, which can be done using resharing. All we need is a secret share of $b_1$ and $b_2$. This can be a little tricky, and there is not a good way to do it, so we resort to using garbled circuits. However, it is not too bad since it only involves comparison $>$ and $<$.
+
+Once we get a reshare for $f(u)$, then the rest is just arithmetic operations that we have done as in the case for linear regression.
+
+\subsubsection{Neural Networks}
+
+In neural networks, each node is a linear function fed into an activation function. Thus, one can imagine that the work that we have done for linear and logistic regression can go into neural networks. At a high level, the idea is to look at which functions go into the training the model and figure out how to make it MPC friendly.
