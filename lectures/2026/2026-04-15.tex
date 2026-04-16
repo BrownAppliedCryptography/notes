@@ -1,0 +1,91 @@
+%!TEX root = ../notes.tex
+\section{April 15, 2026}
+\label{20260415}
+
+In this lecture, we will SWHE and put it all together in private information retrieval.
+
+\subsection{Relinearization in SWHE from RLWE}
+We have polynomial
+\begin{align*}
+    [c(s)]_q  & = c_0 + c_1\cdot s + c_2\cdot s^2 = \Delta \cdot m + e \\
+    \intertext{and we want to get rid of the $s^2$ term, yielding}
+    [c'(s)]_q & = c_0' + c_1'\cdot s + = \Delta \cdot m + e
+\end{align*}
+The intuition of what we will do is to provide an encrypted version of $s^2$ and we can remove it homomorphically. This is called a \ul{relinearization key}.
+
+The relinearization key will be
+\[\mathsf{rlk} = \left( [-(a\cdot s + e + s^2)]_q, a \right)\]
+and so $[\mathsf{rlk}(s)]_q = -s^2 + \text{small}$. This leaves us with
+\[c(s) + c_2 \cdot \mathsf{rlk}(s) = c_0 + c_1\cdot s + c_2\cdot s^2 + c_2\cdot (-s^2 + \text{small})\]
+but there is a small issue, because $c_2$ might not be small!
+
+What we do instead is to consider a bit decomposition of $c_2$, and to provide multiple relinearization keys, one for each bit of $c_2$.
+\[\mathsf{rlk}_i = ([-(a\cdot s + e + s^i\cdot s)]_q, a)\]
+and $\mathsf{rlk}(s) = -2^i\cdot s + \text{small}$. Then,
+\[c(s) + \sum^{|c_2|}_{i=1}\mathsf{rlk}_i(s)\cdot c_2[i]\]
+gives us $c_0 + c_1\cdot s + \text{small}$.
+
+It's cheaper to do addition because the error grows linearly, instead of multiplication which grows exponentially. Decomposing $s$ into its binary representation makes it an addition of small multiplications.
+
+Multiplication, in summary, will require a relinearization step to make our ciphertext linear again.
+
+\subsection{Private Information Retrieval (PIR)}
+
+The server holds the database $D$ and the client wants to retrieve $D[i]$. A na\"ive solution would be for the server to send the entire database to the client, but this requires communication complexity $O(n)$. We want sublinear communication complexity: $o(n)$.
+
+We briefly mentioned that if we have FHE that supports any function, the client can easily encrypt index $i$ to send to the server, the server can homomorphically evaluate the `lookup' function that will compute $D[i]$. To do that, our fully homomorphic encryption is very expensive, so we'll use somewhat homomorphic encryption (using limited number of operations).
+
+The client will have some encryptions of $0$s and an encryption of $1$ in the $i$-th position. That is, $ct_i \leftarrow \Enc(1)$ and $ct_j \leftarrow \Enc(0)$ for $j\neq i$. All this gets transferred to the server.
+
+The server computes
+\[ct'\leftarrow \sum^n_{i=1}D[i]\cdot ct_i\]
+and sends $ct'$ back. In essence, the $ct_i$ is an indicator for the index.
+
+\pseudocodeblock{
+    \textbf{Server} \< \< \textbf{Client}\\
+    \text{Database }D \< \< \text{Want: }D[i] \text{ while hiding }i \\
+    \< \< \text{ from the server}\\
+    \< \sendmessageleft*{
+            \text{ct}_1 \> \gets \Enc(0)\\
+            \> \vdots \\
+            \text{ct}_{i-1} \> \gets \Enc(0) \\
+            \text{ct}_i \> \gets \Enc(1)\\
+            \text{ct}_{i+1} \> \gets \Enc(0) \\
+            \> \vdots \\
+            \text{ct}_n \> \gets \Enc(0)
+    } \< \\
+    ct'\leftarrow \sum^n_{i=1}D[i]\cdot ct_i \< \< \\
+    \text{(Homomorphic sum } \< \< \\
+    \text{and scalar multiplication)} \< \< \\
+    \< \sendmessageright*{\text{ct}'} \< \\
+    \< \< D[i] = \Dec(\text{ct'})
+}
+
+However, this is still $O(n)$ communication. Instead, store the database as a 2D-matrix. Say the client wants to query $D[x,y]$. The client will send $ct_i^{(1)}\leftarrow \Enc(0)$ if $i\neq x$, or $ct_x^{(1)}\leftarrow \Enc(1)$. Similarly for the $y$ coordinate.
+
+Then, the server will compute
+\[ct'\leftarrow \sum^{\sqrt{n}}_{i,j=1}D[i,j]\cdot ct_i^{(1)}\cdot ct_j^{(2)}\]
+and sends $ct'$ back.
+
+$D[x,y] = \Dec(ct')$. This achieves query in $O(\sqrt{n})$ communication complexity, with 1 homomorphic multiplication and 1 homomorphic scalar multiplication.
+
+\pseudocodeblock{
+    \textbf{Server} \< \< \textbf{Client}\\
+    \text{Database }D,\ \text{a square matrix} \< \< \text{Want: }D[x, y] \text{ while hiding (x, y)} \\
+    \< \< \text{ from the server}\\
+    \< \sendmessageleft*{
+            \text{ct}^{(1)}_1 \> \gets \Enc(0)\quad 
+            \text{ct}^{(2)}_1 \>\> \gets \Enc(0)\\
+            \> \vdots \>\> \vdots \\
+            \text{ct}^{(1)}_x \> \gets \Enc(1) \quad 
+            \text{ct}^{(2)}_y \>\> \gets \Enc(1) \\
+            \> \vdots \>\> \vdots\\
+            \text{ct}^{(1)}_{\sqrt{n}} \> \gets \Enc(0) \quad 
+            \text{ct}^{(2)}_{\sqrt{n}} \>\> \gets \Enc(0)
+    } \< \\
+    ct'\gets \sum^{\sqrt{n}}_{i,j=1}D[i,j]\cdot ct_i^{(1)}\cdot ct_j^{(2)}\< \< \\
+    \text{(Homomorphic sum, multiplication,} \< \< \\
+    \text{and scalar multiplication)} \< \< \\
+    \< \sendmessageright*{\text{ct}'} \< \\
+    \< \< D[x, y] = \Dec(\text{ct'})
+}
