@@ -1,0 +1,243 @@
+%!TEX root = ../notes.tex
+\section{April 20, 2026}
+\label{20260420}
+
+\subsection{FHE Constructions}
+
+So far, we only have talked about Somewhat Homomorphic Encryption schemes. They have some sort of noise/error associated with them. As we try to grow our problems, so will the noise, until we cannot do more operations. To resolve this, we introduce a technique called bootstrapping.
+
+We begin with a collection of ciphertexts $\ct_1, \dots, \ct_n$, and we want to homomorphically evaluate a function $f$ on them to get $\ct_f$. There may be too much noise on $\ct_f$. Our hope is to decrypt $\ct_f$ to get $y= f(x)$, then re-encrypt $y$ to get $\ct_y$ which gives removes the old noise and gives us ``fresh'' noise (so the noise does not build up).
+
+\begin{center}
+    \def\svgwidth{0.55\columnwidth}
+    \input{images/2024/.xdp-2024-04-15-fhe-bootstrap.pdf_tex-rWOKhT}
+\end{center}
+
+One can think of this using a box analogy. The collection of ciphertexts $\ct_1, \dots, \ct_n$ acts as a box that hides the input $x$. Then homomorphically evaluating $f$ on this box gives us $y$, which is still encrypted and thus remains in a box. Then decryption ``peels'' away the box to uncover $y$, and encryption puts a new box that covers $y$.
+
+The problem is that we need a secret key to decrypt $y$. To solve this, the secret key is shared by using another encryption (i.e. putting it into another box), which allows us to decrypt $\ct_f$
+
+\begin{enumerate}
+    \item[Step 1.] Begin with a collection of ciphertexts $\ct_1, \dots, \ct_n$ (which is an encryption of $x$) and homomorphically compute $f$ on them to get $\ct_f$ (which is an encryption of $f(x)$). Let this encryption have public key and secret key $(\pk_1, \sk_1)$.
+    \item[Step 2.] Take $\ct_f$ and encrypt it with a new encryption with public key and secret key $(\pk_2, \sk_2)$. This can be done by considering the binary string of $\ct_f$ and encrypting the $i$th bit as $\ct_i^{(2)}$.
+    \item[Step 3.] Take $\sk_1$ and encrypt it with the encryption in the previous step. This can be done by considering the binary string of $\sk_1$ and encrypting the $i$th bit as $\tilde{\ct}_i^{(2)}$.
+    \item[Step 4.] Do a decryption $f' = \Dec(\sk_1, \ct_f)$, which is homomorphic with respect to the $(\pk_2, \sk_2)$ encryption. This gives us a ciphertext $\ct_{f'} = \Enc_{\pk_2}(y)$.
+\end{enumerate}
+
+\begin{center}
+    \def\svgwidth{0.7\columnwidth}
+    \input{images/2024/.xdp-2024-04-15-level-fhe.pdf_tex-qGXmQ8}
+\end{center}
+
+This procedure is called \textbf{Leveled FHE}. We can repeat this for multiple encryptions. Note we are always encrypting the previous secret key $\sk_{n-1}$ with a new public key $\pk_n$.
+
+\begin{align*}
+    \pk_1 \quad & \pk_2  && \pk_3 &&& \dots &&&& \pk_n\\
+    & \Enc_{\pk_2}(\sk_1) && \Enc_{\pk_3}(\sk_2) &&& &&&& \Enc_{\pk_n}(\sk_{n-1})
+\end{align*}
+
+However, this is still not Fully-Homomorphic Encryption. To achieve FHE, we need to use the idea of encrypting our own secret key using our own public key, i.e. $\Enc_{\pk}(\sk)$. There is only one public key and one secret key. This is a little tricky because there is a ``circular'' security assumption. This is the only technique we know to achieve FHE.
+
+There is a lot of research going on to find applications of homomorphic encryption, but people are more interested in finding how to achieve FHE. So far, bootstrapping is the biggest bottleneck. Even doing one operation can take hours. However, in a lot of cases, we do not need FHE, and SWHE is sufficient enough.
+
+\subsection{Outsourcing Computation by FHE}
+
+By using FHE, we can outsource computation for a server to do while preserving the privacy of the inputs.
+
+\pseudocodeblock{
+    \textbf{Server} \< \< \textbf{Client} \\
+    \< \< \text{Data }x \text{, Key } \sk \\
+    \< \< \ct \gets \Enc(x)\\
+    \< \sendmessageleft*{\ct, f} \< \\
+    \text{Public Evaluation} \< \< \\
+    \ct' \gets \Eval(f, \ct) \< \< \\
+    \< \sendmessageright*{\ct'} \< \\
+    \< \< f(x) \gets \Dec_{\sk}(\ct')\\
+}
+
+Usually, this procedure is very expensive for the server to compute. Instead of using this, there is an alternate solution using \textit{secure hardware}.
+
+\subsection{Outsourcing Computation by Secure Hardware}
+
+Imagine that the server, instead of having all of the computations being public, has an encrypted form of the memory and the CPU. Whatever happens on the server side in the hardware (memory and CPU) is hidden to the server. The hardware is like a secure enclave. This is known as \textit{secure hardware}.
+
+If the client and the secure hardware can agree on a secret key $\sk$ that is hidden from the server, then the server uses the secure hardware to do computation without learning the input. This is much faster than homomorphic encryption.
+
+\pseudocodeblock{
+    \textbf{Server} \< \< \textbf{Client} \\
+    \< \< \text{Data }x \text{, Key } \sk \\
+    \< \< \ct \gets \Enc(x)\\
+    \text{Input }(\ct, f) \< \sendmessageleft*{\ct, f}\< \\
+    % begin secure hardware box
+    \fbox{\begin{subprocedure}\procedure{Secure Hardware}{
+        x \gets \Dec_{\sk}(\ct)\\
+        y:= f(x)\\
+        \pcreturn \ct' \gets \Enc_{\sk}(y)\\
+    }\end{subprocedure}} \< \< \\
+    % end secure hardware box
+    \text{Get }\ct' \< \sendmessageright*{\ct'} \< y \gets \Dec_{\sk}(\ct')\\
+}
+
+\subsubsection{Intel Software Guard Extension (SGX)}
+
+How does the client and the secure hardware agree on the secret key? They must do a key exchange with each other. This is exactly what happens in Intel SGX, also known as ``secure enclave''.
+
+\pseudocodeblock{
+    \textbf{Server} \< \< \textbf{Client} \\
+    \< \sendmessagerightleft*{\text{DH Key Exchange}} \< \\
+    % begin secure hardware box
+    \fbox{\begin{subprocedure}\procedure{Enclave}{
+        b \gets \ZZ_q\\
+        \pcreturn g^b\\
+        k := \text{HKDF}(g^{ab})\\
+    }\end{subprocedure}} \< \sendmessageleft*{g^a} \< a \sample \ZZ_q \\
+    \< \sendmessageright*{g^b} \< k: = \text{HKDF}(g^{ab})\\
+    % end secure hardware box
+    \text{Input }(\ct, f) \< \sendmessageleft*{\ct, f}\< \\
+    % begin secure hardware box
+    \fbox{\begin{subprocedure}\procedure{Enclave}{
+        x \gets \Dec_{\sk}(\ct)\\
+        y:= f(x)\\
+        \pcreturn \ct' \gets \Enc_{\sk}(y)\\
+    }\end{subprocedure}} \< \< \\
+    % end secure hardware box
+    \text{Get }\ct' \< \sendmessageright*{\ct'} \< y \gets \Dec_{\sk}(\ct')\\
+}
+
+Here, the client does a DH key exchange with the secure enclave by sending $g^a$ to the server, which passes it onto the enclave. Then the enclave returns $g^b$, which the server passes onto the client. However, the is susceptible to a man-in-the-middle attack, where the server is the man-in-the-middle and can send their own $g^{b'}$ to the client instead of $g^b$. To remedy this, we need to use digital signatures so that the enclave can prove to the client that they are certified by Intel.
+
+Every time when you want to compute some function, you need to generate a new certificate. The enclave must run a ``provisioning'' procedure with Intel to receive a new certificate (Intel can charge you here!) and the client must run some ``attestation'' procedure (Intel can charge you here!). It does not have to be as complicated as this, but it is so because there is a business model.
+
+The certificate is also generated on the the function $f$, so that the client ensures that the enclave is computing the correct function.
+
+\textbf{Constraints and Attacks:}
+
+\begin{enumerate}
+    \item Need to trust hardware and Intel to do things correctly.
+    \item Limited memory size: 128 MB
+    \item Replay attacks: although everything is secure against the server, the server can keep a snapshot of everything and replay things on a future input.
+    \item Side-channel attacks: it leaks the memory access pattern. When the CPU in the enclave will utilize different blocks of memory, and the server can see the pattern in which the CPU accesses different memory locations. For example, the server might notice that the CPU accesses the same memory location multiple times, which can reveal something about the computation. A fix involves something called ``Oblivous RAM (ORAM)'', which requires $\Theta (\log N)$ memory overhead.
+\end{enumerate}
+
+\subsection{Differential Privacy}
+
+Let's say that we have a database of sensitive data that we want to make public to others without compromising individual's privacy. For example, there might be a database of medical information that we want to share for medical studies.
+
+\begin{center}
+    \begin{tabular}{|c|c|c|c|c|c|c|}
+        \hline
+        Name & Age & Gender & Race & Weight & ZIP & Disease\\ \hline
+        Alice & & & & & &\\ \hline
+        Bob & & & & & &\\ \hline
+        Charlie & & & & & &\\ \hline
+        David & & & & & &\\ \hline
+        Emily & & & & & &\\ \hline
+        Fiona & & & & & &\\ \hline
+    \end{tabular}
+\end{center}
+
+One attempt to simply anonymize the data by deleting personally identifiable information (PII) such as the name, date of birth, etc. This might still reveal information about the individual. For example, if you see ``Asian female, age 30, living in Providence'' you might guess it might be Peihan! Although the privacy guarantees may be weak, this is what is being used by HIPAA.
+
+Another attempt is to only answer \textit{aggregate statistics queries}, for example only answering ``How many people in Providence have this disease?''. We can hope that this reveals less information about the individual. Unfortunately, we may still be able to infer a lot from these aggregate statistics. A similar attack actually occured involving Facebook Ads, where an attacker was able to use agregate queries to profile specific users.
+
+Our goal is that the output shouldn't enable one to learn anything about an individual. This can be trivially achieved, for example if the output was 0 regardless of the data. Then the output does not reveal any private information of the data, but also does not provide much use. Hence, there is a tradeoff between privacy and correctness/utility.
+
+Instead, our goal is that the output shouldn't enable one to learn \textit{much more} about an individual \textit{compared to} one with an output computed without the individual.
+
+\begin{definition}
+    For a database $D \in \mathcal{X}^n$, let $M$ be a \textit{randomized mechanism} that takes in $D$ and outputs a randomized output $M(D)$.
+    $$D  \to \fbox{M} \to M(D)$$
+
+    \textbf{$\epsilon$-Differential Privacy for M} states that for all neighboring datasets $D_1$ and $D_2$ (neighboring means that they differ in exactly one row), and for all $T \subseteq \text{range}(M)$, we have
+    $$\Pr [M(D_1) \in T] \leq e^{\epsilon} \cdot \Pr[M(D_2) \in T].$$
+\end{definition}
+
+Intuitively, this states that two neighboring datasets have outputs that have similar probability distributions. If you apply $M$ on $D_1$, it will give you the red distribution, and if you apply $M$ on $D_2$, it will give you the blue distribution. Under the interval $T$, the two distributions are close.
+
+\begin{center}
+    \def\svgwidth{0.5\linewidth}
+    \input{images/2024/.xdp-2024-04-22-diff-priv-pmf.pdf_tex-VFK3Hm}
+\end{center}
+
+This property can be relaxed with the following definition.
+
+\begin{definition}
+    \textbf{$\epsilon, \delta$-Differential Privacy for M} states that for all neighboring datasets $D_1$ and $D_2$, and for all $T \subseteq \text{range}(M)$, we have
+    $$\Pr [M(D_1) \in T] \leq e^{\epsilon} \cdot \Pr[M(D_2) \in T] {\color{red} + \delta}.$$
+
+    If $\epsilon$ or $\delta$ are large, then this is bad for privacy since the two distributions are allowed to differ more. The $\delta$ helps in cases where the distribution is very close to 0.
+\end{definition}
+
+An example of a randomized mechanism that is differentially private is called \textit{randomized response}.
+
+\subsubsection{Randomized Response}
+
+Let's say that we want to find the percentage of individuals that satisfy a predicate P. For example, the predicate could be ``is a MATH-CS concentrator''. Then the randomized response algorithm does the following.
+
+\pseudocodeblock{
+    \text{For each row }x_i:\\
+    \quad 1.\ b \sample \{0, 1\}\\
+    \quad 2.\ \text{If } b=0, \text{ then }y_i := P(x_i).\\
+    \quad \quad \text{Otherwise, }y_i \sample \{0, 1\}\\
+    M(D) := (y_1, \dots, y_n)
+}
+
+For example, if we want to find how many students are MATH-CS concentrators, for each student, we will decide to accurately report whether they are a concentrator if $b=0$. Otherwise, if $b=1$, we will just report a random value. Thus, half of the output is the actual response while the other half is just random.
+
+\textbf{Thm:} Randomized response is $\ln 3$-differential private.
+
+\textit{How to estimate the query output $\alpha$?} Let's say that $\alpha$ is the true percentage that satisfies $P$, and that we observe $k$ many 1's in the output. Then $k$ should be approximately
+$$k \sim \frac{n}{2}\cdot\frac{1}{2} + \frac{n}{2}\cdot \alpha$$
+since roughly half of individuals give random results and half of individuals give true results. Using this, we can approximate $\alpha$ from $k$.
+
+\textit{How to make the mechanism more private?} If we want more privacy, we can adjust the distribution that $b$ is sampled from. We can adjust $b$ to be sampled as $0$ less often, thus the probability that individuals are revealing their true response is lower.
+
+\subsubsection{Laplace Mechanism}
+
+The Laplace mechanism is another mechanism that is popular in practice. This can compute an arbitrary real-valued function. This utilizes a notion called \textit{sensitivity} of a function.
+
+\begin{definition}
+    The \textbf{sensitivity} $\Delta f$ of a function $f: \mathcal{X}^n \to \mathbb{R}$ is defined as
+    $$\Delta f := \max_{D_1 \sim D_2}|f(D_1) - f(D_2)|.$$
+
+    $D_1\sim D_2$ means that $D_1$ and $D_2$ are neighbors.
+\end{definition}
+
+The Laplace mechanism is very simple. It justs computes $f$ and adds some noise onto it. For this reason, it is one of the most employed mechanism in practice.
+
+\begin{definition}
+    The \textbf{Laplace mechanism} is defined to be
+    $$M(D) = f(D) + \text{Lap}(\Delta f / \epsilon)$$
+\end{definition}
+
+Here, Lap$(b)$ gives the Laplace distribution whose probability density function (PDF) is given by 
+$$\text{PDF}(x) := \frac{1}{2b} \cdot \exp\left(-\frac{|x|}{b}\right).$$
+For $x \sim \text{Lap}(b)$, we have that $\Pr [|x| \geq bt] \leq \exp (-t)$.
+
+Below is a plot of PDF for different values of $b$.
+
+\begin{center}
+    \def\svgwidth{0.5\linewidth}
+    \input{images/2024/.xdp-2024-04-22-laplace-pdf.pdf_tex-ei4hPu}
+\end{center}
+
+\textit{Is a bigger $b$ better for privacy, or worse?} A higher $b$ gives better privacy. Intuitively, the PDF becomes wider, so the $\text{Lap}(\Delta f / \epsilon)$ term becomes more random.
+
+\begin{theorem}[Post-processing]
+    If $M: X^n \to Y$ is $(\epsilon, \delta)$-differentially private, and $f:Y\to Z$ is an arbitrary randomized function, then $f\circ M : X^n \to Z$ is also $(\epsilon, \delta)$-differentially private.
+\end{theorem}
+
+\begin{theorem}[Group privacy]
+    If $M: X^n \to Y$ is $(\epsilon, 0)$-differentially private, then $M$ is $(k\cdot \epsilon, 0)$-differentially private for groups of size $k$.
+
+    In the standard definition of differential privacy, we consider two databases that differ by at most one row. However, in some cases, we may want to have a group of databases. Intuitively, you apply $M$ k times between each database, and each time you will lose $\epsilon$ privacy. In total, you lose $k \cdot \epsilon$ privacy.
+\end{theorem}
+
+\begin{theorem}[Composition]
+    If $M_i: X^n \to Y$ is $(\epsilon_i, \delta_i)$-differentially private for $i = 1, \dots, k,$ then
+    $$M(D) := (M_1(D), \dots, M_k(D))$$
+    is $(\sum \epsilon_i, \sum \delta_i)$-differentially private.
+\end{theorem}
+
+
+
